@@ -21,7 +21,7 @@ jobs:
         run: Tests/CleanGUI/run.sh
       - name: Image background editing
         run: |
-          Tests/ImageBackground/run.sh
-          Tests/ImageBackgroundIntegration/run.sh
+          zsh Tests/ImageBackground/run.sh
+          zsh Tests/ImageBackgroundIntegration/run.sh
       - name: Existing editing behavior
         run: Tests/run-editing.sh
