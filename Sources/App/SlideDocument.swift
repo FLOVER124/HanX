@@ -20,6 +20,10 @@ final class SlideDocument: NSDocument {
     // Session-only provenance follows unique media IDs through slide reorder and undo.
     private var imageBackgroundOriginals: [String: (id: String, image: ImageData)] = [:]
 
+    func originalImageForBackgroundEditing(_ imageID: String) -> ImageData? {
+        imageBackgroundOriginals[imageID]?.image ?? pres.images[imageID]
+    }
+
     func canRestoreImageBackground(_ imageID: String?) -> Bool {
         imageID.flatMap { imageBackgroundOriginals[$0] } != nil
     }
@@ -1112,7 +1116,7 @@ extension SlideWindowController {
         canvas.endEditing()
         guard let window, imageBackgroundEditor == nil else { return }
         guard canvas.selectedIDs.count == 1, let shape = canvas.selected, shape.kind == .image, !shape.locked,
-              let imageID = shape.imageID, let source = doc.pres.images[imageID] else {
+              let imageID = shape.imageID, let source = doc.originalImageForBackgroundEditing(imageID) else {
             imageAlert("그림을 선택해 주세요", detail: "배경을 제거할 그림 하나를 선택하세요."); return
         }
         let index = current

@@ -160,6 +160,7 @@ shape에는 kind (`text/rect/roundRect/ellipse/triangle/rightArrow/line/image/ta
 - `set_transition`: `slide`, `kind`, `duration`, `direction` (`left/right/top/bottom`), advanceAfter(초 또는 null), advanceOnClick, vertical, inward.
 - `add_shape`: `slide`, `value`(도형 명세).
 - `update_shape`: `slide`, `shapeId`와 수정할 shape 필드.
+- `set_table_cell`: `slide`, `shapeId`, `row`, `column`, `text` (행과 열은 0부터 시작). 슬라이드 표의 일반 텍스트 셀을 편집하며 그림이나 필드가 있는 셀은 거부합니다.
 - `set_animations`: `slide`, `animations` 배열. 각 항목에 `shapeID`, `effect`, `trigger`, `duration`, `delay`, `direction`을 지정합니다. 대상 개체와 효과 이름을 검증하며 기존 효과 목록 전체를 교체합니다.
 - `duplicate_shape`: `slide`, `shapeId`, 선택적 `offsetX/offsetY`(기본 20pt). 그림, 표, 서식과 해당 개체의 애니메이션을 복제합니다.
 - `reorder_shape`: `slide`, `shapeId`, `to`(0부터 시작하는 개체 순서).

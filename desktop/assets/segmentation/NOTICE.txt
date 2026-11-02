@@ -1,0 +1,9 @@
+U²-Net: Going Deeper with Nested U-Structure for Salient Object Detection
+Xuebin Qin, Zichen Zhang, Chenyang Huang, Masood Dehghan, Osmar R. Zaiane, Martin Jagersand. Pattern Recognition 2020.
+https://github.com/xuebinqin/U-2-Net
+
+U2NetP model: Apache License 2.0 (U2NET-LICENSE.txt). The author explicitly confirms released model and code licensing in issue #208: https://github.com/xuebinqin/U-2-Net/issues/208#issuecomment-847883906
+The author separately notes that dataset rights are not controlled by them. U2NetP was trained on DUTS; no dataset is included here and this attribution makes no independent claim concerning training-data rights.
+ONNX distribution: danielgatis/rembg release v0.0.0. The rembg wrapper MIT license is not used as the model license. The ONNX artifact is copied without modifications; SHA256 and upstream URLs are in manifest.json.
+
+ONNX Runtime Web 1.22.0: Copyright (c) Microsoft Corporation. MIT (ONNXRUNTIME-LICENSE.txt). Prebuilt JavaScript and WebAssembly copied from the published npm package. No runtime downloads or external services are used.

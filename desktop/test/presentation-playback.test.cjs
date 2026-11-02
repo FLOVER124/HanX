@@ -15,8 +15,29 @@ test('all nineteen effects generate meaningful keyframes preserving base transfo
  assert.match(P.keyframes('flyIn','right')[0].transform,/1000%/);assert.match(P.keyframes('flyIn','top')[0].transform,/-1000%/);
 });
 test('transition plans preserve direction, push/pull layering and split axis',()=>{
- assert.equal(P.transitions.length,10);assert.equal(P.transitionFrames({kind:'pull'}).oldAbove,true);assert.equal(P.transitionFrames({kind:'push',direction:'left'}).incoming[0].transform,'translate(-100%,0%)');assert.equal(P.transitionFrames({kind:'split',vertical:true}).incoming[0].clipPath,'inset(0 50%)');assert.equal(P.transitionFrames({kind:'dissolve'}).dissolve,true);assert.equal(P.transitionFrames({kind:'checker'}).unsupported,true);
+ assert.equal(P.transitions.length,21);assert.equal(P.transitionFrames({kind:'pull'}).oldAbove,true);assert.equal(P.transitionFrames({kind:'push',direction:'left'}).incoming[0].transform,'translate(-100%,0%)');assert.equal(P.transitionFrames({kind:'split',vertical:true}).incoming[0].clipPath,'inset(0 50%)');assert.equal(P.transitionFrames({kind:'dissolve'}).dissolve,true);assert.equal(P.transitionFrames({kind:'unknown'}).unsupported,true);
 });
 test('timeline rejects invalid enums and nonfinite timing before playback',()=>{
  for(const patch of [{effect:'unknown'},{trigger:'unknown'},{direction:'unknown'},{duration:NaN},{delay:-1},{duration:3601}])assert.throws(()=>P.timeline([animation(patch)]));
+});
+
+test('pattern transitions have distinct evolving normalized geometry and complete endpoints',()=>{
+ const kinds=['blinds','checker','comb','randomBar','strips','circle','diamond','plus','wedge','wheel'];
+ const middles=new Set();
+ for(const kind of kinds){
+  const t={kind,direction:'left'};
+  assert.equal(P.transitionFrames(t).mask,true,kind);
+  assert.equal(P.transitionMask(t,0),'',kind);
+  assert.equal(P.transitionMask(t,1),'M0 0H1V1H0Z',kind);
+  const middle=P.transitionMask(t,.43);assert.ok(middle.length>10,kind);middles.add(middle);
+  assert.notEqual(middle,P.transitionMask(t,.65),kind);
+  assert.equal(P.transitionMask({...t,inward:true},.57),middle,kind);
+ }
+ assert.equal(middles.size,kinds.length);
+ for(const kind of ['blinds','checker','comb','randomBar','strips']){
+  assert.notEqual(P.transitionMask({kind},.4),P.transitionMask({kind,vertical:true},.4),kind);
+  assert.notEqual(P.transitionMask({kind,direction:'left'},.4),P.transitionMask({kind,direction:'right'},.4),kind);
+ }
+ assert.match(P.transitionFrames({kind:'newsflash'}).incoming[0].transform,/rotate/);
+ assert.equal(P.transitionFrames({kind:'circle',inward:true}).oldAbove,true);
 });

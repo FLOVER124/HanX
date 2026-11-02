@@ -52,6 +52,17 @@ class CLI(unittest.TestCase):
         self.runcli('create','--spec',spec,'--output',p); d=self.runcli('read',p); self.assertIn('첫 장',d['text']); self.assertEqual(d['model']['slides'][0]['notes'],'발표 노트')
         ops=self.spec('slide-ops.json',[{'op':'duplicate_slide','slide':0},{'op':'set_transition','slide':1,'kind':'push','direction':'left','duration':1.3},{'op':'set_notes','slide':1,'text':'수정 노트'},{'op':'update_shape','slide':1,'shapeId':4,'rotation':45}]); out=self.root/'수정.pptx'
         self.runcli('edit',p,'--ops',ops,'--output',out); slides=self.runcli('read',out)['model']['slides']; self.assertEqual(len(slides),2); self.assertEqual(slides[1]['transition']['kind'],'push'); self.assertEqual(slides[1]['notes'],'수정 노트'); self.assertEqual(next(x for x in slides[1]['shapes'] if x['id']==4)['rotation'],45)
+    def test_slide_table_cell_edit_preserves_style_geometry_and_undo_source(self):
+        source=self.root/'표.json';out=self.root/'표 수정.pptx'
+        spec={'kind':'presentation','slides':[{'shapes':[{'kind':'table','x':80,'y':90,'width':300,'height':100,'rotation':12,'table':{'columnWidths':[150,150],'rows':[[{'text':'기존','style':{'bold':True}},'옆 셀'],['다음 행','값']]}}]}]}
+        self.runcli('create','--spec','-','--output',source,stdin=json.dumps(spec));before=self.runcli('read',source)['model'];shape=before['slides'][0]['shapes'][-1]
+        self.runcli('edit',source,'--ops','-','--output',out,stdin=json.dumps([{'op':'set_table_cell','slide':0,'shapeId':shape['id'],'row':0,'column':0,'text':'기존 추가'}]))
+        after=self.runcli('read',out)['model']['slides'][0]['shapes'][-1]
+        self.assertEqual(after['frame'],shape['frame']);self.assertEqual(after['rotation'],12)
+        self.assertIn('기존 추가',self.runcli('read',out)['text']);self.assertIn('옆 셀',self.runcli('read',out)['text'])
+        self.assertEqual(self.runcli('read',source)['model'],before)
+        self.runcli('edit',source,'--ops','-','--output',self.root/'invalid.pptx',stdin=json.dumps([{'op':'set_table_cell','slide':0,'shapeId':shape['id'],'row':99,'column':0,'text':'bad'}]),ok=False)
+
     def test_animation_edit_and_pptx_roundtrip(self):
         source=self.root/'animation.json'
         self.runcli('create','--spec','-','--output',source,stdin=json.dumps({'kind':'presentation','slides':[{'title':'대상'}]}))

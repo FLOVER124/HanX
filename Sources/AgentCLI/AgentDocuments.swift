@@ -8,7 +8,7 @@ import FoundationNetworking
 
 enum AgentDocuments {
     static let documentOps=["replace_text","append_paragraph","append_block","insert_block","delete_block","set_paragraph","style_paragraph","set_cell","set_page"]
-    static let slideOps=["replace_text","add_slide","duplicate_slide","delete_slide","move_slide","set_notes","set_transition","add_shape","update_shape","delete_shape","duplicate_shape","reorder_shape","set_animations"]
+    static let slideOps=["replace_text","add_slide","duplicate_slide","delete_slide","move_slide","set_notes","set_transition","add_shape","update_shape","delete_shape","duplicate_shape","reorder_shape","set_animations","set_table_cell"]
 
     static func color(_ value:Any?,_ label:String)throws->RGB? {
         guard let value,!(value is NSNull) else { return nil }
@@ -291,7 +291,7 @@ enum AgentDocuments {
                 "set_cell":["section","block","row","column","text"],"set_page":["section","page"],
                 "add_slide":["at","value"],"duplicate_slide":["slide"],"delete_slide":["slide"],"move_slide":["slide","to"],
                 "set_notes":["slide","text"],"set_transition":["slide","kind","duration","direction","advanceAfter","advanceOnClick","vertical","inward"],
-                "set_animations":["slide","animations"],"duplicate_shape":["slide","shapeId","offsetX","offsetY"],"reorder_shape":["slide","shapeId","to"],
+                "set_table_cell":["slide","shapeId","row","column","text"],"set_animations":["slide","animations"],"duplicate_shape":["slide","shapeId","offsetX","offsetY"],"reorder_shape":["slide","shapeId","to"],
                 "add_shape":["slide","value"],"delete_shape":["slide","shapeId"],"update_shape":shapeKeys.union(["slide","shapeId"])
             ]
             guard let allowed=keys[name] else { throw AgentError("invalid_operation","Unknown operation: \(name)") }
@@ -361,6 +361,23 @@ enum AgentDocuments {
                 case "delete_slide":p.slides.remove(at:i)
                 case "move_slide":
                     let to=try AgentIO.index(op["to"],"to"); guard p.slides.indices.contains(to) else { throw AgentError("invalid_index","to out of range") }; let s=p.slides.remove(at:i); p.slides.insert(s,at:to)
+                case "set_table_cell":
+                    let id = try AgentIO.index(op["shapeId"], "shapeId")
+                    let row = try AgentIO.index(op["row"], "row"), column = try AgentIO.index(op["column"], "column")
+                    guard let shapeIndex = p.slides[i].shapes.firstIndex(where: { $0.id == id }),
+                          let table = p.slides[i].shapes[shapeIndex].table,
+                          table.rows.indices.contains(row), table.rows[row].indices.contains(column),
+                          !table.rows[row][column].isMergedAway else { throw AgentError("invalid_index", "Table cell not found") }
+                    let cell = table.rows[row][column]
+                    guard cell.blocks.allSatisfy({ block in
+                        guard case .paragraph(let paragraph) = block else { return false }
+                        return paragraph.inlines.allSatisfy { inline in
+                            switch inline { case .text, .tab, .lineBreak: return true; default: return false }
+                        }
+                    }) else { throw AgentError("invalid_operation", "Use model editing to preserve embedded objects in this table cell") }
+                    let text = try AgentIO.string(op["text"], "text")
+                    guard text.utf16.count <= 32767 else { throw AgentError("invalid_argument", "Cell text exceeds 32767 UTF-16 units") }
+                    p.slides[i].shapes[shapeIndex].table = SlideTableEditing.settingText(table, row: row, column: column, text: text)
                 case "set_animations":
                     guard let values = op["animations"] as? [Any], values.count <= 1000 else { throw AgentError("invalid_argument", "animations must contain at most 1000 entries") }
                     p.slides[i].animations = try values.map { value in

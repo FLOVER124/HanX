@@ -1,0 +1,42 @@
+{
+  "model": {
+    "name": "U\u00b2-NetP",
+    "source": "https://github.com/danielgatis/rembg/releases/download/v0.0.0/u2netp.onnx",
+    "upstream": "https://github.com/xuebinqin/U-2-Net",
+    "license": "Apache-2.0",
+    "licenseConfirmation": "https://github.com/xuebinqin/U-2-Net/issues/208#issuecomment-847883906",
+    "changes": "Published ONNX artifact copied unchanged; no conversion or quantization."
+  },
+  "runtime": {
+    "name": "onnxruntime-web",
+    "version": "1.22.0",
+    "source": "https://registry.npmjs.org/onnxruntime-web/-/onnxruntime-web-1.22.0.tgz",
+    "license": "MIT"
+  },
+  "files": {
+    "ONNXRUNTIME-LICENSE.txt": {
+      "bytes": 1073,
+      "sha256": "2f07c72751aed99790b8a4869cf2311df85a860b22ded05fa22803587a48922c"
+    },
+    "U2NET-LICENSE.txt": {
+      "bytes": 11357,
+      "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"
+    },
+    "ort-wasm-simd-threaded.mjs": {
+      "bytes": 20856,
+      "sha256": "30dd851d9c00622940500f71ddd2ff8820c5cb65270816080175b958705385a8"
+    },
+    "ort-wasm-simd-threaded.wasm": {
+      "bytes": 11210254,
+      "sha256": "71aef04959c5c1b6de461b6538e2058e306610034a85aad2742d0c7fd4533fe4"
+    },
+    "ort.wasm.min.js": {
+      "bytes": 48327,
+      "sha256": "65e09376df69107e881b5c34d2d37aed333a366b6d941073ec518168e269b87d"
+    },
+    "u2netp.onnx": {
+      "bytes": 4574861,
+      "sha256": "309c8469258dda742793dce0ebea8e6dd393174f89934733ecc8b14c76f4ddd8"
+    }
+  }
+}

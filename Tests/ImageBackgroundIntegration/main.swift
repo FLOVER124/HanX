@@ -32,6 +32,7 @@ let editedID = doc.pres.slides[0].shapes[0].imageID!
 check(editedID != "fixture.png" && doc.pres.images[editedID]?.data == processed, "replacement uses separate PNG asset")
 check(doc.pres.images["fixture.png"]?.data == originalPNG, "original bytes remain untouched")
 check(doc.pres.slides[0].shapes[0].frame.x == 40 && doc.pres.slides[0].shapes[0].rotation == 25 && doc.pres.slides[0].shapes[0].flipH, "replacement preserves geometry and orientation")
+check(doc.originalImageForBackgroundEditing(editedID)?.data == originalPNG, "reopening editor uses original full-resolution bytes")
 check(doc.canRestoreImageBackground(editedID), "processed asset has session restore provenance")
 doc.undoManager?.undo()
 check(doc.pres.slides[0].shapes[0].imageID == "fixture.png" && doc.pres.images[editedID] == nil, "undo restores original and removes generated media")
@@ -66,7 +67,12 @@ doc.pres.slides = [slide]; doc.undoManager?.removeAllActions(); controller.reloa
 controller.debugRibbon.showTab("그림")
 controller.showWindow(nil); settle()
 controller.selectShape(7)
-controller.ribbonCommand("imageBackground", ""); settle()
+controller.ribbonCommand("imageBackground", "")
+if let content = controller.window!.attachedSheet?.contentView,
+   let modes = descendants(content).compactMap({ $0 as? NSSegmentedControl }).first(where: { $0.segmentCount == 3 }) {
+    modes.selectedSegment = 1; _ = modes.sendAction(modes.action, to: modes.target)
+}
+settle()
 let sheet = controller.window!.attachedSheet
 check(sheet != nil, "ribbon background removal opens a preview sheet")
 if let content = sheet?.contentView {
@@ -86,10 +92,15 @@ if let content = sheet?.contentView {
 settle()
 check(controller.window!.attachedSheet == nil && doc.pres.slides[0].shapes[0].imageID == "fixture.png" && doc.undoManager?.canUndo == false, "cancel closes sheet without document mutation or undo entry")
 controller.selectShape(7)
-controller.ribbonCommand("imageBackground", ""); settle()
+controller.ribbonCommand("imageBackground", "")
+if let content = controller.window!.attachedSheet?.contentView,
+   let modes = descendants(content).compactMap({ $0 as? NSSegmentedControl }).first(where: { $0.segmentCount == 3 }) {
+    modes.selectedSegment = 1; _ = modes.sendAction(modes.action, to: modes.target)
+}
+settle()
 if let content = controller.window!.attachedSheet?.contentView {
     let controls = descendants(content)
-    if let slider = controls.compactMap({ $0 as? NSSlider }).first {
+    if let slider = controls.compactMap({ $0 as? NSSlider }).first(where: { $0.action != nil }) {
         slider.doubleValue = 100; _ = slider.sendAction(slider.action, to: slider.target)
     }
     let button = controls.compactMap({ $0 as? NSButton }).first(where: { $0.title == "적용" })
