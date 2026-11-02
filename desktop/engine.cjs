@@ -5,10 +5,10 @@ const os = require('node:os');
 const {tableCellEditable}=require('./model.js');
 const {randomUUID}=require('node:crypto');
 function visitSlideMedia(value,visit){if(!value||typeof value!=='object')return;for(const key of ['imageID','backgroundImage'])if(typeof value[key]==='string')value[key]=visit(value[key]);if(typeof value.image?.id==='string')value.image.id=visit(value.image.id);for(const child of Object.values(value))visitSlideMedia(child,visit);}
-const ALLOWED = new Set(['replace_text','append_paragraph','append_block','insert_block','delete_block','set_paragraph','style_paragraph','set_cell','set_page','add_slide','duplicate_slide','delete_slide','move_slide','set_notes','set_transition','add_shape','update_shape','delete_shape','set_range','fill_formula','style_range','clear_range','add_sheet','delete_sheet','merge','unmerge','freeze','set_column_width','set_row_height','define_name']);
+const ALLOWED = new Set(['replace_text','append_paragraph','append_block','insert_block','delete_block','set_paragraph','style_paragraph','set_cell','set_page','add_slide','duplicate_slide','delete_slide','move_slide','set_notes','set_transition','add_shape','update_shape','delete_shape','duplicate_shape','reorder_shape','set_range','fill_formula','style_range','clear_range','add_sheet','delete_sheet','merge','unmerge','freeze','set_column_width','set_row_height','define_name']);
 function validateOperations(ops) {
   if (!Array.isArray(ops) || !ops.length || ops.length > 10000) throw Error('Expected 1–10000 editing operations.');
-  if (JSON.stringify(ops).length > 8e6) throw Error('This edit is too large.');
+  if (JSON.stringify(ops).length > 24e6) throw Error('This edit is too large.');
   for (const op of ops) {
     if (!op || typeof op !== 'object' || !ALLOWED.has(op.op)) throw Error('Unsupported editing operation.');
     const visit=(value,depth=0)=>{if(depth>30)throw Error('This edit is too deeply nested.');if(typeof value==='number'&&!Number.isFinite(value))throw Error('Invalid numeric value.');if(value&&typeof value==='object')for(const [key,item] of Object.entries(value)){if(['imagePath','path','__proto__','constructor','prototype'].includes(key))throw Error('File paths are not allowed in editing operations.');visit(item,depth+1);}};visit(op);

@@ -74,3 +74,12 @@ test('cross-deck slide paste remaps colliding image IDs and preserves both image
  const output=path.join(s.directory,'two-decks.pptx');await s.save(output);await s.open(output);const roundtrip=await s.read();const first=roundtrip.model.slides.find(slide=>slide.notes==='destination'),second=roundtrip.model.slides.find(slide=>slide.notes==='source');assert.equal(roundtrip.model.images[first.shapes[0].imageID].data,destination.model.images['image1.png'].data);assert.equal(roundtrip.model.images[second.shapes[0].imageID].data,source.model.images['image1.png'].data);
  }finally{await s.close();}
 });
+test('shape duplication preserves image, table and rich properties while reorder and undo are exact',async()=>{
+ const s=await new Session(executable).init();try{
+  await s.create('document');await s.edit([{op:'append_block',section:0,block:{type:'table',rows:[['이미지와 서식']]}}]);const table=(await s.read()).model.sections[0].blocks[1].table._0;
+  await s.create('presentation');const initial=await s.read(),original=initial.model.slides[0].shapes[0];Object.assign(original,{imageID:'source.png',kind:'image',table,flipH:true,flipV:true,rotation:37,lockAspect:true});initial.model.images={'source.png':{name:'source.png',data:pngPixel(40,90,120)}};
+  original.paragraphs[0].props.spaceBefore=17;await writeModel(s,'presentation',initial.model);
+  await s.edit([{op:'duplicate_shape',slide:0,shapeId:original.id}]);let state=await s.read(),copy=state.model.slides[0].shapes[1];assert.notEqual(copy.id,original.id);assert.deepEqual({...copy,id:original.id,frame:original.frame},original);assert.equal(copy.frame.x,original.frame.x+20);assert.equal(copy.frame.y,original.frame.y+20);
+  await s.edit([{op:'reorder_shape',slide:0,shapeId:copy.id,to:0}]);state=await s.read();assert.equal(state.model.slides[0].shapes[0].id,copy.id);await s.undo();assert.equal((await s.read()).model.slides[0].shapes[1].id,copy.id);
+ }finally{await s.close();}
+});

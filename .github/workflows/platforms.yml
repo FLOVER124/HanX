@@ -122,6 +122,7 @@ jobs:
         working-directory: desktop
         run: |
           xvfb-run -a node_modules/.bin/electron test/renderer-ui.cjs --no-sandbox
+          xvfb-run -a node_modules/.bin/electron test/image-tools-ui.cjs --no-sandbox
           xvfb-run -a node_modules/.bin/electron . --no-sandbox --smoke-test
       - name: Windows renderer smoke
         if: runner.os == 'Windows'
@@ -129,6 +130,8 @@ jobs:
         shell: pwsh
         run: |
           & .\node_modules\.bin\electron.cmd test/renderer-ui.cjs
+          if ($LASTEXITCODE -ne 0) { throw 'Renderer UI test failed' }
+          & .\node_modules\.bin\electron.cmd test/image-tools-ui.cjs
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           & .\node_modules\.bin\electron.cmd . --smoke-test
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

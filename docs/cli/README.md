@@ -148,7 +148,7 @@ CSV/TSV는 **첫 시트의 서식이 적용된 계산값**을 내보내고 수�
 
 `kind: presentation`에 `width/height`와 `slides`를 지정합니다. 각 장에는 title, body(문단 배열), notes, background(RGB), transition과 shapes를 지정합니다. title/body에는 기본 개체 ID 2/3을 부여하며 추가 도형은 그 다음 ID부터 시작합니다. 현재 ID는 read의 model에서 확인하세요.
 
-shape에는 kind (`text/rect/roundRect/ellipse/triangle/rightArrow/line/image/table` 등), name, x/y/width/height, rotation, flipH/flipV, lockAspect, fill/line/lineWidth, text/runs/paragraphs/style, table 또는 imagePath를 지정합니다. 고급 속성 및 애니메이션은 read의 전체 model을 변경해 `{kind:"presentation",model:...}`로 생성할 수도 있습니다.
+shape에는 kind (`text/rect/roundRect/ellipse/triangle/rightArrow/line/image/table` 등), name, x/y/width/height, rotation, flipH/flipV, lockAspect, fill/line/lineWidth, text/runs/paragraphs/style, table 또는 imagePath를 지정합니다. 내장 PNG는 `imageData: {name:"image.png",data:"base64"}`로 전달하며 기존 내장 그림은 `imageID`로 참조합니다. 그림 입력은 한 번에 하나만 지정합니다. PNG는 16 MB, 16메가픽셀 이내여야 합니다. 고급 속성 및 애니메이션은 read의 전체 model을 변경해 `{kind:"presentation",model:...}`로 생성할 수도 있습니다.
 
 슬라이드 편집 작업:
 
@@ -160,6 +160,8 @@ shape에는 kind (`text/rect/roundRect/ellipse/triangle/rightArrow/line/image/ta
 - `set_transition`: `slide`, `kind`, `duration`, `direction` (`left/right/top/bottom`), advanceAfter(초 또는 null), advanceOnClick, vertical, inward.
 - `add_shape`: `slide`, `value`(도형 명세).
 - `update_shape`: `slide`, `shapeId`와 수정할 shape 필드.
+- `duplicate_shape`: `slide`, `shapeId`, 선택적 `offsetX/offsetY`(기본 20pt). 그림, 표, 서식과 해당 개체의 애니메이션을 복제합니다.
+- `reorder_shape`: `slide`, `shapeId`, `to`(0부터 시작하는 개체 순서).
 - `delete_shape`: `slide`, `shapeId`. 해당 개체의 애니메이션 참조도 제거합니다.
 
 전환 종류는 none, fade, push, wipe, cover, pull, split, zoom, dissolve, cut, blinds, checker, comb, randomBar, strips, circle, diamond, plus, wedge, wheel, newsflash입니다. cut은 즉시 전환입니다. GUI에서 재생하려면 저장한 PPTX를 HanX로 여세요.

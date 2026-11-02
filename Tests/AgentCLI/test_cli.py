@@ -52,6 +52,52 @@ class CLI(unittest.TestCase):
         self.runcli('create','--spec',spec,'--output',p); d=self.runcli('read',p); self.assertIn('첫 장',d['text']); self.assertEqual(d['model']['slides'][0]['notes'],'발표 노트')
         ops=self.spec('slide-ops.json',[{'op':'duplicate_slide','slide':0},{'op':'set_transition','slide':1,'kind':'push','direction':'left','duration':1.3},{'op':'set_notes','slide':1,'text':'수정 노트'},{'op':'update_shape','slide':1,'shapeId':4,'rotation':45}]); out=self.root/'수정.pptx'
         self.runcli('edit',p,'--ops',ops,'--output',out); slides=self.runcli('read',out)['model']['slides']; self.assertEqual(len(slides),2); self.assertEqual(slides[1]['transition']['kind'],'push'); self.assertEqual(slides[1]['notes'],'수정 노트'); self.assertEqual(next(x for x in slides[1]['shapes'] if x['id']==4)['rotation'],45)
+    def test_animation_edit_and_pptx_roundtrip(self):
+        source=self.root/'animation.json'
+        self.runcli('create','--spec','-','--output',source,stdin=json.dumps({'kind':'presentation','slides':[{'title':'대상'}]}))
+        animation={'shapeID':2,'effect':'flyIn','trigger':'withEffect','duration':1.2,'delay':.3,'direction':'left'}
+        result=self.root/'animated.pptx'
+        self.runcli('edit',source,'--ops','-','--output',result,stdin=json.dumps([{'op':'set_animations','slide':0,'animations':[animation]}]))
+        actual=self.runcli('read',result)['model']['slides'][0]['animations'][0]
+        for key in ['effect','trigger','direction','duration','delay']:self.assertEqual(actual[key],animation[key])
+        for invalid in [dict(animation,shapeID=999),dict(animation,effect='unknown'),dict(animation,delay=-1)]:
+            self.runcli('edit',source,'--ops','-','--output',self.root/'bad-animation.pptx',stdin=json.dumps([{'op':'set_animations','slide':0,'animations':[invalid]}]),ok=False)
+
+    def test_duplicate_shape_preserves_rich_content_and_order(self):
+        source=self.root/'source.json'
+        self.runcli('create','--spec','-','--output',source,stdin=json.dumps({'kind':'presentation','slides':[{'shapes':[{'kind':'text','text':'복제할 글자','style':{'bold':True},'rotation':35,'flipH':True,'lockAspect':True}]}]}))
+        original=self.runcli('read',source)['model']['slides'][0]['shapes'][-1]
+        duplicate=self.root/'duplicate.json'
+        self.runcli('edit',source,'--ops','-','--output',duplicate,stdin=json.dumps([{'op':'duplicate_shape','slide':0,'shapeId':original['id']}]))
+        shapes=self.runcli('read',duplicate)['model']['slides'][0]['shapes'];copy=shapes[-1]
+        self.assertNotEqual(copy['id'],original['id']);self.assertEqual(copy['paragraphs'],original['paragraphs'])
+        for key in ['rotation','flipH','lockAspect']:self.assertEqual(copy[key],original[key])
+        self.assertEqual(copy['frame']['x'],original['frame']['x']+20)
+        reordered=self.root/'order.pptx'
+        self.runcli('edit',duplicate,'--ops','-','--output',reordered,stdin=json.dumps([{'op':'reorder_shape','slide':0,'shapeId':copy['id'],'to':0}]))
+        first=self.runcli('read',reordered)['model']['slides'][0]['shapes'][0]
+        self.assertEqual(first['frame'],copy['frame']);self.assertEqual(first['paragraphs'][0]['inlines'][0]['text']['_0'],'복제할 글자')
+
+    def test_presentation_inline_png_and_restore_roundtrip(self):
+        import base64, struct, zlib
+        def chunk(kind, data):
+            return struct.pack('>I',len(data))+kind+data+struct.pack('>I',zlib.crc32(kind+data))
+        png=b'\x89PNG\r\n\x1a\n'+chunk(b'IHDR',struct.pack('>IIBBBBB',1,1,8,6,0,0,0))+chunk(b'IDAT',zlib.compress(b'\x00\xff\x00\x00\x00'))+chunk(b'IEND',b'')
+        image={'name':'배경 제거.png','data':base64.b64encode(png).decode()}
+        p=self.root/'그림.json'
+        self.runcli('create','--spec','-','--output',p,stdin=json.dumps({'kind':'presentation','slides':[{'shapes':[{'kind':'image','imageData':image}]}]}))
+        data=self.runcli('read',p)['model'];shape=data['slides'][0]['shapes'][-1];original=shape['imageID']
+        out=self.root/'편집.pptx'
+        self.runcli('edit',p,'--ops','-','--output',out,stdin=json.dumps([{'op':'update_shape','slide':0,'shapeId':shape['id'],'imageData':image}]))
+        reopened=self.runcli('read',out)['model'];sh=reopened['slides'][0]['shapes'][-1]
+        self.assertEqual(base64.b64decode(reopened['images'][sh['imageID']]['data']),png)
+        restored=self.root/'복원.json'
+        self.runcli('edit',p,'--ops','-','--output',restored,stdin=json.dumps([{'op':'update_shape','slide':0,'shapeId':shape['id'],'imageData':image},{'op':'update_shape','slide':0,'shapeId':shape['id'],'imageID':original}]))
+        self.assertEqual(self.runcli('read',restored)['model']['slides'][0]['shapes'][-1]['imageID'],original)
+        for invalid in [{'name':'bad.png','data':'AAAA'},dict(image,name='../bad.png')]:
+            self.runcli('edit',p,'--ops','-','--output',self.root/'invalid.json',stdin=json.dumps([{'op':'update_shape','slide':0,'shapeId':shape['id'],'imageData':invalid}]),ok=False)
+        self.runcli('edit',p,'--ops','-','--output',self.root/'invalid.json',stdin=json.dumps([{'op':'update_shape','slide':0,'shapeId':shape['id'],'imageID':'missing'}]),ok=False)
+
     def test_json_model_can_be_exported_and_reimported(self):
         p=self.make_doc('hwp'); doc=self.runcli('read',p); spec=self.spec('model.json',{'kind':doc['kind'],'model':doc['model']}); out=self.root/'model.docx'; self.runcli('create','--spec',spec,'--output',out); self.assertEqual(self.runcli('read',out)['text'],doc['text']+'\n')
     def test_stdin_spec_and_missing_argument_errors(self):

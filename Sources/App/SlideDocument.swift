@@ -17,6 +17,39 @@ fileprivate struct SlideEditingState {
 final class SlideDocument: NSDocument {
     var pres = Presentation.blank()
     private var inPlaceSaveConfirmed = false
+    // Session-only provenance follows unique media IDs through slide reorder and undo.
+    private var imageBackgroundOriginals: [String: (id: String, image: ImageData)] = [:]
+
+    func canRestoreImageBackground(_ imageID: String?) -> Bool {
+        imageID.flatMap { imageBackgroundOriginals[$0] } != nil
+    }
+
+    @discardableResult
+    func replaceImageBackground(slide index: Int, shapeID: Int, expectedImageID: String, png: Data) -> Bool {
+        guard pres.slides.indices.contains(index),
+              let shape = pres.slides[index].shapes.firstIndex(where: { $0.id == shapeID && $0.kind == .image && !$0.locked && $0.imageID == expectedImageID }),
+              let source = pres.images[expectedImageID] else { return false }
+        let key = "background-removed/\(UUID().uuidString).png"
+        imageBackgroundOriginals[key] = imageBackgroundOriginals[expectedImageID] ?? (expectedImageID, source)
+        edit("그림 배경 제거") { p in
+            p.images[key] = ImageData(name: "background-removed.png", data: png)
+            p.slides[index].shapes[shape].imageID = key
+        }
+        return true
+    }
+
+    @discardableResult
+    func restoreImageBackground(slide index: Int, shapeID: Int) -> Bool {
+        guard pres.slides.indices.contains(index),
+              let shape = pres.slides[index].shapes.firstIndex(where: { $0.id == shapeID && $0.kind == .image && !$0.locked }),
+              let imageID = pres.slides[index].shapes[shape].imageID,
+              let original = imageBackgroundOriginals[imageID] else { return false }
+        edit("그림 원본 복원") { p in
+            p.images[original.id] = original.image
+            p.slides[index].shapes[shape].imageID = original.id
+        }
+        return true
+    }
 
     override class var autosavesInPlace: Bool { false }
     override class var readableTypes: [String] { [DocType.pptx] }
@@ -26,7 +59,7 @@ final class SlideDocument: NSDocument {
     override func makeWindowControllers() { addWindowController(SlideWindowController(document: self)) }
 
     override func read(from url: URL, ofType typeName: String) throws {
-        do { pres = try SlidesIO.load(url: url) } catch let e as FormatError {
+        do { pres = try SlidesIO.load(url: url); imageBackgroundOriginals.removeAll() } catch let e as FormatError {
             throw NSError(domain: "HanX", code: 1, userInfo: [NSLocalizedDescriptionKey: "문서를 열 수 없습니다", NSLocalizedFailureReasonErrorKey: e.description])
         }
     }
@@ -444,6 +477,7 @@ final class SlideWindowController: NSWindowController, SlideCanvasDelegate, Slid
     private var show: SlideShowWindow?
     private let notes = HWTextField()
     private var ribbon: OfficeRibbon!
+    private var imageBackgroundEditor: SlideImageBackgroundEditor?
     private var tableEditor:SlideTableEditor?
     private let inspector = SlideInspector(frame: .zero)
     private var slideSelection=IndexSet(integer:0)
@@ -988,6 +1022,7 @@ extension SlideWindowController {
             .init(title:"홈",groups:[R.clipboard,R.text,.init(title:"문단",items:[.button("left","왼쪽","text.alignleft"),.button("center","가운데","text.aligncenter"),.button("right","오른쪽","text.alignright"),.menu("bullets","글머리",["글머리 없음","• 글머리표","1. 번호"]),.menu("spacing","줄 간격",["줄 간격 1.0","줄 간격 1.15","줄 간격 1.5","줄 간격 2.0"])]),.init(title:"글자 색",items:[.menu("textColor","글자 색",R.colors),.menu("highlight","형광펜",["형광펜 없음"]+R.colors),.button("strike","취소선","strikethrough")])]),
             .init(title:"삽입",groups:[.init(title:"슬라이드",items:[.button("new","새 슬라이드","plus.rectangle"),.button("duplicateSlide","슬라이드 복제","rectangle.on.rectangle"),.button("deleteSlide","슬라이드 삭제","trash")]),.init(title:"개체",items:[.menu("shape","도형",SlideInspector.kinds.map(\.1)),.button("image","그림","photo"),.button("table","표","tablecells"),.button("editTable","표 편집","square.and.pencil"),.button("line","선","line.diagonal")])]),
             .init(title:"배치",groups:[.init(title:"크기와 회전",items:[.menu("rotate","회전",["회전 선택…","오른쪽 90°","왼쪽 90°","180°","회전 초기화","좌우 뒤집기","상하 뒤집기"]),.button("aspect","비율 고정","lock.rectangle"),.menu("scale","크기 비율",["크기 선택…","50%","75%","125%","150%","200%"]),.button("geometry","크기 위치","ruler")]),.init(title:"정렬과 순서",items:[.menu("align","맞춤",["맞춤 선택…","왼쪽 맞춤","가운데 맞춤","오른쪽 맞춤","위쪽 맞춤","중간 맞춤","아래쪽 맞춤","가로 간격 같게","세로 간격 같게"]),.button("front","맨 앞으로","square.2.layers.3d.top.filled"),.button("back","맨 뒤로","square.2.layers.3d.bottom.filled"),.button("duplicate","복제","plus.square.on.square")]),.init(title:"도형 서식",items:[.menu("fill","채우기",["채우기 없음"]+R.colors),.menu("lineColor","윤곽선",["윤곽선 없음"]+R.colors),.menu("lineWidth","선 굵기",["0.5 pt","1 pt","2 pt","3 pt","4.5 pt","6 pt"])])]),
+            .init(title:"그림",groups:[.init(title:"그림 편집",items:[.button("imageBackground","배경 제거","person.crop.rectangle"),.button("restoreImage","원본 복원","arrow.uturn.backward")])]),
             .init(title:"전환",groups:[.init(title:"화면 전환",items:[.menu("transition","전환 효과",TransitionKind.allCases.map(\.title)),.field("duration","전환 시간 (초)",["0.7","0.3","0.5","1.0","1.5","2.0","3.0"]),.button("preview","미리 보기","play.fill"),.button("applyAll","모두 적용","rectangle.stack"),.button("transitionOptions","효과 넘김 설정","slider.horizontal.3")]),.init(title:"애니메이션",items:[.button("animations","애니메이션 창","rectangle.stack"),.button("show","현재부터 재생","play.rectangle")])]),
             .init(title:"보기",groups:[.init(title:"선택",items:[.button("selectAll","모두 선택","checkmark.rectangle.stack"),.button("delete","개체 삭제","trash")]),.init(title:"슬라이드 쇼",items:[.button("showAll","처음부터","play.rectangle.fill"),.button("show","현재부터","play.fill")])])]
         ribbon=OfficeRibbon(tabs:tabs,width:content.bounds.width); ribbon.frame.origin.y=content.bounds.height-OfficeRibbon.height
@@ -1003,6 +1038,9 @@ extension SlideWindowController {
         ribbon.reflectChoice("transition",index:TransitionKind.allCases.firstIndex(of:t.kind) ?? 0)
         ribbon.reflectText("duration",value:String(format:"%.2f",t.duration))
         ribbon.isCommandEnabled("editTable",canvas.selected?.kind == .table)
+        let imageSelected = canvas.selectedIDs.count == 1 && canvas.selected?.kind == .image && canvas.selected?.locked == false
+        ribbon.isCommandEnabled("imageBackground", imageSelected)
+        ribbon.isCommandEnabled("restoreImage", imageSelected && doc.canRestoreImageBackground(canvas.selected?.imageID))
         if let shape=canvas.selected {
             let p=shape.paragraphs.first?.props ?? ParaProps()
             ribbon.reflectChoice("bullets",index:p.listLabel == nil ? 0 : p.listLabel == "#" ? 2 : 1)
@@ -1034,6 +1072,8 @@ extension SlideWindowController {
         case "deleteSlide": deleteSlide(nil)
         case "shape": let k=SlideInspector.kinds[n].0; if k == .text { insertTextBox(nil) } else { shape(k,k.title) }
         case "image": insertImage(nil)
+        case "imageBackground": removeImageBackground()
+        case "restoreImage": restoreSelectedImage()
         case "table": insertTable(nil)
         case "editTable": if let id=canvas.selectedID { canvasEditTable(id) }
         case "line": insertLine(nil)
@@ -1063,6 +1103,38 @@ extension SlideWindowController {
         }
         reflectRibbon()
     }
+    private func imageAlert(_ message: String, detail: String) {
+        guard let window else { return }
+        let alert = NSAlert(); alert.messageText = message; alert.informativeText = detail
+        alert.beginSheetModal(for: window)
+    }
+    private func removeImageBackground() {
+        canvas.endEditing()
+        guard let window, imageBackgroundEditor == nil else { return }
+        guard canvas.selectedIDs.count == 1, let shape = canvas.selected, shape.kind == .image, !shape.locked,
+              let imageID = shape.imageID, let source = doc.pres.images[imageID] else {
+            imageAlert("그림을 선택해 주세요", detail: "배경을 제거할 그림 하나를 선택하세요."); return
+        }
+        let index = current
+        do {
+            let editor = try SlideImageBackgroundEditor(source: source.data) { [weak self] data in
+                guard let self else { return }; self.imageBackgroundEditor = nil
+                guard let data else { return }
+                if !self.doc.replaceImageBackground(slide: index, shapeID: shape.id, expectedImageID: imageID, png: data) {
+                    self.imageAlert("그림이 변경되었습니다", detail: "그림을 다시 선택한 뒤 배경 제거를 실행해 주세요.")
+                }
+            }
+            imageBackgroundEditor = editor; editor.present(on: window)
+        } catch { imageAlert("그림을 열 수 없습니다", detail: error.localizedDescription) }
+    }
+    private func restoreSelectedImage() {
+        canvas.endEditing()
+        guard canvas.selectedIDs.count == 1, let shape = canvas.selected,
+              doc.restoreImageBackground(slide: current, shapeID: shape.id) else {
+            imageAlert("복원할 원본이 없습니다", detail: "이 문서를 연 뒤 배경을 제거한 그림 하나를 선택하세요."); return
+        }
+    }
+
     private func arrangeSelection(_ mode:Int) {
         canvas.endEditing(); let ids=canvas.selectedIDs
         let chosen=inspectedSlide.shapes.filter { ids.contains($0.id) }

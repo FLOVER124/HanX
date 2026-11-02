@@ -8,7 +8,7 @@ import FoundationNetworking
 
 enum AgentDocuments {
     static let documentOps=["replace_text","append_paragraph","append_block","insert_block","delete_block","set_paragraph","style_paragraph","set_cell","set_page"]
-    static let slideOps=["replace_text","add_slide","duplicate_slide","delete_slide","move_slide","set_notes","set_transition","add_shape","update_shape","delete_shape"]
+    static let slideOps=["replace_text","add_slide","duplicate_slide","delete_slide","move_slide","set_notes","set_transition","add_shape","update_shape","delete_shape","duplicate_shape","reorder_shape","set_animations"]
 
     static func color(_ value:Any?,_ label:String)throws->RGB? {
         guard let value,!(value is NSNull) else { return nil }
@@ -113,6 +113,46 @@ enum AgentDocuments {
             s.paragraphs=try (spec["paragraphs"] as? [Any] ?? [spec]).map { try paragraph($0,base:c) }
         } else if let styleSpec=spec["style"] as? [String:Any] { s.paragraphs=try s.paragraphs.map { try styling($0,styleSpec) } }
         if let t=spec["table"] { s.kind = .table; s.table=try table(AgentIO.map(t,"table")) }
+        let imageInputs = ["imagePath", "imageData", "imageID"].filter { spec[$0] != nil }
+        guard imageInputs.count <= 1 else { throw AgentError("invalid_argument", "Choose one image source") }
+        if let value = spec["imageData"] {
+            let image = try AgentIO.map(value, "imageData")
+            guard Set(image.keys).isSubset(of: ["name", "data"]) else { throw AgentError("invalid_argument", "Unknown imageData property") }
+            let name = try AgentIO.string(image["name"], "imageData.name")
+            let encoded = try AgentIO.string(image["data"], "imageData.data")
+            guard !name.isEmpty, name.count <= 255, !name.contains("/"), !name.contains("\\"), name.lowercased().hasSuffix(".png"),
+                  encoded.utf8.count <= 22_369_624, let data = Data(base64Encoded: encoded), data.count <= 16_777_216,
+                  data.count >= 33, Array(data.prefix(8)) == [137,80,78,71,13,10,26,10],
+                  Array(data[8..<16]) == [0,0,0,13,73,72,68,82] else {
+                throw AgentError("invalid_argument", "imageData must contain a PNG image up to 16 MB")
+            }
+            let bytes = [UInt8](data)
+            func dimension(_ offset: Int) -> UInt64 { bytes[offset..<offset+4].reduce(0) { ($0 << 8) | UInt64($1) } }
+            let width = dimension(16), height = dimension(20)
+            guard width > 0, height > 0, width <= 16384, height <= 16384, width * height <= 16_777_216 else {
+                throw AgentError("invalid_argument", "Image dimensions exceed the editing limit")
+            }
+            var offset = 8, hasPixels = false, ended = false
+            while offset + 12 <= bytes.count {
+                let length = Int(dimension(offset))
+                guard length <= bytes.count - offset - 12 else { throw AgentError("invalid_argument", "Truncated PNG chunk") }
+                let type = Array(bytes[offset+4..<offset+8])
+                if type == [73,68,65,84], length > 0 { hasPixels = true }
+                offset += length + 12
+                if type == [73,69,78,68] {
+                    guard length == 0, offset == bytes.count else { throw AgentError("invalid_argument", "Invalid PNG end chunk") }
+                    ended = true; break
+                }
+            }
+            guard hasPixels, ended else { throw AgentError("invalid_argument", "Incomplete PNG image") }
+            let key = "agent/\(UUID().uuidString)"
+            images[key] = ImageData(name: name, data: data); s.kind = .image; s.imageID = key
+        }
+        if let value = spec["imageID"] {
+            let key = try AgentIO.string(value, "imageID")
+            guard images[key] != nil else { throw AgentError("invalid_argument", "Image reference not found") }
+            s.kind = .image; s.imageID = key
+        }
         if let path=spec["imagePath"] as? String {
             let u=path.hasPrefix("/") || path.hasPrefix("~") ? AgentIO.url(path) : directory.appendingPathComponent(path)
             let data=try AgentIO.read(u.path),key="agent/\(UUID().uuidString)"
@@ -243,7 +283,7 @@ enum AgentDocuments {
         for value in operations {
             let op=try AgentIO.map(value,"operation"),name=try AgentIO.string(op["op"],"op")
             let common:Set<String>=["op"]
-            let shapeKeys:Set<String>=["kind","name","x","y","width","height","rotation","fill","line","lineWidth","lockAspect","flipH","flipV","text","runs","paragraphs","style","table","imagePath"]
+            let shapeKeys:Set<String>=["kind","name","x","y","width","height","rotation","fill","line","lineWidth","lockAspect","flipH","flipV","text","runs","paragraphs","style","table","imagePath","imageData","imageID"]
             let keys:[String:Set<String>]=[
                 "replace_text":["find","replace"],"append_paragraph":["section","text","runs","style","alignment","styleName"],
                 "append_block":["section","block"],"insert_block":["section","block","value"],"delete_block":["section","block"],
@@ -251,6 +291,7 @@ enum AgentDocuments {
                 "set_cell":["section","block","row","column","text"],"set_page":["section","page"],
                 "add_slide":["at","value"],"duplicate_slide":["slide"],"delete_slide":["slide"],"move_slide":["slide","to"],
                 "set_notes":["slide","text"],"set_transition":["slide","kind","duration","direction","advanceAfter","advanceOnClick","vertical","inward"],
+                "set_animations":["slide","animations"],"duplicate_shape":["slide","shapeId","offsetX","offsetY"],"reorder_shape":["slide","shapeId","to"],
                 "add_shape":["slide","value"],"delete_shape":["slide","shapeId"],"update_shape":shapeKeys.union(["slide","shapeId"])
             ]
             guard let allowed=keys[name] else { throw AgentError("invalid_operation","Unknown operation: \(name)") }
@@ -320,13 +361,43 @@ enum AgentDocuments {
                 case "delete_slide":p.slides.remove(at:i)
                 case "move_slide":
                     let to=try AgentIO.index(op["to"],"to"); guard p.slides.indices.contains(to) else { throw AgentError("invalid_index","to out of range") }; let s=p.slides.remove(at:i); p.slides.insert(s,at:to)
+                case "set_animations":
+                    guard let values = op["animations"] as? [Any], values.count <= 1000 else { throw AgentError("invalid_argument", "animations must contain at most 1000 entries") }
+                    p.slides[i].animations = try values.map { value in
+                        let spec = try AgentIO.map(value, "animation")
+                        guard Set(spec.keys).isSubset(of:["shapeID","effect","trigger","duration","delay","direction"]) else { throw AgentError("invalid_argument", "Unknown animation property") }
+                        let id = try AgentIO.index(spec["shapeID"], "shapeID")
+                        guard p.slides[i].shapes.contains(where:{$0.id == id}),
+                              let effect = AnimEffect(rawValue:try AgentIO.string(spec["effect"],"effect")),
+                              let trigger = AnimTrigger(rawValue:try AgentIO.string(spec["trigger"] ?? "clickEffect","trigger")),
+                              let direction = AnimDirection(rawValue:try AgentIO.string(spec["direction"] ?? "bottom","direction")) else { throw AgentError("invalid_argument", "Invalid animation target or effect") }
+                        let duration = try AgentIO.number(spec["duration"] ?? effect.defaultDuration,"duration")
+                        let delay = try AgentIO.number(spec["delay"] ?? 0,"delay")
+                        guard duration >= 0, duration <= 3600, delay >= 0, delay <= 3600 else { throw AgentError("invalid_argument", "Animation timing must be between 0 and 3600 seconds") }
+                        return SlideAnimation(shapeID:id,effect:effect,trigger:trigger,duration:duration,delay:delay,direction:direction)
+                    }
                 case "set_notes":p.slides[i].notes=try AgentIO.string(op["text"],"text")
                 case "set_transition":p.slides[i].transition=try transition(op,base:p.slides[i].transition)
                 case "add_shape":p.slides[i].shapes.append(try shape(AgentIO.map(op["value"],"shape"),id:p.nextID(p.slides[i]),images:&p.images,directory:directory))
-                case "update_shape","delete_shape":
+                case "update_shape","delete_shape","duplicate_shape","reorder_shape":
                     let id=try AgentIO.index(op["shapeId"],"shapeId")
                     guard let j=p.slides[i].shapes.firstIndex(where:{$0.id == id}) else { throw AgentError("invalid_index","shapeId not found") }
                     if name == "delete_shape" { p.slides[i].shapes.remove(at:j); p.slides[i].animations.removeAll {$0.shapeID == id} }
+                    else if name == "duplicate_shape" {
+                        var copy = p.slides[i].shapes[j]
+                        copy.id = p.nextID(p.slides[i]); copy.sourceIDs = []; copy.locked = false
+                        copy.frame.x += try AgentIO.number(op["offsetX"] ?? 20, "offsetX")
+                        copy.frame.y += try AgentIO.number(op["offsetY"] ?? 20, "offsetY")
+                        let animations = p.slides[i].animations.filter { $0.shapeID == id }.map { original -> SlideAnimation in
+                            var animation = original; animation.shapeID = copy.id; return animation
+                        }
+                        p.slides[i].shapes.insert(copy, at:j+1); p.slides[i].animations += animations
+                    }
+                    else if name == "reorder_shape" {
+                        let to = try AgentIO.index(op["to"], "to")
+                        guard p.slides[i].shapes.indices.contains(to) else { throw AgentError("invalid_index", "Shape order out of range") }
+                        let moved = p.slides[i].shapes.remove(at:j); p.slides[i].shapes.insert(moved,at:to)
+                    }
                     else { p.slides[i].shapes[j]=try shape(op,base:p.slides[i].shapes[j],id:id,images:&p.images,directory:directory) }
                 default:break
                 }

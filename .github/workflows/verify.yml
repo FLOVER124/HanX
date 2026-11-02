@@ -19,5 +19,9 @@ jobs:
         run: Tests/StartWindow/run.sh
       - name: GUI notice behavior
         run: Tests/CleanGUI/run.sh
+      - name: Image background editing
+        run: |
+          Tests/ImageBackground/run.sh
+          Tests/ImageBackgroundIntegration/run.sh
       - name: Existing editing behavior
         run: Tests/run-editing.sh

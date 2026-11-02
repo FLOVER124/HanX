@@ -1,4 +1,4 @@
-const {app,BrowserWindow,ipcMain,dialog,Menu}=require('electron');
+const {app,BrowserWindow,ipcMain,dialog,Menu,nativeImage}=require('electron');
 const path=require('node:path');
 const {pathToFileURL}=require('node:url');
 const {Session,resolveEngine,formats}=require('./engine.cjs');
@@ -20,6 +20,7 @@ app.whenReady().then(async()=>{
  handle('hanx:initial',async()=>{if(engineError)throw Error(engineError);return session.create('document');});
  handle('hanx:new',async kind=>{if(!await confirmDiscard())return null;const next=await session.create(kind);notices.reset();return next;});
  handle('hanx:open',async()=>{if(!await confirmDiscard())return null;const result=await dialog.showOpenDialog(win,{properties:['openFile'],filters:[{name:'Office files',extensions:['hwp','hwpx','docx','pptx','xlsx','csv','tsv','txt','md','hml','json','pdf']}]});if(result.canceled)return null;const next=await session.open(result.filePaths[0]);notices.reset();await notices.warnings(next.warnings);return next;});
+ handle('hanx:insert-image',async index=>{const result=await dialog.showOpenDialog(win,{properties:['openFile'],filters:[{name:'그림',extensions:['png','jpg','jpeg']}]});if(result.canceled)return null;return require('./media-import.cjs').importSlideImage(session,index,result.filePaths[0],nativeImage);});
  handle('hanx:edit',ops=>session.edit(ops));
  handle('hanx:copy-slide',index=>session.copySlide(index));
  handle('hanx:paste-slide',index=>session.pasteSlide(index));
