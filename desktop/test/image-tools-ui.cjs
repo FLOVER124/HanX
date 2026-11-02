@@ -1,6 +1,6 @@
 // Run with desktop/node_modules/.bin/electron desktop/test/image-tools-ui.cjs.
 // Uses the real renderer, canvas PNG encoder, IPC boundary, and editing engine.
-const {app,BrowserWindow,ipcMain}=require('electron');
+const {app,BrowserWindow,ipcMain,nativeImage}=require('electron');
 const assert=require('node:assert/strict');
 const fs=require('node:fs/promises');
 const path=require('node:path');
@@ -40,6 +40,12 @@ app.on('window-all-closed',()=>{});
   await js('actions.undo()');
   const output=path.join(session.directory,'transparent.pptx');await session.save(output);await session.open(output);const reopened=await session.read(),savedImage=reopened.model.images[reopened.model.slides[0].shapes.find(s=>s.kind==='image').imageID];assert.deepEqual(await readPixels(savedImage.data),[0,255,255],'PPTX reopening preserves alpha and enclosed pixels');assert.equal(savedImage.data,transparent,'PPTX preserves PNG bytes');
   await js('(async()=>{state=await hanx.initial();shapeID=null;render();})()');assert.equal(await js("[...document.querySelectorAll('[role=tab]')].some(n=>n.textContent==='그림')"),false,'Deselect removes contextual tab');
+  const importedPath=path.join(session.directory,'그림 가져오기.png');await fs.writeFile(importedPath,Buffer.from(original,'base64'));
+  const beforeCount=reopened.model.slides[0].shapes.length;
+  const imported=await require('../media-import.cjs').importSlideImage(session,0,importedPath,nativeImage);
+  assert.equal(imported.model.slides[0].shapes.length,beforeCount+1);assert.equal(imported.model.slides[0].shapes.at(-1).lockAspect,true);
+  const invalidPath=path.join(session.directory,'invalid.png');await fs.writeFile(invalidPath,'not an image');await assert.rejects(()=>require('../media-import.cjs').importSlideImage(session,0,invalidPath,nativeImage));
+  assert.equal((await session.read()).model.slides[0].shapes.length,beforeCount+1,'Invalid import does not mutate the document');
   assert.deepEqual(errors,[]);console.log('HANX_IMAGE_TOOLS_UI_OK');
  }finally{win?.destroy();await session.close();app.quit();}
 })().catch(error=>{console.error(error);app.exit(1);});

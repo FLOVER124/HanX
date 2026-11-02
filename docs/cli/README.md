@@ -67,7 +67,7 @@ hanx create --spec examples/presentation.json --output 발표.pptx
 
 예제 파일: [문서 명세](examples/document.json), [문서 수정](examples/document-edits.json), [엑셀 명세](examples/spreadsheet.json), [엑셀 수정](examples/spreadsheet-edits.json), [프레젠테이션](examples/presentation.json), [XML 수정](examples/xml-edits.json). 예제를 내려받고 명령의 경로를 해당 파일 위치에 맞추세요.
 
-명세와 작업은 JSON 파일로 주거나 `--spec -`, `--ops -`로 표준 입력에서 받습니다. 보통 응답은 `{"ok":true,"version":"2.9.1","data":...}` 형식입니다. 실패는 `{"ok":false,"error":{"code":...,"message":...}}`와 0이 아닌 종료 코드로 알립니다. `read --text`는 텍스트만 출력합니다. `--no-model`은 큰 native model 및 내장 그림의 base64를 응답에서 제외합니다.
+명세와 작업은 JSON 파일로 주거나 `--spec -`, `--ops -`로 표준 입력에서 받습니다. 보통 응답은 `{"ok":true,"version":"2.10.0","data":...}` 형식입니다. 실패는 `{"ok":false,"error":{"code":...,"message":...}}`와 0이 아닌 종료 코드로 알립니다. `read --text`는 텍스트만 출력합니다. `--no-model`은 큰 native model 및 내장 그림의 base64를 응답에서 제외합니다.
 
 파일은 output에 저장합니다. 기존 출력이 있으면 기본적으로 거부하며 `--force`를 명시했을 때만 교체합니다. `--force`와 원본 경로를 함께 지정하면 원본도 교체할 수 있으니 에이전트에는 새 경로를 주는 것이 좋습니다. 한 번의 edit 작업이 실패하면 결과를 저장하지 않습니다. 숫자 인덱스는 0부터 시작하며 길이는 pt, 시간은 초, 색은 RRGGBB입니다.
 
@@ -160,6 +160,7 @@ shape에는 kind (`text/rect/roundRect/ellipse/triangle/rightArrow/line/image/ta
 - `set_transition`: `slide`, `kind`, `duration`, `direction` (`left/right/top/bottom`), advanceAfter(초 또는 null), advanceOnClick, vertical, inward.
 - `add_shape`: `slide`, `value`(도형 명세).
 - `update_shape`: `slide`, `shapeId`와 수정할 shape 필드.
+- `set_animations`: `slide`, `animations` 배열. 각 항목에 `shapeID`, `effect`, `trigger`, `duration`, `delay`, `direction`을 지정합니다. 대상 개체와 효과 이름을 검증하며 기존 효과 목록 전체를 교체합니다.
 - `duplicate_shape`: `slide`, `shapeId`, 선택적 `offsetX/offsetY`(기본 20pt). 그림, 표, 서식과 해당 개체의 애니메이션을 복제합니다.
 - `reorder_shape`: `slide`, `shapeId`, `to`(0부터 시작하는 개체 순서).
 - `delete_shape`: `slide`, `shapeId`. 해당 개체의 애니메이션 참조도 제거합니다.
