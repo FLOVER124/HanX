@@ -10,7 +10,7 @@ import FoundationNetworking
 /// All mutations happen before the caller atomically publishes a new file.
 enum AgentSheets {
     static let maxCells=100_000
-    static let operations=["set_cell","set_range","fill_formula","style_range","clear_range","add_sheet","delete_sheet","merge","unmerge","freeze","set_column_width","set_row_height","define_name"]
+    static let operations=["set_cell","set_range","sort_range","fill_range","add_chart","update_chart","delete_chart","fill_formula","style_range","clear_range","add_sheet","delete_sheet","merge","unmerge","freeze","set_column_width","set_row_height","define_name"]
     static let warning="Spreadsheet model editing preserves supported cells, styles, merges, names and basic charts. Unsupported Excel objects, pivot tables, macros and connections can be omitted; use package patch to retain unrelated XML parts. Calculation uses HanX's engine, not Microsoft Excel."
     static func keys(_ value:[String:Any],_ allowed:Set<String>)throws {
         for k in value.keys where !allowed.contains(k) { throw AgentError("invalid_argument","Unknown spreadsheet property: \(k)") }
@@ -81,6 +81,27 @@ enum AgentSheets {
         if let n=s.fontName { d["fontName"]=n }; if let n=s.fontSize { d["fontSize"]=n }; if let n=s.numberFormat { d["numberFormat"]=n }
         if let c=s.color { d["color"]=c.hex }; if let c=s.fill { d["fill"]=c.hex }; return d
     }
+    static let chartFields: Set<String> = ["kind", "range", "title", "x", "y", "width", "height"]
+
+    static func chart(_ fields: [String: Any], updating old: SheetChart? = nil, validateNewTitle: Bool = false) throws -> SheetChart {
+        try keys(fields, chartFields)
+        let kindName = try AgentIO.string(fields["kind"] ?? old?.kind.rawValue, "chart kind")
+        guard let kind = ChartKind(rawValue: kindName) else { throw AgentError("invalid_argument", "Unknown chart kind") }
+        let dataRange = try range(fields["range"] ?? old?.data.a1)
+        let width = try AgentIO.number(fields["width"], "chart width", default: old?.w ?? 420)
+        let height = try AgentIO.number(fields["height"], "chart height", default: old?.h ?? 260)
+        try AgentValidation.dimension(width, "chart width")
+        try AgentValidation.dimension(height, "chart height")
+        let x = try AgentIO.number(fields["x"], "chart x", default: old?.x ?? 0)
+        let y = try AgentIO.number(fields["y"], "chart y", default: old?.y ?? 0)
+        guard (0...100000).contains(x), (0...100000).contains(y) else {
+            throw AgentError("invalid_argument", "Chart position exceeds supported bounds")
+        }
+        let title = try AgentIO.string(fields["title"] ?? old?.title ?? "", "chart title")
+        if validateNewTitle, fields["title"] != nil { try AgentValidation.string(title, "chart title") }
+        return SheetChart(kind: kind, title: title, data: dataRange, x: x, y: y, w: width, h: height)
+    }
+
     static func create(_ spec:[String:Any])throws->Workbook {
         let model=try spec["model"].map { try AgentIO.map($0,"spreadsheet model") } ?? spec
         try keys(model,["kind","sheets","definedNames","model"])
@@ -104,15 +125,7 @@ enum AgentSheets {
             if let legacy=d["legacyFormulas"] { guard let a=legacy as? [String] else { throw AgentError("invalid_argument","legacyFormulas must be an array") }; ws.legacyFormulas=Set(try a.map { try ref($0) }) }
             if let charts=d["charts"] {
                 guard let a=charts as? [[String:Any]] else { throw AgentError("invalid_argument","charts must be an array") }
-                for c in a {
-                    try keys(c,["kind","title","range","x","y","width","height"])
-                    guard let kind=ChartKind(rawValue:try AgentIO.string(c["kind"],"chart kind")) else { throw AgentError("invalid_argument","Unknown chart kind") }
-                    let w=try AgentIO.number(c["width"],"chart width",default:420),h=try AgentIO.number(c["height"],"chart height",default:260)
-                    try AgentValidation.dimension(w,"chart width"); try AgentValidation.dimension(h,"chart height")
-                    let x=try AgentIO.number(c["x"],"chart x",default:0),y=try AgentIO.number(c["y"],"chart y",default:0)
-                    guard x>=0,y>=0,x<=100000,y<=100000 else { throw AgentError("invalid_argument","Chart position exceeds supported bounds") }
-                    ws.charts.append(SheetChart(kind:kind,title:try AgentIO.string(c["title"] ?? "","chart title"),data:try range(c["range"]),x:x,y:y,w:w,h:h))
-                }
+                ws.charts = try a.map { try chart($0) }
             }
         }
         for (n,f) in try AgentIO.map(model["definedNames"] ?? [:],"definedNames") { try define(b,name:n,formula:AgentIO.string(f,"defined name formula")) }
@@ -135,7 +148,8 @@ enum AgentSheets {
     }
     static func edit(_ b:Workbook,_ ops:[Any])throws {
         let fields:[String:Set<String>]=[
-            "set_cell":["cell","input","value","style"],"set_range":["start","values"],"fill_formula":["range","formula"],"style_range":["range","style"],"clear_range":["range"],"add_sheet":["name"],"delete_sheet":[],"merge":["range"],"unmerge":["range"],"freeze":["rows","columns"],"set_column_width":["column","width"],"set_row_height":["row","height"],"define_name":["name","formula"]]
+            "add_chart":["value"],"update_chart":["index","value"],"delete_chart":["index"],
+            "sort_range":["range","keyColumn","ascending","header"],"fill_range":["range","direction"],"set_cell":["cell","input","value","style"],"set_range":["start","values"],"fill_formula":["range","formula"],"style_range":["range","style"],"clear_range":["range"],"add_sheet":["name"],"delete_sheet":[],"merge":["range"],"unmerge":["range"],"freeze":["rows","columns"],"set_column_width":["column","width"],"set_row_height":["row","height"],"define_name":["name","formula"]]
         for value in ops {
             let d=try AgentIO.map(value,"operation"),op=try AgentIO.string(d["op"],"op")
             guard let f=fields[op] else { throw AgentError("invalid_operation","Unknown spreadsheet operation: \(op)") }; try keys(d,f.union(["op","sheet"]))
@@ -150,6 +164,29 @@ enum AgentSheets {
                 ws.cells[r]=try cell(data,base:ws.cells[r] ?? SheetCell())
                 if data["input"] != nil || data["value"] != nil { ws.legacyFormulas.remove(r) }
             case "set_range":try setRange(ws,start:ref(d["start"]),values:d["values"] as Any)
+            case "add_chart":
+                ws.charts.append(try chart(AgentIO.map(d["value"], "chart"), validateNewTitle: true))
+            case "update_chart", "delete_chart":
+                let index = try AgentIO.index(d["index"], "chart index")
+                guard ws.charts.indices.contains(index) else { throw AgentError("invalid_index", "Chart index out of range") }
+                if op == "delete_chart" {
+                    ws.charts.remove(at: index)
+                } else {
+                    let value = try AgentIO.map(d["value"], "chart")
+                    ws.charts[index] = try chart(value, updating: ws.charts[index], validateNewTitle: true)
+                }
+            case "sort_range":
+                let r=try range(d["range"]),column=try AgentIO.string(d["keyColumn"],"keyColumn").uppercased()
+                guard column.range(of:"^[A-Z]{1,3}$",options:.regularExpression) != nil else { throw AgentError("invalid_argument","keyColumn must be column letters, such as B") }
+                let key=try ref(column+"1").col
+                let ascending=try AgentIO.bool(d["ascending"] ?? true,"ascending"),header=try AgentIO.bool(d["header"] ?? false,"header")
+                do { try SheetRangeEditing.sort(book:b,sheet:ws,range:r,keyColumn:key,ascending:ascending,header:header) }
+                catch { throw AgentError("invalid_argument",error.localizedDescription) }
+            case "fill_range":
+                let r=try range(d["range"])
+                guard let direction=SheetRangeEditing.Direction(rawValue:try AgentIO.string(d["direction"],"direction")) else { throw AgentError("invalid_argument","direction must be down or right") }
+                do { try SheetRangeEditing.fill(book:b,sheet:ws,range:r,direction:direction) }
+                catch { throw AgentError("invalid_argument",error.localizedDescription) }
             case "fill_formula":
                 let r=try range(d["range"]),formula=try AgentIO.string(d["formula"],"formula")
                 guard formula.hasPrefix("="),formula.utf16.count<=8192 else { throw AgentError("invalid_argument","formula must start with = and fit 8192 UTF-16 units") }

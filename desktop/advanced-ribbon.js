@@ -6,7 +6,7 @@
  function pageOrientation(section,page,orientation){if(!['portrait','landscape'].includes(orientation))throw Error('용지 방향을 선택하세요.');const short=Math.min(page.width,page.height),long=Math.max(page.width,page.height);return {op:'set_page',section,page:{width:orientation==='portrait'?short:long,height:orientation==='portrait'?long:short}};}
  function pageMargin(section,key,value){if(!['marginTop','marginBottom','marginLeft','marginRight'].includes(key))throw Error('지원하지 않는 여백입니다.');return {op:'set_page',section,page:{[key]:number(value,0,100000,'여백')}};}
  function rowHeight(sheet,row,height){return {op:'set_row_height',sheet,row:number(row,1,1048576,'행 번호',true)-1,height:number(height,1,100000,'행 높이')};}
- function columnWidth(sheet,column,width){const a=address(String(column).trim()+'1');return {op:'set_column_width',sheet,column:a.column,width:number(width,1,100000,'열 너비')};}
+ function columnWidth(sheet,column,width){if(!/^[A-Za-z]{1,3}$/.test(String(column).trim()))throw Error('열 이름은 A, B 같은 문자로 입력하세요.');const a=address(String(column).trim()+'1');return {op:'set_column_width',sheet,column:a.column,width:number(width,1,100000,'열 너비')};}
  function freeze(sheet,rows,columns){return {op:'freeze',sheet,rows:number(rows,0,1048576,'고정 행 수',true),columns:number(columns,0,16384,'고정 열 수',true)};}
  function fillFormula(sheet,selection,formula){if(typeof formula!=='string'||!formula.startsWith('=')||formula.length>8192)throw Error('수식은 =로 시작하고 8,192자 이하여야 합니다.');return {op:'fill_formula',sheet,range:range(selection),formula};}
  // Point units, matching the shared worksheet model. CSS consumers may use pt

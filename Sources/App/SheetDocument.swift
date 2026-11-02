@@ -69,6 +69,36 @@ final class SheetDocument: NSDocument {
 
     // MARK: Edits (undoable)
 
+    private struct DataSnapshot {
+        let cells: [CellRef: SheetCell]
+        let cached: [CellRef: (String, String)]
+        let legacy: Set<CellRef>
+        init(_ sheet: Worksheet) {
+            cells = sheet.cells
+            cached = sheet.cachedValues
+            legacy = sheet.legacyFormulas
+        }
+    }
+
+    func editData(on sheet: Worksheet, named name: String, _ change: () throws -> Void) throws {
+        let before = DataSnapshot(sheet)
+        try change()
+        registerDataUndo(before, sheet: sheet, name: name)
+    }
+
+    private func registerDataUndo(_ snapshot: DataSnapshot, sheet: Worksheet, name: String) {
+        undoManager?.registerUndo(withTarget: self) { document in
+            let inverse = DataSnapshot(sheet)
+            sheet.cells = snapshot.cells
+            sheet.cachedValues = snapshot.cached
+            sheet.legacyFormulas = snapshot.legacy
+            document.registerDataUndo(inverse, sheet: sheet, name: name)
+        }
+        undoManager?.setActionName(name)
+        engine.invalidate()
+        NotificationCenter.default.post(name: .sheetChanged, object: self)
+    }
+
     func setCells(_ changes: [(Worksheet, CellRef, SheetCell?)], actionName: String) {
         var undo: [(Worksheet, CellRef, SheetCell?)] = []
         for (ws, ref, cell) in changes {
@@ -478,32 +508,10 @@ final class SheetWindowController: NSWindowController, SheetGridDelegate, NSTool
             if isHeader { range = CellRange(CellRef(row: range.start.row + 1, col: range.start.col), range.end) }
         }
         let key = min(max(grid.cursor.col, range.start.col), range.end.col)
-        let rows = Array(range.start.row...range.end.row)
-        func rank(_ v: SheetValue) -> (Int, Double, String) {
-            switch v {
-            case .number(let d): return (0, d, "")
-            case .bool(let b): return (2, b ? 1 : 0, "")
-            case .string(let t): return (1, 0, t)
-            case .error, .array, .lambda: return (3, 0, "")
-            case .empty: return (4, 0, "")
-            }
-        }
-        let sorted = rows.sorted { a, b in
-            let x = rank(doc.engine.value(sheet, CellRef(row: a, col: key))), y = rank(doc.engine.value(sheet, CellRef(row: b, col: key)))
-            if x.0 != y.0 { return x.0 < y.0 }              // blanks always last
-            let less = x.0 == 1 ? x.2.localizedStandardCompare(y.2) == .orderedAscending : x.1 < y.1
-            let greater = x.0 == 1 ? x.2.localizedStandardCompare(y.2) == .orderedDescending : x.1 > y.1
-            return ascending ? less : greater
-        }
-        structural(ascending ? "오름차순 정렬" : "내림차순 정렬") { ws in
-            var moved: [CellRef: SheetCell] = [:]
-            for (newIndex, oldRow) in sorted.enumerated() {
-                for c in range.start.col...range.end.col {
-                    if let cell = ws.cells[CellRef(row: oldRow, col: c)] { moved[CellRef(row: range.start.row + newIndex, col: c)] = cell }
-                }
-            }
-            for r in range.start.row...range.end.row { for c in range.start.col...range.end.col { ws.cells[CellRef(row: r, col: c)] = nil } }
-            for (k, v) in moved { ws.cells[k] = v }
+        guard range.start.row < range.end.row else { return }
+        performDataEdit(ascending ? "오름차순 정렬" : "내림차순 정렬") {
+            try SheetRangeEditing.sort(book: doc.book, sheet: sheet, range: range, keyColumn: key,
+                                       ascending: ascending, header: false)
         }
     }
 
@@ -515,16 +523,20 @@ final class SheetWindowController: NSWindowController, SheetGridDelegate, NSTool
     private func fill(down: Bool) {
         let r = grid.selection
         guard down ? r.end.row > r.start.row : r.end.col > r.start.col else { return }
-        var changes: [(Worksheet, CellRef, SheetCell?)] = []
-        for target in r.cells where down ? target.row > r.start.row : target.col > r.start.col {
-            let source = down ? CellRef(row: r.start.row, col: target.col) : CellRef(row: target.row, col: r.start.col)
-            var cell = sheet.cells[source] ?? SheetCell()
-            if cell.isFormula {
-                cell.input = "=" + XLSXReader.translate(String(cell.input.dropFirst()), rows: target.row - source.row, cols: target.col - source.col)
-            }
-            changes.append((sheet, target, cell))
+        performDataEdit(down ? "아래로 채우기" : "오른쪽으로 채우기") {
+            try SheetRangeEditing.fill(book: doc.book, sheet: sheet, range: r, direction: down ? .down : .right)
         }
-        doc.setCells(changes, actionName: down ? "아래로 채우기" : "오른쪽으로 채우기")
+    }
+
+    private func performDataEdit(_ name: String, change: () throws -> Void) {
+        do {
+            try doc.editData(on: sheet, named: name, change)
+        } catch {
+            let alert = NSAlert()
+            alert.messageText = name
+            alert.informativeText = error.localizedDescription
+            if let window { alert.beginSheetModal(for: window) } else { alert.runModal() }
+        }
     }
 
     @objc func fillDown(_ s: Any?) { fill(down: true) }

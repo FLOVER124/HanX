@@ -21,8 +21,16 @@ Mac CLI 71 tests, desktop 39 tests, native image tests (7 algorithm and 22 integ
 
 ## Remaining parity work
 
-Full advanced-tool compatibility is not complete. Remaining work includes native subject-removal runtime verification and photographic edge-quality evaluation; portable structural spreadsheet edits with formula/reference repair, charts, sorting and filters; richer document tables/headers/footers/fields; multi-select align/distribute; additional imported shape rendering. The detailed original audit is in advanced-parity-audit.md. Do not describe the whole application as feature-identical across platforms.
+Full advanced-tool compatibility is not complete. Remaining work includes native subject-removal runtime verification and photographic edge-quality evaluation; portable structural spreadsheet edits with reference repair and filters; richer document tables/headers/footers/fields; additional imported shape rendering. The detailed original audit is in advanced-parity-audit.md. Do not describe the whole application as feature-identical across platforms.
 
 ## Astra source checks after build cancellation
 
 Source tests ran using installed Node/Electron only. No compiler, application build, packaging, signing, deployment or CI was run. Checked 46 Node tests, actual local ONNX inference/cancel, browser mask/PNG edit round-trip using the prior CLI binary, renderer controls including table operation dispatch, and rendered transition lifecycle tests. New Swift and table save/reopen tests are written but deliberately not run against the old engine.
+
+## Spreadsheet and slide arrangement source update
+
+Mac and portable sort/fill entry points use the shared SheetRangeEditing rules. Sorting accepts a bounded range and key column, keeps equal-key rows stable and empty keys last. Fill down/right copies styles and translates relative references. Moving an older scalar Excel formula keeps its implicit-intersection flag. Merged cells and dynamic spill areas are checked before mutation. Portable chart controls show and edit the five basic chart kinds. The CLI accepts add_chart, update_chart and delete_chart.
+
+Portable slide selection supports modifier clicks, group movement, six edge/center alignments and equal spacing. Rotation counts when finding visible edges. Locked shapes are excluded. The existing engine restored the three affected shapes with one undo in a session test.
+
+The installed Node/Electron checks passed, including 55 Node tests, renderer controls, selection behavior and all five SVG chart types. Swift source changes and new XLSX round-trip fixtures await a Sol build.

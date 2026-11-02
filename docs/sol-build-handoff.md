@@ -27,4 +27,8 @@ The user identifies the model each turn. GPT-6 Astra implements features and edi
 
 ## Known remaining limits
 
-Full native/portable advanced-tool parity is not complete. Rich document structural tools, sheet structural edits/reference repair/charts/sorting, multi-select arrangement and additional imported shape geometries remain separate work. Small U2NetP model may need manual edge correction; Mac Vision and U2NetP do not guarantee identical masks. Session original-image restoration is not persisted as editable provenance across closing/reopening a PPTX; edited PNG itself persists.
+Full native/portable advanced-tool parity is not complete. Rich document structural tools, sheet structural edits/reference repair, filters and additional imported shape geometries remain separate work. Small U2NetP model may need manual edge correction; Mac Vision and U2NetP do not guarantee identical masks. Session original-image restoration is not persisted as editable provenance across closing/reopening a PPTX; edited PNG itself persists.
+
+## Checks for the spreadsheet and arrangement changes
+
+Run the full AgentCLI suite, including test_sheet_data.py, against the newly compiled engine on each target. Check sort/fill across formulas, mixed references, older implicit-intersection formulas, merged cells and blocked spills. On the Mac, exercise sort/fill and undo/redo through the native ribbon. In the portable editor, add a chart from a calculated range, change its kind and geometry, save as XLSX, reopen and delete the chart. Cover grouped slide alignment on rotated and locked shapes, drag cancellation and one-step undo. The existing-runtime tests are desktop/test/sheet-chart-data-ui.cjs and desktop/test/slide-arrangement-ui.cjs.

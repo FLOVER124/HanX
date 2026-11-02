@@ -105,6 +105,9 @@ hanx spreadsheet functions --pretty
 
 - `set_cell`: `cell:"B2"`와 `value:5`, `input:"=SUM(A1:A4)"`, `style:{...}` 중 필요한 속성.
 - `set_range`: `start:"A2"`, `values:[["사과",5,1000],["배",4,2000]]`. 셀 객체도 사용할 수 있습니다.
+- `sort_range`는 지정 범위 안에서 행을 정렬합니다. 예: `{"op":"sort_range","sheet":0,"range":"A1:D20","keyColumn":"C","ascending":false,"header":true}`. 같은 값의 행은 기존 순서를 유지하고 빈 셀은 마지막에 놓습니다.
+- `fill_range`는 첫 행을 아래로 또는 첫 열을 오른쪽으로 복사합니다. 예: `{"op":"fill_range","range":"B2:B20","direction":"down"}`. 값, 수식과 셀 서식을 복사하며 상대 참조를 이동합니다. 병합된 셀 또는 펼쳐지는 배열 수식의 범위와 겹치면 작업을 거부합니다.
+- `add_chart`는 `value`에 차트 종류와 범위를 지정합니다. 예: `{"op":"add_chart","value":{"kind":"column","title":"월별 매출","range":"A1:B13"}}`. `update_chart`는 0부터 시작하는 `index`와 변경할 속성만 넣은 `value`를 받습니다. `delete_chart`는 같은 인덱스의 차트를 삭제합니다.
 - `fill_formula`: `range:"D2:D10"`, `formula:"=B2*C2+$F$1"`. 왼쪽 위 셀을 기준으로 상대 참조를 바꾸며 `$` 절대 참조와 시트 이름, 문자열은 유지합니다. 전체 행/열 참조도 이동합니다.
 - `style_range`: `range:"D2:D10"`, `style:{...}`. 스타일만 바꾸면 수식과 기존 배열 계산 방식은 유지합니다.
 - `clear_range`: `range:"A2:D10"`. 내용/수식만 지우고 서식은 유지합니다.
