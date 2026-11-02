@@ -92,6 +92,7 @@ jobs:
           fi
           python -m unittest discover -s Tests/AgentCLI -p test_cli.py
           python -m unittest discover -s Tests/AgentCLI -p test_spreadsheets.py
+          python -m unittest discover -s Tests/AgentCLI -p test_sheet_data.py
           python -m unittest discover -s Tests/AgentCLI -p test_mcp.py
       - name: Stage npm platform binary
         shell: bash
@@ -123,6 +124,8 @@ jobs:
         run: |
           xvfb-run -a node_modules/.bin/electron test/renderer-ui.cjs --no-sandbox
           xvfb-run -a node_modules/.bin/electron test/image-tools-ui.cjs --no-sandbox
+          xvfb-run -a node_modules/.bin/electron test/slide-arrangement-ui.cjs --no-sandbox
+          xvfb-run -a node_modules/.bin/electron test/sheet-chart-data-ui.cjs --no-sandbox
           xvfb-run -a node_modules/.bin/electron . --no-sandbox --smoke-test
       - name: Windows renderer smoke
         if: runner.os == 'Windows'

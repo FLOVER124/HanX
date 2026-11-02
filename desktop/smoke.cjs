@@ -51,5 +51,7 @@ module.exports=async function smoke(win,session){
  await js("run(()=>hanx.edit([{op:'not-supported'}]))");await waitFor('!busy');assert.equal(shownNotices.length,warningCount+1);assert.equal(shownNotices.at(-1).type,'error');
  await js("run(()=>{throw Error('로컬 화면 오류 확인')})");await waitFor('!busy');assert.equal(shownNotices.length,warningCount+2);assert.ok(shownNotices.at(-1).detail.includes('로컬 화면 오류 확인'));
  await click('help');assert.equal(shownNotices.at(-1).type,'info');
+ const inference=await js(`(async()=>{const c=document.createElement('canvas');c.width=c.height=320;const x=c.getContext('2d');x.fillStyle='white';x.fillRect(0,0,320,320);x.fillStyle='red';x.fillRect(90,60,140,200);const mask=await HanXSubjectSegmentation.start(x.getImageData(0,0,320,320).data).promise;return {length:mask.length,finite:mask.every(Number.isFinite)};})()`);
+ assert.equal(inference.length,102400);assert.equal(inference.finite,true);
  console.log('HANX_GUI_SMOKE_OK: native renderer open/edit/calculation/resize/save/docx/xlsx/pptx/pdf');
 };
