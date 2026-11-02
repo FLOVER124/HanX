@@ -218,7 +218,11 @@ final class Presentation {
 
     var plainText: String {
         slides.enumerated().map { i, s in
-            "[\(i + 1)] " + s.shapes.filter { !$0.locked }.flatMap { $0.paragraphs.map(\.plainText) }.joined(separator: "\n")
+            "[\(i + 1)] " + s.shapes.filter { !$0.locked }.flatMap { shape -> [String] in
+                var text = shape.paragraphs.map(\.plainText)
+                if let table = shape.table { text.append(UDocument.text(of: .table(table))) }
+                return text
+            }.joined(separator: "\n")
         }.joined(separator: "\n\n")
     }
 }

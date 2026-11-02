@@ -20,7 +20,7 @@
   const channels = {
     npm: { ready: config.npm?.available && !unresolved(config.npm.package), command: `npm install -g ${config.npm?.package || ''}\nhanx setup`, title: 'npm으로 앱과 CLI 설치', pending: 'npm 배포 준비 중', detail: config.npm?.package?.startsWith('https://') ? 'GitHub 릴리스의 npm 패키지를 직접 설치합니다. npm 레지스트리 등록은 진행 중입니다. Node.js 18 이상이 필요합니다.' : '설치 후 방향키로 GUI만, CLI만, 둘 다를 선택합니다. Node.js 18 이상이 필요합니다.' },
     brew: { ready: config.brew?.available && !unresolved(config.brew.formula), command: `brew install ${config.brew?.formula || ''}\nhanx setup`, title: 'Homebrew로 앱과 CLI 설치', pending: 'Homebrew 배포 준비 중', detail: 'macOS와 Linux에서 설치합니다. hanx setup에서 GUI와 CLI 구성을 고르세요. Windows에서는 npm 또는 Setup.exe를 사용하세요.' },
-    pkg: { ready: config.pkg?.available && repoReady && !unresolved(config.pkg.asset), title: `HanX ${config.pkg?.version || config.version || ''} Mac 설치 패키지`, pending: '설치 패키지 배포 준비 중', detail: '마지막 공증 pkg는 2.9.0입니다. 최신 GUI 앱은 Mac 앱 ZIP 또는 npm / Homebrew로 설치하세요.' }
+    pkg: { ready: config.pkg?.available && repoReady && !unresolved(config.pkg.asset), title: `HanX ${config.pkg?.version || config.version || ''} Mac 설치 패키지`, pending: '설치 패키지 배포 준비 중', detail: `최신 GUI 앱은 ${config.version || ''}입니다. 위의 Mac 앱 ZIP, Windows 설치 마법사, Linux AppImage 또는 Debian 패키지를 선택하세요. 마지막 공증 pkg는 2.9.0이며 최신 버전의 pkg는 제공하지 않습니다.` }
   };
   Object.entries(channels).forEach(([key, channel]) => {
     const status = document.querySelector(`[data-channel-status="${key}"]`);
