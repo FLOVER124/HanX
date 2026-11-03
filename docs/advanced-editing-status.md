@@ -1,3 +1,5 @@
+Release update, 2026-11-03: 2.11.0 passed the new Mac CLI (83), formulas (416), desktop (58), npm (16), native interaction and GUI suites. Mac app and CLI notarization passed. Windows/Linux native verification passed in run 41592138566 at commit 157af987289bcc4347d13d81166e081a66dcc021. The previous source-only notes below are historical.
+
 # Advanced editing status
 
 Updated 2026-11-03. Release 2.10.0 is published. Subsequent source changes have not been built or released.
