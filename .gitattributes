@@ -1,0 +1,2 @@
+# Preserve reviewed inference assets byte-for-byte on every checkout.
+desktop/assets/segmentation/** -text
