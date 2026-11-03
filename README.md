@@ -4,7 +4,7 @@ HWP, 문서, 도표, 프레젠테이션과 모두 호환되는 새로운 사무 
 macOS 13 이상(Apple Silicon/Intel), Windows x64, Ubuntu 22.04 이상 x64를 대상으로 합니다.
 
 .pkg형 설치 GUI 프로그램 뿐만 아니라 CLI형 프로그램도 제공하며
-AI 에이전트 ChatGPT, Claude 등을 이용해 모든 작업을 진행할 수 있습니다.
+AI 에이전트 AI 클라이언트, AI 클라이언트 등을 이용해 모든 작업을 진행할 수 있습니다.
 
 GUI에서 문서, 도표와 프레젠테이션을 편집하고 CLI와 MCP로 같은 엔진을 호출합니다.
 형식별 지원 범위와 제한은 CLI 안내에서 확인할 수 있습니다.
@@ -42,9 +42,9 @@ hanx --version
 hanx capabilities --pretty
 ```
 
-터미널에서 `hanx`를 실행하면 시작 화면을 표시합니다. `hanx --convert`를 실행하고 파일을 드롭한 뒤 방향키로 출력 형식을 선택하면 같은 폴더에 변환본을 저장합니다. 문서, 엑셀, 슬라이드의 PDF 출력도 지원합니다.
+터미널에서 `hanx`를 실행하면 시작 화면을 표시합니다. `hanx --convert`를 실행하고 파일을 드롭한 뒤 방향키로 출력 형식을 선택하면 같은 폴더에 변환본을 저장합니다. 문서, 스프레드시트, 슬라이드의 PDF 출력도 지원합니다.
 
-AI 에이전트의 MCP 연결에는 `hanx mcp`를 사용합니다. [CLI 안내](docs/cli/README.md)에서 연결과 엑셀 작업 예제를 확인하세요.
+AI 에이전트의 MCP 연결에는 `hanx mcp`를 사용합니다. [CLI 안내](docs/cli/README.md)에서 연결과 스프레드시트 작업 예제를 확인하세요.
 
 ### 업데이트
 
@@ -57,15 +57,15 @@ brew upgrade StudentsView/tap/hanx
 
 ### macOS 앱 설치
 
-최신 앱은 [릴리스](https://github.com/StudentsView/HanX/releases/tag/v2.11.0)의 `HanX-2.11.0-macOS.zip` 또는 npm / Homebrew로 설치하세요. 마지막 공증 pkg는 2.9.0입니다. npm과 Homebrew는 `hanx setup`에서 GUI와 CLI 구성을 선택합니다.
+최신 앱은 [릴리스](https://github.com/StudentsView/HanX/releases/tag/v2.12.0)의 `HanX-2.12.0-macOS.zip` 또는 npm / Homebrew로 설치하세요. 마지막 공증 pkg는 2.9.0입니다. npm과 Homebrew는 `hanx setup`에서 GUI와 CLI 구성을 선택합니다.
 
 ## Windows와 Linux 앱 설치
 
-[릴리스](https://github.com/StudentsView/HanX/releases/tag/v2.11.0)에서 Windows Setup.exe, Linux AppImage 또는 Debian 패키지를 제공합니다. Windows 설치 마법사에서는 GUI와 CLI를 선택할 수 있습니다. Linux CLI 압축 파일의 `install-cli.sh`에서도 구성을 고릅니다.
+[릴리스](https://github.com/StudentsView/HanX/releases/tag/v2.12.0)에서 Windows Setup.exe, Linux AppImage 또는 Debian 패키지를 제공합니다. Windows 설치 마법사에서는 GUI와 CLI를 선택할 수 있습니다. Linux CLI 압축 파일의 `install-cli.sh`에서도 구성을 고릅니다.
 
-Windows/Linux PDF 출력에는 로컬 LibreOffice, PDF 읽기에는 Poppler가 필요합니다. 설치 화면에서 PDF 도구를 선택한 경우에만 추가 설치합니다. macOS 기본 네이티브 배포판은 PDF 처리를 포함합니다.
+Windows/Linux PDF 출력에는 로컬 PDF renderer, PDF 읽기에는 PDF text tools가 필요합니다. 설치 화면에서 PDF 도구를 선택한 경우에만 추가 설치합니다. macOS 기본 네이티브 배포판은 PDF 처리를 포함합니다.
 
-## 엑셀 CLI
+## 스프레드시트 CLI
 
 ```sh
 hanx spreadsheet read 매출.xlsx --sheet 매출 --range A1:D10 --pretty
@@ -109,6 +109,21 @@ build/hanx-cli formula-suite Tests/formulas.tsv
 
 npm 패키지는 `packaging/npm`에서 빌드된 네이티브 실행 파일을 포함합니다. 배포판을 다시 만들 때는 해당 폴더의 설명을 따르세요. Homebrew와 pkg는 같은 엔진을 각 채널의 설치 경로에 배치합니다. 다른 방식으로 설치한 기존 명령을 자동 덮어쓰지 않습니다.
 
-## 출처와 라이선스
+## 라이선스
 
-독립 작성 소스는 [MIT 라이선스](LICENSE)로 배포합니다.
+[MIT License](LICENSE)
+
+
+## 버전 확인과 업데이트
+
+| 작업 | 명령 |
+| --- | --- |
+| 현재 버전과 최신 여부 | `hanx --version` |
+| 최신 배포 확인 | `hanx --check-update` |
+| npm 또는 Homebrew 설치 업데이트 | `hanx --update` |
+
+최신 버전이면 터미널에 `Up to date`, 새 버전이 있으면 `Update available`을 표시합니다. 네트워크가 연결되지 않으면 `Version check unavailable`을 표시합니다. npm과 Homebrew의 버전 응답은 자동화에서도 사용할 수 있는 JSON입니다. 직접 설치한 독립 CLI의 `--version` JSON은 로컬 버전만 반환하고 `--check-update`가 최신 배포를 조회합니다.
+
+`--update`는 설치한 관리자로 CLI를 갱신합니다. 기존 설정에서 GUI를 선택한 경우 앱도 갱신합니다. 권한이 부족하면 설치 관리자 오류를 표시하며 관리자 권한으로 자동 재실행하지 않습니다. ZIP이나 설치 파일로 직접 설치한 앱과 독립 CLI는 최신 다운로드로 교체하세요.
+
+이 명령이 없는 이전 배포판은 한 번만 `npm install -g @juyoungsuh/hanx@latest` 또는 `brew update && brew upgrade StudentsView/tap/hanx`로 갱신하세요.

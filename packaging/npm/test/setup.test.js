@@ -61,7 +61,9 @@ test('GUI-only retains bootstrap, disables native commands and removes downloade
   assert.equal(JSON.parse(fs.readFileSync(locations.state)).components,'gui');
   assert.equal(fs.existsSync(path.join(__dirname,'..','bin','hanx.js')),true);
   const result=require('node:child_process').spawnSync(process.execPath,[path.join(__dirname,'..','bin','hanx.js'),'--version'],{encoding:'utf8'});
-  assert.equal(result.status,1); assert.match(result.stderr,/cli_not_selected/);
+  assert.equal(result.status,0); assert.equal(JSON.parse(result.stdout).data.version,version);
+  const blocked=require('node:child_process').spawnSync(process.execPath,[path.join(__dirname,'..','bin','hanx.js'),'capabilities'],{encoding:'utf8'});
+  assert.equal(blocked.status,1);assert.match(blocked.stderr,/cli_not_selected/);
 });
 test('nonTTY postinstall exits without hanging or fetching a GUI', t => {
   const dir=fs.mkdtempSync(path.join(os.tmpdir(),'hanx-postinstall-')); t.after(()=>fs.rmSync(dir,{recursive:true,force:true}));

@@ -11,13 +11,13 @@ import FoundationNetworking
 enum AgentSheets {
     static let maxCells=100_000
     static let operations=["insert_row","delete_row","insert_column","delete_column","set_cell","set_range","sort_range","fill_range","add_chart","update_chart","delete_chart","fill_formula","style_range","clear_range","add_sheet","delete_sheet","merge","unmerge","freeze","set_column_width","set_row_height","define_name"]
-    static let warning="Spreadsheet model editing preserves supported cells, styles, merges, names and basic charts. Unsupported Excel objects, pivot tables, macros and connections can be omitted; use package patch to retain unrelated XML parts. Calculation uses HanX's engine, not Microsoft Excel."
+    static let warning="Spreadsheet model editing preserves supported cells, styles, merges, names and basic charts. Unsupported spreadsheet objects, pivot tables, macros and connections can be omitted; use package patch to retain unrelated XML parts. Calculation uses HanX's engine, not 스프레드시트 앱."
     static func keys(_ value:[String:Any],_ allowed:Set<String>)throws {
         for k in value.keys where !allowed.contains(k) { throw AgentError("invalid_argument","Unknown spreadsheet property: \(k)") }
     }
     static func ref(_ value:Any?)throws->CellRef {
         let s=try AgentIO.string(value,"A1 cell address").uppercased()
-        guard s.range(of:"^\\$?[A-Z]{1,3}\\$?[1-9][0-9]{0,6}$",options:.regularExpression) != nil,let r=CellRef(a1:s),r.row<1_048_576,r.col<16_384 else { throw AgentError("invalid_argument","Invalid Excel cell address: \(s.prefix(80))") }
+        guard s.range(of:"^\\$?[A-Z]{1,3}\\$?[1-9][0-9]{0,6}$",options:.regularExpression) != nil,let r=CellRef(a1:s),r.row<1_048_576,r.col<16_384 else { throw AgentError("invalid_argument","Invalid spreadsheet cell address: \(s.prefix(80))") }
         return r
     }
     static func range(_ value:Any?)throws->CellRange {
@@ -30,7 +30,7 @@ enum AgentSheets {
     }
     static func name(_ value:Any?)throws->String {
         let n=try AgentIO.string(value,"sheet name")
-        guard !n.isEmpty,n.utf16.count<=31,n.rangeOfCharacter(from:CharacterSet(charactersIn:"[]:*?/\\")) == nil,!n.hasPrefix("'"),!n.hasSuffix("'"),!n.unicodeScalars.contains(where:{$0.value<32}) else { throw AgentError("invalid_argument","Invalid Excel sheet name") }
+        guard !n.isEmpty,n.utf16.count<=31,n.rangeOfCharacter(from:CharacterSet(charactersIn:"[]:*?/\\")) == nil,!n.hasPrefix("'"),!n.hasSuffix("'"),!n.unicodeScalars.contains(where:{$0.value<32}) else { throw AgentError("invalid_argument","Invalid spreadsheet sheet name") }
         return n
     }
     static func sheet(_ book:Workbook,_ selector:Any?)throws->Worksheet {
@@ -216,7 +216,7 @@ enum AgentSheets {
         for ws in b.sheets {
             let n=try name(ws.name).uppercased(); guard names.insert(n).inserted else { throw AgentError("invalid_argument","Duplicate worksheet name") }
             guard ws.frozenRows<1_048_576,ws.frozenCols<16_384 else { throw AgentError("invalid_argument","Frozen pane exceeds worksheet bounds") }
-            for (r,c) in ws.cells { _=try ref(r.a1); guard c.input.utf16.count<=32767 else { throw AgentError("invalid_argument","Cell input exceeds Excel's text limit") } }
+            for (r,c) in ws.cells { _=try ref(r.a1); guard c.input.utf16.count<=32767 else { throw AgentError("invalid_argument","Cell input exceeds spreadsheet's text limit") } }
         }
     }
     static func typed(_ value:SheetValue)->[String:Any] {
@@ -263,7 +263,7 @@ enum AgentSheets {
         var used=ws.usedRange
         for ref in ws.cells.keys.sorted() where ws.cells[ref]?.isFormula == true && !ws.legacyFormulas.contains(ref) {
             guard let m=engine.spillArray(ws,ref) else { continue }
-            guard m.rows>0,m.cols>0,ref.row+m.rows<=1_048_576,ref.col+m.cols<=16_384 else { throw AgentError("invalid_argument","Spill exceeds Excel worksheet bounds") }
+            guard m.rows>0,m.cols>0,ref.row+m.rows<=1_048_576,ref.col+m.cols<=16_384 else { throw AgentError("invalid_argument","Spill exceeds spreadsheet worksheet bounds") }
             let end=CellRef(row:ref.row+m.rows-1,col:ref.col+m.cols-1)
             if let old=used { used=CellRange(CellRef(row:min(old.start.row,ref.row),col:min(old.start.col,ref.col)),CellRef(row:max(old.end.row,end.row),col:max(old.end.col,end.col))) }
             else { used=CellRange(ref,end) }

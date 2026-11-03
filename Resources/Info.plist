@@ -24,7 +24,7 @@
 		</dict>
 		<dict>
 			<key>CFBundleTypeName</key>
-			<string>Word 문서 (DOCX)</string>
+			<string>문서 (DOCX)</string>
 			<key>CFBundleTypeRole</key>
 			<string>Editor</string>
 			<key>LSHandlerRank</key>
@@ -66,7 +66,7 @@
 		</dict>
 		<dict>
 			<key>CFBundleTypeName</key>
-			<string>Word 서식 파일 (DOTX)</string>
+			<string>문서 서식 파일 (DOTX)</string>
 			<key>CFBundleTypeRole</key>
 			<string>Viewer</string>
 			<key>LSHandlerRank</key>
@@ -150,7 +150,7 @@
 		</dict>
 		<dict>
 			<key>CFBundleTypeName</key>
-			<string>Excel 통합 문서 (XLSX)</string>
+			<string>스프레드시트 통합 문서 (XLSX)</string>
 			<key>CFBundleTypeRole</key>
 			<string>Editor</string>
 			<key>LSHandlerRank</key>
@@ -192,7 +192,7 @@
 		</dict>
 		<dict>
 			<key>CFBundleTypeName</key>
-			<string>PowerPoint 프레젠테이션 (PPTX)</string>
+			<string>프레젠테이션 (PPTX)</string>
 			<key>CFBundleTypeRole</key>
 			<string>Editor</string>
 			<key>LSHandlerRank</key>
@@ -216,7 +216,7 @@
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
-	<string>2.11.0</string>
+	<string>2.12.0</string>
 	<key>CFBundleVersion</key>
 	<string>7</string>
 	<key>LSMinimumSystemVersion</key>

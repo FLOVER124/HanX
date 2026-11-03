@@ -1,125 +1,17 @@
 <!doctype html>
-<html lang="ko">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="HanX CLI로 로컬 AI 에이전트에 엑셀 셀, 범위, 수식 작업을 맡기세요. macOS, Windows, Linux용 HWP, DOCX, XLSX, PPTX 편집기와 JSON, MCP 도구를 제공합니다.">
-  <meta name="theme-color" content="#234d76">
-  <title>HanX | 에이전트를 위한 엑셀 CLI와 문서 작업 도구</title>
-  <link rel="icon" href="./favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="./styles.css">
-  <script defer src="./config.js"></script>
-  <script defer src="./site.js"></script>
-</head>
-<body>
-  <a class="skip-link" href="#main">본문으로 이동</a>
-  <header class="site-header">
-    <div class="header-inner">
-      <a class="brand" href="#" aria-label="HanX 처음으로"><span class="brand-mark" aria-hidden="true">X</span><span>HanX <small>문서 작업 도구</small></span></a>
-      <nav aria-label="주요 메뉴">
-        <a href="#install">설치</a><a href="#excel">엑셀 CLI</a><a href="#app">앱 기능</a><a data-guide href="./cli/">CLI 안내</a><a data-repo hidden>GitHub</a>
-      </nav>
-    </div>
-  </header>
-  <main id="main">
-    <section class="hero content-width" aria-labelledby="hero-title">
-      <div class="hero-copy">
-        <p class="release-label">HanX 2.11.0 <span>macOS / Windows / Linux</span></p>
-        <h1 id="hero-title">CLI로 AI 에이전트에<br>엑셀 작업을 맡기세요</h1>
-        <p class="hero-description">로컬 에이전트가 HanX CLI를 호출해 셀과 범위를 읽고, 수식을 계산하고, 수정한 파일을 저장합니다. XLSX부터 HWP와 DOCX까지 같은 도구로 다룹니다.</p>
-        <div class="hero-actions"><a class="button primary" href="#install">CLI 설치하기</a><a class="button secondary" data-guide href="./cli/">명령어 살펴보기</a></div>
-        <p class="hero-note">HanX에는 언어 모델이 포함되어 있지 않습니다.<br>사용 중인 로컬 AI 에이전트가 CLI 또는 MCP로 도구를 호출합니다.</p>
-      </div>
-      <div class="terminal" aria-label="셀 범위 조회와 수식 계산 명령 예제">
-        <div class="terminal-header"><span>HanX CLI</span><span>명령 예제</span></div>
-        <div class="terminal-body">
-          <p class="code-comment"># 매출 시트의 셀과 계산값 읽기</p>
-          <pre><code><span class="prompt">$</span> hanx spreadsheet read 매출.xlsx \
-    --sheet 매출 --range A1:D5 --pretty</code></pre>
-          <p class="code-comment"># 파일을 수정하지 않고 수식 계산</p>
-          <pre><code><span class="prompt">$</span> hanx spreadsheet eval 매출.xlsx \
-    --sheet 매출 \
-    --formula '=SUM(D2:D4)' --pretty</code></pre>
-          <div class="terminal-footer"><span>입력은 명령과 JSON</span><span>결과는 JSON</span></div>
-        </div>
-      </div>
-    </section>
-
-    <section id="install" class="install-section" aria-labelledby="install-title">
-      <div class="content-width install-layout">
-        <div><h2 id="install-title">에이전트가 쓸 도구부터 설치하세요</h2><p>설치 후 <code>hanx capabilities --pretty</code>로 지원 범위를 확인하세요. 에이전트에도 먼저 capabilities와 CLI 안내를 읽도록 요청하면 됩니다.</p><p class="muted">macOS 13 이상, Windows x64, Ubuntu 22.04 이상 x64를 지원합니다. 설치 화면에서 앱과 CLI를 선택하세요.</p></div>
-        <div class="install-box">
-          <div class="install-tabs" role="tablist" aria-label="설치 방법">
-            <button id="tab-npm" type="button" role="tab" aria-selected="true" aria-controls="panel-npm" tabindex="0">npm</button>
-            <button id="tab-brew" type="button" role="tab" aria-selected="false" aria-controls="panel-brew" tabindex="-1">Homebrew</button>
-            <button id="tab-pkg" type="button" role="tab" aria-selected="false" aria-controls="panel-pkg" tabindex="-1">앱 다운로드</button>
-          </div>
-          <div id="panel-npm" class="install-panel" role="tabpanel" aria-labelledby="tab-npm" tabindex="0">
-            <p class="channel-status" data-channel-status="npm">npm 배포 정보 확인 중</p>
-            <div class="command-line" data-command-wrap="npm" hidden><code id="command-npm"></code><button class="copy-button" type="button" data-copy="command-npm" aria-label="npm 설치 명령 복사">복사</button></div>
-            <p class="install-detail" data-channel-detail="npm">공개 패키지가 확인되면 설치 명령을 제공합니다.</p>
-          </div>
-          <div id="panel-brew" class="install-panel" role="tabpanel" aria-labelledby="tab-brew" tabindex="0" hidden>
-            <p class="channel-status" data-channel-status="brew">Homebrew 배포 정보 확인 중</p>
-            <div class="command-line" data-command-wrap="brew" hidden><code id="command-brew"></code><button class="copy-button" type="button" data-copy="command-brew" aria-label="Homebrew 설치 명령 복사">복사</button></div>
-            <p class="install-detail" data-channel-detail="brew">공개 formula가 확인되면 설치 명령을 제공합니다.</p>
-          </div>
-          <div id="panel-pkg" class="install-panel" role="tabpanel" aria-labelledby="tab-pkg" tabindex="0" hidden>
-            <p class="channel-status" data-channel-status="pkg">설치 패키지 배포 정보 확인 중</p>
-            <a class="button primary compact" id="pkg-download" hidden>Mac 설치 패키지 다운로드</a>
-            <p><a class="button secondary compact" data-platform-download="macos" hidden>Mac 앱 ZIP</a> <a class="button secondary compact" data-platform-download="windows" hidden>Windows 설치 마법사</a> <a class="button secondary compact" data-platform-download="linux" hidden>Linux AppImage</a> <a class="button secondary compact" data-platform-download="deb" hidden>Linux Debian 패키지</a></p>
-            <p class="install-detail" data-channel-detail="pkg">최신 앱은 2.11.0입니다. 공증 pkg는 2.9.0입니다.</p>
-          </div>
-          <p class="install-guide"><a data-guide href="./cli/">설치와 MCP 연결 안내</a><a data-releases hidden>모든 릴리스</a></p>
-          <noscript><p class="noscript-note">설치 방법 전환에는 JavaScript가 필요합니다. <a href="./cli/">CLI 안내</a>에서 설치 방법을 확인하세요.</p></noscript>
-        </div>
-      </div>
-    </section>
-
-    <section id="excel" class="content-width page-section" aria-labelledby="excel-title">
-      <div class="section-heading"><div><h2 id="excel-title">셀을 읽고, 수식을 넣고, 다시 확인합니다</h2><p>엑셀 작업에 필요한 단위를 명령으로 노출합니다. Excel 앱을 실행하지 않고 HanX 계산 엔진이 수식을 평가합니다.</p></div><a class="text-link" data-guide href="./cli/">전체 입력 명세</a></div>
-      <div class="workflow">
-        <article><span class="step">1</span><h3>필요한 범위 읽기</h3><p><code>A1:D5</code>처럼 범위를 지정합니다. 셀 주소, 입력한 수식, 계산값, 표시 문자열과 서식을 JSON으로 받습니다.</p><code class="inline-example">spreadsheet read --range A1:D5</code></article>
-        <article><span class="step">2</span><h3>수식과 셀 수정하기</h3><p>JSON 작업으로 값을 바꾸거나 범위에 수식을 채웁니다. 상대 참조와 <code>$A$1</code> 같은 절대 참조를 구분합니다.</p><code class="inline-example">set_cell / set_range / fill_formula</code></article>
-        <article><span class="step">3</span><h3>새 파일로 저장하고 검증하기</h3><p>출력 경로를 지정해 저장하고 결과를 다시 읽습니다. 재계산 결과와 <code>formulaErrors</code>에서 수식 오류를 확인합니다.</p><code class="inline-example">spreadsheet recalculate --output</code></article>
-      </div>
-      <div class="formula-reference">
-        <div><h3>익숙한 수식을 그대로</h3><p>합계, 조건, 조건별 집계와 조회를 지원합니다. 함수별 동작과 제한은 <code>spreadsheet functions</code>에서 확인하세요.</p></div>
-        <dl><div><dt>합계</dt><dd><code>=SUM(D2:D10)</code></dd></div><div><dt>조건</dt><dd><code>=IF(D2&gt;=100000,"달성","진행")</code></dd></div><div><dt>조건별 집계</dt><dd><code>=SUMIFS(D2:D10,A2:A10,"서울")</code></dd></div><div><dt>값 조회</dt><dd><code>=XLOOKUP(F2,A2:A10,D2:D10)</code></dd></div></dl>
-      </div>
-      <div class="agent-example"><div><h3>에이전트에게는 이렇게 요청하세요</h3><p>도구 사용과 저장할 결과를 함께 지정하면 작업 범위가 명확해집니다.</p></div><blockquote>HanX capabilities와 CLI 안내를 읽어 줘. 매출.xlsx의 매출 시트에서 A1:D10을 확인하고, D11에 SUM 합계를 넣어 매출-수정.xlsx로 저장해 줘. 저장한 파일을 다시 읽어 수식과 계산값을 확인해 줘.</blockquote></div>
-    </section>
-
-    <section class="connection-section" aria-labelledby="connection-title"><div class="content-width connection-layout"><div><h2 id="connection-title">터미널과 MCP, 같은 엔진</h2><p>셸을 실행할 수 있는 에이전트는 CLI를 호출하고 JSON 응답을 읽습니다. MCP를 지원하는 클라이언트는 stdio 서버에 연결해 같은 읽기와 편집 기능을 도구로 호출할 수 있습니다.</p><p>입력 명세와 수정 작업은 JSON 파일 또는 표준 입력으로 전달합니다. 기존 출력 파일은 기본적으로 덮어쓰지 않습니다.</p><a class="text-link" data-guide href="./cli/">CLI와 MCP 연결 방법</a></div><div class="code-sample"><div class="code-sample-heading"><span>범위에 수식 채우기</span><button type="button" class="copy-button" data-copy="json-example" aria-label="수식 채우기 JSON 예제 복사">복사</button></div><pre><code id="json-example">[
-  {
-    "op": "fill_formula",
-    "sheet": "매출",
-    "range": "D2:D10",
-    "formula": "=B2*C2"
-  }
-]</code></pre><p><code>hanx edit 매출.xlsx --ops 작업.json --output 매출-수정.xlsx</code></p></div></div></section>
-
-    <section id="app" class="content-width page-section" aria-labelledby="app-title">
-      <div class="section-heading"><div><h2 id="app-title">직접 편집할 때는 HanX 앱으로</h2><p>macOS, Windows와 Linux에서 문서, 도표와 프레젠테이션을 편집합니다. 2.11.0에서는 그림 배경 제거, 슬라이드 개체 배치, 도표 정렬과 채우기, 기본 차트 편집 기능을 제공합니다. CLI로 만든 파일도 앱에서 열어 확인할 수 있습니다.</p></div></div>
-      <div class="workflow">
-        <article><h3>그림 배경 제거</h3><p>슬라이드의 그림 하나를 선택하고 그림 탭에서 배경 제거를 실행합니다. 자동 선택이나 단색 배경 제거 뒤에 유지와 제거 브러시로 다듬고 적용합니다. 투명한 부분은 PNG로 저장됩니다. 원본 복원은 문서를 열어 둔 동안 사용할 수 있습니다.</p></article>
-        <article><h3>슬라이드 배치와 재생</h3><p>여러 개체를 선택해 함께 이동하고 가장자리나 가운데를 맞추거나 간격을 같게 배치합니다. 개체 복제, 맨 앞으로와 맨 뒤로 보내기, 회전과 대칭, 비율 고정을 지원합니다. 전환과 개체 애니메이션을 설정하고 슬라이드 쇼에서 확인합니다.</p></article>
-        <article><h3>정렬, 채우기와 차트</h3><p>선택한 범위를 기준 열로 정렬하고 아래로 또는 오른쪽으로 채웁니다. 채우기는 셀 서식과 수식의 상대 참조를 함께 옮깁니다. 세로 막대, 가로 막대, 꺾은선, 영역, 원형 차트를 만들고 제목과 데이터 범위를 수정합니다.</p></article>
-      </div>
-      <figure class="app-overview screenshot-frame"><img src="./images/linux-spreadsheet.png" alt="Linux에서 실행한 HanX의 수식과 셀 편집 화면" width="1280" height="871" loading="lazy"><figcaption>Linux에서 XLSX의 셀과 수식을 편집하는 화면입니다. AI 연결에서 로컬 MCP 설정을 확인할 수 있습니다.</figcaption></figure>
-      <figure class="app-overview screenshot-frame"><img src="./images/windows-presentation.png" alt="Windows에서 실행한 HanX의 슬라이드 크기 조절과 회전 화면" width="1008" height="665" loading="lazy"><figcaption>Windows에서 슬라이드의 도형을 선택해 크기와 회전을 조절하는 화면입니다.</figcaption></figure>
-      <figure class="app-overview screenshot-frame"><img src="./images/start.png" alt="HanX의 새 문서 선택 화면" width="1440" height="900" loading="lazy"><div class="screenshot-fallback" hidden><strong>HanX 시작 화면</strong><span>실제 앱 화면 이미지가 아직 추가되지 않았습니다.</span></div><figcaption>문서, 프레젠테이션, 도표를 선택해 새 파일을 만듭니다.</figcaption></figure>
-      <div class="app-editors">
-        <article><figure class="screenshot-frame"><img src="./images/spreadsheet.png" alt="HanX에서 XLSX 셀과 수식을 편집하는 도표 화면" width="1440" height="900" loading="lazy"><div class="screenshot-fallback" hidden><strong>도표 편집 화면</strong><span>실제 앱 화면 이미지가 아직 추가되지 않았습니다.</span></div></figure><h3>도표</h3><p>XLSX, CSV, TSV의 셀과 수식을 편집합니다. 셀 서식, 시트, 병합과 기본 차트를 다룹니다.</p></article>
-        <article><figure class="screenshot-frame"><img src="./images/document.png" alt="HanX의 문서 편집 화면" width="1440" height="900" loading="lazy"><div class="screenshot-fallback" hidden><strong>문서 편집 화면</strong><span>실제 앱 화면 이미지가 아직 추가되지 않았습니다.</span></div></figure><h3>문서</h3><p>HWP, HWPX, DOCX를 읽고 편집합니다. 본문, 표, 그림과 문단 서식을 다룹니다.</p></article>
-        <article><figure class="screenshot-frame"><img src="./images/presentation.png" alt="HanX의 PPTX 프레젠테이션 편집 화면" width="1440" height="900" loading="lazy"><div class="screenshot-fallback" hidden><strong>프레젠테이션 편집 화면</strong><span>실제 앱 화면 이미지가 아직 추가되지 않았습니다.</span></div></figure><h3>프레젠테이션</h3><p>PPTX의 슬라이드를 편집합니다. 텍스트와 도형, 표, 그림을 배치하고 발표 화면으로 확인합니다.</p></article>
-      </div>
-    </section>
-
-    <section id="limits" class="limits-section"><div class="content-width limits-layout"><div><h2>작업 전에 확인할 범위</h2><p>지원 형식을 읽을 수 있어도 모든 개체와 동작을 재현하는 것은 아닙니다. 복잡한 원본은 복사본으로 작업하고 저장 결과를 확인하세요.</p></div><div class="limits-list"><details open><summary>Excel 호환 범위</summary><p>XLSX, CSV, TSV를 지원하며 구형 XLS 바이너리 파일은 지원하지 않습니다. 조건부 서식, 피벗, 필터와 일부 개체는 지원하지 않아 모델을 거쳐 저장하면 빠질 수 있습니다. 모든 함수가 Microsoft Excel과 동일하게 동작하는 것은 아닙니다.</p></details><details><summary>그림 배경 제거와 플랫폼 차이</summary><p>Mac 자동 피사체 분리는 macOS 14 이상에서 Apple Vision을 사용합니다. macOS 13에서는 단색 또는 수동 모드를 사용합니다. Windows와 Linux 앱은 함께 제공하는 U2NetP 모델을 기기 안에서 실행하며 자동 분석 때문에 그림을 외부로 보내거나 모델을 추가로 내려받지 않습니다. 두 방식의 가장자리 결과는 다를 수 있습니다. 머리카락, 반투명 개체와 복잡한 배경은 브러시로 보정하고 저장 결과를 확인하세요. 플랫폼별 고급 편집 기능이 모두 같지는 않습니다. Windows와 Linux의 행과 열 구조 변경, 필터, 복잡한 문서 표와 머리말 및 꼬리말 편집에는 제한이 남아 있습니다.</p></details><details><summary>파일 보존과 외부 실행</summary><p>매크로와 외부 링크는 실행하지 않습니다. 미지원 요소를 보존해야 하는 OOXML 파일은 CLI 안내의 package patch 방식을 검토하세요. 암호화 문서와 일부 복잡한 문서 개체에도 제한이 있습니다.</p></details><details><summary>로컬 에이전트 연결</summary><p>HanX는 외부 AI 서비스에 자동으로 연결하지 않습니다. 에이전트의 파일 접근 권한과 실행 환경은 사용 중인 클라이언트에서 설정합니다. MCP를 쓸 때는 설치 안내에 나온 실행 파일의 절대 경로를 지정하세요. Linux AppImage를 GUI만 설치한 경우 AI 연결을 사용하는 동안 HanX 앱을 열어 두세요. 앱을 닫고도 AI 에이전트를 사용하려면 CLI 또는 둘 다를 선택하세요.</p></details></div></div></section>
-  </main>
-  <footer class="content-width site-footer"><div><a class="footer-brand" href="#">HanX <span>문서 작업 도구</span></a><p>로컬 파일을 읽고 편집하는 문서 도구</p></div><nav aria-label="관련 문서"><a data-guide href="./cli/">CLI 안내</a><a data-repo hidden>소스 코드</a><a data-license hidden>라이선스</a><a data-provenance hidden>구현과 출처</a></nav><p class="footer-platform">macOS / Windows / Linux<br>macOS arm64/x64, Windows/Linux x64</p></footer>
-  <div class="content-width legal-notice"><p>한글과컴퓨터 또는 Microsoft의 공식 제품이 아닙니다.</p></div>
-  <div id="copy-status" class="copy-status" role="status" aria-live="polite"></div>
-</body>
-</html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="HanX CLI로 AI 에이전트의 스프레드시트 작업을 연결하세요. 문서와 프레젠테이션 편집, 파일 변환을 macOS, Windows, Linux에서 지원합니다."><meta name="theme-color" content="#ffffff"><title>HanX — 문서 작업을 가볍게</title><link rel="icon" href="./images/hanx-icon.png"><link rel="stylesheet" href="./styles.css"><script defer src="./config.js"></script><script defer src="./site.js"></script></head>
+<body><a class="skip-link" href="#main">본문으로 이동</a>
+<header class="site-header"><div class="header-inner"><a class="brand" href="#" aria-label="HanX 처음으로"><img src="./images/hanx-icon.png" width="38" height="38" alt=""><span>HanX</span></a><nav aria-label="주요 메뉴"><a href="#features">기능</a><a href="#install">설치</a><a href="#update">업데이트</a><a data-guide href="./cli/">사용 안내</a><a data-repo hidden>GitHub</a></nav><a class="button primary nav-download" href="#install">다운로드</a></div></header>
+<main id="main">
+<section class="hero content-width"><p class="hero-kicker">macOS, Windows, Linux에서 만나는 HanX</p><h1 class="format-headline"><span>AI 에이전트 연동이 가능한</span><span class="format-title-line"><span class="format-counter" aria-hidden="true"><span class="format-reel"><span>.hwp</span><span>.docx</span><span>.pdf</span><span>.pptx</span><span>.xlsx</span><span>.txt</span><span>.hwp</span></span></span><span>작업 도구</span></span><span class="sr-only">HWP, DOCX, PDF, PPTX, XLSX, TXT</span></h1><p class="hero-description">셀과 수식부터 문서와 슬라이드까지.<br>터미널에서 작업하고, 앱에서 확인하세요.</p><div class="hero-actions"><a class="button primary" href="#install">HanX 시작하기</a><a class="button secondary" data-guide href="./cli/">명령어 살펴보기</a></div>
+<div class="workspace-demo" aria-label="스프레드시트와 CLI 사용 예시"><div class="demo-toolbar"><span class="file-pill"><img src="./images/hanx-icon.png" alt="" width="24" height="24">매출.xlsx</span><span class="demo-state">로컬 파일 작업</span></div><div class="formula-bar"><span>fx</span><code>=SUM(D2:D4)</code><strong>135,000</strong></div><div class="demo-grid"><table aria-label="예시 매출 데이터"><thead><tr><th></th><th>A</th><th>B</th><th>C</th><th>D</th></tr></thead><tbody><tr><th>1</th><td>품목</td><td>수량</td><td>단가</td><td>금액</td></tr><tr><th>2</th><td>노트</td><td>10</td><td>3,000</td><td class="selected-cell">30,000</td></tr><tr><th>3</th><td>파일</td><td>15</td><td>4,000</td><td class="selected-cell">60,000</td></tr><tr><th>4</th><td>펜</td><td>30</td><td>1,500</td><td class="selected-cell last">45,000</td></tr></tbody></table></div><div class="demo-terminal"><span class="terminal-label">HanX CLI</span><code><span>$</span> hanx spreadsheet eval 매출.xlsx --formula '=SUM(D2:D4)'</code><p><span class="success-text">✓</span> 135000</p></div></div><p class="demo-caption">사용 예시입니다. 문서는 기기 안에서 처리합니다.</p></section>
+<section id="install" class="install-section"><div class="content-width"><div class="section-heading centered"><h2>바로 시작해 보세요</h2><p>앱만, CLI만, 또는 둘 다.<br>설치 후 원하는 구성을 선택할 수 있어요.</p></div><div class="install-box"><div class="install-tabs" role="tablist" aria-label="설치 방법"><button id="tab-npm" role="tab" aria-selected="true" aria-controls="panel-npm">npm</button><button id="tab-brew" role="tab" aria-selected="false" aria-controls="panel-brew" tabindex="-1">Homebrew</button><button id="tab-pkg" role="tab" aria-selected="false" aria-controls="panel-pkg" tabindex="-1">앱 다운로드</button></div>
+<div id="panel-npm" class="install-panel" role="tabpanel" aria-labelledby="tab-npm"><p data-channel-status="npm"></p><div class="command-line" data-command-wrap="npm" hidden><code id="command-npm"></code><button type="button" class="copy-button" data-copy="command-npm">복사</button></div><p class="install-detail" data-channel-detail="npm"></p></div>
+<div id="panel-brew" class="install-panel" role="tabpanel" aria-labelledby="tab-brew" hidden><p data-channel-status="brew"></p><div class="command-line" data-command-wrap="brew" hidden><code id="command-brew"></code><button type="button" class="copy-button" data-copy="command-brew">복사</button></div><p class="install-detail" data-channel-detail="brew"></p></div>
+<div id="panel-pkg" class="install-panel" role="tabpanel" aria-labelledby="tab-pkg" hidden><p data-channel-status="pkg"></p><div class="download-grid"><a class="button secondary" data-platform-download="macos" hidden>macOS 앱</a><a class="button secondary" data-platform-download="windows" hidden>Windows 설치</a><a class="button secondary" data-platform-download="linux" hidden>Linux AppImage</a><a class="button secondary" data-platform-download="deb" hidden>Linux Debian</a></div><p class="install-detail" data-channel-detail="pkg"></p><details class="older-install"><summary>pkg 설치 파일</summary><a id="pkg-download" hidden>macOS pkg 다운로드</a><p>pkg 버전 <span id="pkg-version">2.9.0</span>. 최신 버전은 위의 앱 다운로드를 이용하세요.</p></details></div>
+<div class="install-guide"><span>현재 배포 <strong data-latest-version>2.12.0</strong></span><a data-guide href="./cli/">설치 안내</a></div></div><p class="platform-note">macOS 13 이상 / Windows x64 / Ubuntu 22.04 이상 x64<br>npm은 Node.js 18 이상이 필요합니다.</p></div></section>
+<section id="features" class="content-width features-section"><div class="section-heading"><h2>반복하는 작업은 줄이고,<br>문서에 집중하세요</h2><p>읽기, 편집, 계산, 변환을 같은 흐름으로 연결합니다.</p></div><div class="feature-layout"><article class="feature-sheet"><span class="feature-icon">fx</span><h3>수식도, 셀 편집도<br>에이전트와 함께</h3><p>CLI 또는 MCP로 범위를 읽고 수식을 넣으세요.<br>새 파일로 저장한 뒤 계산 결과를 다시 확인할 수 있습니다.</p><div class="mini-command"><code>hanx spreadsheet read 매출.xlsx<br>  --range A1:D5 --pretty</code></div><div class="format-pills"><span>XLSX</span><span>CSV</span><span>TSV</span></div></article><article class="feature-document"><span class="feature-icon document-icon">Aa</span><h3>파일 형식이 달라도<br>익숙한 작업 그대로</h3><p>문서, 프레젠테이션과 XML을 다루고<br>필요한 형식으로 변환하세요.</p><div class="format-flow"><span>HWP</span><span class="flow-arrow" aria-hidden="true">↔</span><span>DOCX</span><span class="flow-arrow" aria-hidden="true">↔</span><span>PDF</span></div><code class="plain-command">hanx --convert</code><p class="small-note">파일을 드롭하고 출력 형식을 선택하세요.</p></article></div></section>
+<section class="app-section"><div class="content-width"><div class="section-heading centered"><h2>직접 보고 다듬고 싶을 땐,<br>HanX 앱을 여세요</h2><p>슬라이드의 그림과 동영상, 문서의 서식과 표를<br>화면에서 확인하고 편집할 수 있어요.</p></div><div class="screenshot-gallery"><figure class="screenshot-frame"><img src="./images/presentation.png" alt="HanX 프레젠테이션 편집 화면" loading="lazy"><figcaption>프레젠테이션 편집</figcaption></figure><figure class="screenshot-frame"><img src="./images/spreadsheet.png" alt="HanX 스프레드시트 편집 화면" loading="lazy"><figcaption>스프레드시트 편집</figcaption></figure></div></div></section>
+<section id="update" class="content-width update-section"><div class="section-heading"><h2>설치한 뒤에도,<br>최신 상태로 간편하게</h2><p>npm과 Homebrew로 설치했다면<br>같은 명령으로 버전을 확인하고 업데이트하세요.</p></div><div class="update-panel"><div class="update-commands"><div><span>버전과 최신 여부 확인</span><div class="command-line"><code id="command-version">hanx --version</code><button class="copy-button" data-copy="command-version">복사</button></div></div><div><span>업데이트</span><div class="command-line"><code id="command-update">hanx --update</code><button class="copy-button" data-copy="command-update">복사</button></div></div><div class="version-result"><span class="status-dot"></span><code>HanX <span data-latest-version>2.12.0</span>  Up to date</code><span>표시 예시</span></div></div><form id="version-check-form" class="version-check"><label for="installed-version">설치한 버전 직접 확인하기</label><p><code>hanx --version</code>에 표시된 번호를 입력하세요.</p><div class="version-input"><input id="installed-version" placeholder="예: 2.12.0" inputmode="decimal" autocomplete="off" required aria-describedby="version-check-result"><button class="button primary" type="submit">확인</button></div><p id="version-check-result" role="status" aria-live="polite">현재 배포 버전과 비교합니다.</p></form></div><p class="platform-note">이 명령은 업데이트 기능이 포함된 배포판부터 사용할 수 있습니다. 이전 버전은 npm 또는 Homebrew로 한 번 업데이트하세요. ZIP과 설치 파일로 직접 설치한 앱은 최신 다운로드로 교체할 수 있습니다.</p></section>
+<section class="guide-section"><div class="content-width guide-inner"><div><h2>필요한 명령부터 찾아보세요</h2><p>설치, 파일 변환과 AI 에이전트 연결까지 안내합니다.</p></div><a class="button primary" data-guide href="./cli/">사용 안내 열기</a></div></section>
+</main><footer class="content-width site-footer"><a class="brand" href="#"><img src="./images/hanx-icon.png" width="32" height="32" alt=""><span>HanX</span></a><nav aria-label="관련 링크"><a data-repo hidden>GitHub</a><a data-releases hidden>릴리스</a><a data-license hidden>MIT License</a></nav><span>문서 작업을 가볍게.</span></footer><div id="copy-status" class="copy-status" role="status" aria-live="polite"></div></body></html>

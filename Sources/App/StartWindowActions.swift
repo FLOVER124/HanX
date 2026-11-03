@@ -26,7 +26,7 @@ enum RecentDocumentHistory {
 final class DefaultAppRegistration: NSObject {
     static let shared = DefaultAppRegistration()
     static let didComplete = Notification.Name("HanXDefaultAppRegistrationDidComplete")
-    private static let completedKey = "HanWordDefaultAppRegistrationCompleted"
+    private static let completedKey = "HandocumentDefaultAppRegistrationCompleted"
     private let preferences: UserDefaults
     private let handler: (@escaping ([String]) -> Void) -> Void
 

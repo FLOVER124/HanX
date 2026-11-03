@@ -1,6 +1,6 @@
 # HanX CLI 2.10.0
 
-로컬 AI 에이전트가 CLI 또는 MCP로 엑셀 파일의 셀과 범위를 읽고 수정하고 수식을 계산합니다. HWP, DOCX, HWPX, HWPML, PPTX와 XML도 읽고 생성하고 수정하고 변환합니다. 네이티브 엔진과 함께 제공되는 실행 라이브러리로 동작하며 Word나 한글을 실행할 필요가 없습니다. 네이티브 CLI 실행에는 Python, Node.js, AI API 키와 추가 유료 라이브러리가 필요하지 않습니다. npm으로 설치하는 경우에는 Node.js 18 이상이 필요합니다.
+로컬 AI 에이전트가 CLI 또는 MCP로 스프레드시트 파일의 셀과 범위를 읽고 수정하고 수식을 계산합니다. HWP, DOCX, HWPX, HWPML, PPTX와 XML도 읽고 생성하고 수정하고 변환합니다. 네이티브 엔진과 함께 제공되는 실행 라이브러리로 동작합니다. 네이티브 CLI 실행에는 Python, Node.js, AI API 키와 추가 유료 라이브러리가 필요하지 않습니다. npm으로 설치하는 경우에는 Node.js 18 이상이 필요합니다.
 
 ## 터미널에서 파일 변환
 
@@ -17,7 +17,7 @@ hanx convert "원본 문서.hwp" --output "변환 문서.docx"
 hanx convert "매출.xlsx" --output "매출.pdf"
 ```
 
-문서, 엑셀, 슬라이드의 PDF 출력은 HanX 앱의 렌더러를 사용합니다. 슬라이드는 장당 한 페이지로 저장하고 전환과 애니메이션은 정지된 상태로 저장합니다. PDF 입력은 선택 가능한 텍스트를 문서로 가져옵니다. 표, 그림, 주석과 원본 배치는 재구성하지 않으며 스캔 PDF의 OCR은 지원하지 않습니다. 일반 XML은 의미를 추정해 문서로 변환하지 않고 HWPML 또는 Flat OPC의 실제 형식에 맞는 변환만 제공합니다.
+문서, 스프레드시트, 슬라이드의 PDF 출력은 HanX 앱의 렌더러를 사용합니다. 슬라이드는 장당 한 페이지로 저장하고 전환과 애니메이션은 정지된 상태로 저장합니다. PDF 입력은 선택 가능한 텍스트를 문서로 가져옵니다. 표, 그림, 주석과 원본 배치는 재구성하지 않으며 스캔 PDF의 OCR은 지원하지 않습니다. 일반 XML은 의미를 추정해 문서로 변환하지 않고 HWPML 또는 Flat OPC의 실제 형식에 맞는 변환만 제공합니다.
 
 ## 설치와 시작
 
@@ -44,15 +44,15 @@ hanx setup --components all --yes
 hanx gui
 ```
 
-GUI만 설치해도 작은 설정 실행기는 남습니다. 문서 처리 명령은 활성화하지 않으며 앱 내부 엔진은 GUI 및 MCP 연결에 사용합니다. GUI의 AI 연결 화면에서 설치된 엔진의 MCP 설정을 확인할 수 있습니다. 이미 사용하는 ChatGPT/Claude/CLI 에이전트가 이 로컬 엔진을 호출하며 언어 모델이나 외부 AI API 키를 HanX가 요구하지 않습니다.
+GUI만 설치해도 작은 설정 실행기는 남습니다. 문서 처리 명령은 활성화하지 않으며 앱 내부 엔진은 GUI 및 MCP 연결에 사용합니다. GUI의 AI 연결 화면에서 설치된 엔진의 MCP 설정을 확인할 수 있습니다. 이미 사용하는 AI 클라이언트/AI 클라이언트/CLI 에이전트가 이 로컬 엔진을 호출하며 언어 모델이나 외부 AI API 키를 HanX가 요구하지 않습니다.
 
 Linux AppImage를 GUI만 설치한 경우 AI 연결을 사용하는 동안 HanX 앱을 열어 두세요. 앱을 닫고도 AI 에이전트를 사용하려면 CLI 또는 둘 다를 선택하세요.
 
-Windows/Linux의 PDF 출력에는 로컬 LibreOffice, PDF 읽기에는 Poppler가 필요합니다. 설치 화면에서 PDF 도구를 선택하거나 `--pdf-dependencies`를 명시한 경우에만 추가 도구를 설치합니다. macOS 기본 네이티브 배포판에는 PDF 처리 기능이 포함돼 있습니다. 설치 여부는 `hanx capabilities --pretty`의 pdf 항목으로 확인하세요.
+Windows/Linux의 PDF 출력에는 로컬 PDF renderer, PDF 읽기에는 PDF text tools가 필요합니다. 설치 화면에서 PDF 도구를 선택하거나 `--pdf-dependencies`를 명시한 경우에만 추가 도구를 설치합니다. macOS 기본 네이티브 배포판에는 PDF 처리 기능이 포함돼 있습니다. 설치 여부는 `hanx capabilities --pretty`의 pdf 항목으로 확인하세요.
 
-최신 GUI 앱은 npm 또는 Homebrew 설치 후 `hanx setup`으로 설치하거나 [HanX 릴리스](https://github.com/StudentsView/HanX/releases)의 `HanX-2.10.0-macOS.zip`을 사용하세요. 마지막으로 만든 공증 pkg는 `HanX-2.9.0.pkg`입니다. pkg는 앱을 `/Applications/HanX.app`에 설치하고 `/usr/local/bin`의 비어 있는 `hanx`와 `hanx-cli` 명령을 연결합니다. Homebrew와 npm은 CLI를 설치하며 해당 도구로 업데이트합니다. 다른 방식으로 설치한 기존 명령을 자동으로 덮어쓰지 않습니다.
+최신 GUI 앱은 npm 또는 Homebrew 설치 후 `hanx setup`으로 설치하거나 [HanX 릴리스](https://github.com/StudentsView/HanX/releases)의 `HanX-2.12.0-macOS.zip`을 사용하세요. 마지막으로 만든 공증 pkg는 `HanX-2.9.0.pkg`입니다. pkg는 앱을 `/Applications/HanX.app`에 설치하고 `/usr/local/bin`의 비어 있는 `hanx`와 `hanx-cli` 명령을 연결합니다. Homebrew와 npm은 CLI를 설치하며 해당 도구로 업데이트합니다. 다른 방식으로 설치한 기존 명령을 자동으로 덮어쓰지 않습니다.
 
-독립 CLI는 릴리스의 `HanX-CLI-2.10.0-macOS.zip`으로도 제공합니다. ZIP을 풀고 해당 폴더에서 `./install-cli.sh`를 실행하세요. 설치 없이 `./hanx --help`로 바로 실행할 수도 있습니다. 기본 설치 위치는 `~/Library/Application Support/HanX/CLI/2.10.0`이며 `~/.local/bin/hanx`와 `hanx-cli` 명령을 연결합니다.
+독립 CLI는 릴리스의 `HanX-CLI-2.12.0-macOS.zip`으로도 제공합니다. ZIP을 풀고 해당 폴더에서 `./install-cli.sh`를 실행하세요. 설치 없이 `./hanx --help`로 바로 실행할 수도 있습니다. 기본 설치 위치는 `~/Library/Application Support/HanX/CLI/2.12.0`이며 `~/.local/bin/hanx`와 `hanx-cli` 명령을 연결합니다.
 
 설치 후 터미널에서 `hanx --help` 또는 `hanx capabilities --pretty`를 실행하세요. CLI 사용에는 PATH의 `hanx`를 쓰고, MCP 설정에는 설치 시 출력한 절대 경로를 쓰세요. PATH에 사용자 bin 폴더가 없으면 현재 셸에서 `export PATH="$HOME/.local/bin:$PATH"`를 실행할 수 있습니다.
 
@@ -65,15 +65,15 @@ hanx convert 수정본.docx --output 수정본.hwpx
 hanx create --spec examples/presentation.json --output 발표.pptx
 ```
 
-예제 파일: [문서 명세](examples/document.json), [문서 수정](examples/document-edits.json), [엑셀 명세](examples/spreadsheet.json), [엑셀 수정](examples/spreadsheet-edits.json), [프레젠테이션](examples/presentation.json), [XML 수정](examples/xml-edits.json). 예제를 내려받고 명령의 경로를 해당 파일 위치에 맞추세요.
+예제 파일: [문서 명세](examples/document.json), [문서 수정](examples/document-edits.json), [스프레드시트 명세](examples/spreadsheet.json), [스프레드시트 수정](examples/spreadsheet-edits.json), [프레젠테이션](examples/presentation.json), [XML 수정](examples/xml-edits.json). 예제를 내려받고 명령의 경로를 해당 파일 위치에 맞추세요.
 
 명세와 작업은 JSON 파일로 주거나 `--spec -`, `--ops -`로 표준 입력에서 받습니다. 보통 응답은 `{"ok":true,"version":"2.10.0","data":...}` 형식입니다. 실패는 `{"ok":false,"error":{"code":...,"message":...}}`와 0이 아닌 종료 코드로 알립니다. `read --text`는 텍스트만 출력합니다. `--no-model`은 큰 native model 및 내장 그림의 base64를 응답에서 제외합니다.
 
 파일은 output에 저장합니다. 기존 출력이 있으면 기본적으로 거부하며 `--force`를 명시했을 때만 교체합니다. `--force`와 원본 경로를 함께 지정하면 원본도 교체할 수 있으니 에이전트에는 새 경로를 주는 것이 좋습니다. 한 번의 edit 작업이 실패하면 결과를 저장하지 않습니다. 숫자 인덱스는 0부터 시작하며 길이는 pt, 시간은 초, 색은 RRGGBB입니다.
 
-## 엑셀 작업과 수식
+## 스프레드시트 작업과 수식
 
-Excel 앱을 열지 않고 XLSX, CSV, TSV를 읽고 계산합니다. 기존 `create`, `read`, `edit`, `convert` 명령과 MCP에서 `kind: spreadsheet`를 사용합니다. `.xls` 바이너리 형식은 지원하지 않습니다. 통합문서에는 최대 256개 시트, 저장된 셀은 합계 100,000개를 지원합니다. 한 번의 범위 조회, 수정은 최대 100,000셀입니다.
+spreadsheet 앱을 열지 않고 XLSX, CSV, TSV를 읽고 계산합니다. 기존 `create`, `read`, `edit`, `convert` 명령과 MCP에서 `kind: spreadsheet`를 사용합니다. `.xls` 바이너리 형식은 지원하지 않습니다. 통합문서에는 최대 256개 시트, 저장된 셀은 합계 100,000개를 지원합니다. 한 번의 범위 조회, 수정은 최대 100,000셀입니다.
 
 ```sh
 hanx create --spec examples/spreadsheet.json --output 매출.xlsx
@@ -87,7 +87,7 @@ hanx spreadsheet functions --pretty
 
 `spreadsheet read`는 각 셀의 `address`, `input`(수식 포함 원문), `type`, `value`(계산값), `display`(서식을 적용한 문자열), `style`을 반환합니다. `--range`를 생략하면 동적 배열의 정상적인 펼침 결과를 포함한 사용 범위를 조회합니다. 넓은 시트에서는 범위를 직접 지정하세요. `--sheet`는 이름이며 생략하면 첫 시트입니다. MCP의 sheet도 이름을 지정합니다. JSON 작업의 sheet는 이름 또는 0부터 시작하는 인덱스입니다. 일반 `read`는 시트 목록, 저장된 셀의 계산 텍스트와 재사용할 수 있는 sparse model을 반환합니다.
 
-`spreadsheet eval`은 파일을 수정하지 않고 수식을 계산합니다. 수식은 `=`로 시작하고 필요하면 `--cell A1`로 기준 위치를 지정합니다. 단일값 또는 `type: array`의 2차원 결과가 나오며 계산 오류는 `type: error`와 `#DIV/0!`, `#NAME?` 등의 값으로 반환합니다. 계산 오류 자체는 CLI 실행 실패가 아닙니다. 생성, 수정, 재계산 응답의 `formulaErrors`에서 오류가 난 시트와 셀을 확인하세요. `recalculate`와 XLSX 저장은 HanX 계산값을 수식 캐시에 저장합니다. Microsoft Excel 프로세스를 호출하는 기능은 아닙니다.
+`spreadsheet eval`은 파일을 수정하지 않고 수식을 계산합니다. 수식은 `=`로 시작하고 필요하면 `--cell A1`로 기준 위치를 지정합니다. 단일값 또는 `type: array`의 2차원 결과가 나오며 계산 오류는 `type: error`와 `#DIV/0!`, `#NAME?` 등의 값으로 반환합니다. 계산 오류 자체는 CLI 실행 실패가 아닙니다. 생성, 수정, 재계산 응답의 `formulaErrors`에서 오류가 난 시트와 셀을 확인하세요. `recalculate`와 XLSX 저장은 HanX 계산값을 수식 캐시에 저장합니다. 스프레드시트 앱 프로세스를 호출하는 기능은 아닙니다.
 
 ### 통합문서 명세
 
@@ -95,11 +95,11 @@ hanx spreadsheet functions --pretty
 {"kind":"spreadsheet","sheets":[{"name":"매출","rows":[["상품","수량","단가","금액"],["사과",2,1000,"=B2*C2"],["배",3,2000,"=B3*C3"]],"cells":{"D4":{"input":"=SUM(D2:D3)","style":{"bold":true,"numberFormat":"#,##0"}}},"frozenRows":1}],"definedNames":{"매출합계":"매출!D4"}}
 ```
 
-`rows`는 A1부터 채우는 2차원 배열이고 `cells`는 주소별 추가/덮어쓰기입니다. 셀에는 숫자, 불리언, 문자열, null 또는 `{input,value,style}` 중 필요한 속성을 지정합니다. `input`과 `value`를 동시에 지정할 수 없습니다. 일반 문자열은 텍스트로, `=`로 시작하는 일반 문자열은 수식으로 해석합니다. `{value:"=문자열"}`은 수식처럼 보이는 문자도 그대로 텍스트로 저장합니다. `{input:"50%"}`처럼 Excel 입력 방식으로 숫자/백분율/수식을 지정할 수도 있습니다. 텍스트로 고정한 셀의 input에는 Excel의 선행 작은따옴표가 보일 수 있고 value/display에는 표시되지 않습니다.
+`rows`는 A1부터 채우는 2차원 배열이고 `cells`는 주소별 추가/덮어쓰기입니다. 셀에는 숫자, 불리언, 문자열, null 또는 `{input,value,style}` 중 필요한 속성을 지정합니다. `input`과 `value`를 동시에 지정할 수 없습니다. 일반 문자열은 텍스트로, `=`로 시작하는 일반 문자열은 수식으로 해석합니다. `{value:"=문자열"}`은 수식처럼 보이는 문자도 그대로 텍스트로 저장합니다. `{input:"50%"}`처럼 spreadsheet 입력 방식으로 숫자/백분율/수식을 지정할 수도 있습니다. 텍스트로 고정한 셀의 input에는 spreadsheet의 선행 작은따옴표가 보일 수 있고 value/display에는 표시되지 않습니다.
 
 시트의 선택 속성은 `columnWidths:{"A":120}`(pt), `rowHeights:{"1":30}`(1부터 시작하는 행 번호, pt), `merges:["A5:B5"]`, `frozenRows`, `frozenCols`입니다. `charts:[{kind,title,range,x,y,width,height}]`로 기본 차트를 지정할 수 있으며 kind는 column/bar/line/area/pie입니다. `definedNames`는 이름과 수식의 대응입니다. 일반 `read`의 model을 `{kind:"spreadsheet",model:...}`로 다시 생성할 수 있습니다.
 
-### 엑셀 수정 작업
+### 스프레드시트 수정 작업
 
 각 작업에는 `op`와 선택 `sheet`를 지정합니다. 생략한 sheet는 첫 번째입니다.
 
@@ -120,7 +120,7 @@ hanx spreadsheet functions --pretty
 
 style은 `bold/italic/underline/wrap/border`(boolean), `fontName`, `fontSize`(pt), `color/fill`(RRGGBB 또는 null로 지우기), `align`(general/left/center/right), `numberFormat`(예: `#,##0`, `0.00%`, `yyyy-mm-dd`)입니다.
 
-SUM, IF, SUMIFS, COUNTIF, XLOOKUP, VLOOKUP, INDEX/MATCH, 날짜, 텍스트, 재무, 통계 함수, LET/LAMBDA와 동적 배열을 기존 엔진으로 계산합니다. 실제 등록된 이름 목록은 `spreadsheet functions` 또는 capabilities의 `spreadsheetFunctions`로 확인합니다. 목록에는 외부 서비스용 오류 응답 함수도 포함되어 있으므로 모든 Excel 함수와 동작이 완전히 같다는 뜻은 아닙니다. 에이전트 명령에서는 WEBSERVICE, IMPORTCSV, IMPORTTEXT의 네트워크/외부 파일 접근을 차단하고 `#BLOCKED!`로 반환합니다.
+SUM, IF, SUMIFS, COUNTIF, XLOOKUP, VLOOKUP, INDEX/MATCH, 날짜, 텍스트, 재무, 통계 함수, LET/LAMBDA와 동적 배열을 기존 엔진으로 계산합니다. 실제 등록된 이름 목록은 `spreadsheet functions` 또는 capabilities의 `spreadsheetFunctions`로 확인합니다. 목록에는 외부 서비스용 오류 응답 함수도 포함되어 있으므로 모든 spreadsheet 함수와 동작이 완전히 같다는 뜻은 아닙니다. 에이전트 명령에서는 WEBSERVICE, IMPORTCSV, IMPORTTEXT의 네트워크/외부 파일 접근을 차단하고 `#BLOCKED!`로 반환합니다.
 
 CSV/TSV는 **첫 시트의 서식이 적용된 계산값**을 내보내고 수식, 서식, 다른 시트를 저장하지 않습니다. HTML은 모든 시트의 계산 결과와 지원 서식을 내보냅니다. 동적 배열 펼침 값도 포함합니다. XLSX 모델 저장은 지원되는 셀, 서식, 이름, 병합, 기본 차트를 유지하며, 피벗 테이블, 매크로, 연결, 복잡한 개체는 빠질 수 있습니다. 원본 보존이 필요한 수정은 새 파일로 저장하고, 전체 패키지의 다른 부분을 유지해야 하면 `package patch`를 사용하세요.
 
@@ -133,7 +133,7 @@ CSV/TSV는 **첫 시트의 서식이 적용된 계산값**을 내보내고 수�
 - 그림: `{type:"image",path:"그림.png",width:200,height:150}`. 명세 파일을 기준으로 상대 경로를 해석합니다. MCP에서는 절대 경로나 `baseDirectory`를 쓰세요.
 - 여러 구역: `sections: [{page,blocks,header,footer}]`. page에는 width/height와 marginTop/Bottom/Left/Right, header/footer 값을 pt로 지정합니다.
 
-`read`의 `data.model`은 글자 런, 표, 내장 그림 등 지원 모델 전체를 담습니다. 고급 편집 시 `{kind:"document",model:...}` 명세로 다시 만들거나 JSON 파일로 보관할 수 있습니다. 모델은 `version`에 맞춰 사용하세요. Word 표 뒤에 필요한 빈 문단 등 형식 차이로 본문 끝의 빈 줄이 달라질 수 있습니다.
+`read`의 `data.model`은 글자 런, 표, 내장 그림 등 지원 모델 전체를 담습니다. 고급 편집 시 `{kind:"document",model:...}` 명세로 다시 만들거나 JSON 파일로 보관할 수 있습니다. 모델은 `version`에 맞춰 사용하세요. document 표 뒤에 필요한 빈 문단 등 형식 차이로 본문 끝의 빈 줄이 달라질 수 있습니다.
 
 문서 편집 작업:
 
@@ -197,7 +197,7 @@ hanx convert 발표.xml --output 다시.pptx
 hanx convert 보고서.docx --output 한글.xml --xml-format hwpml
 ```
 
-임의 XML을 자동으로 Word나 HWP 본문으로 해석하지는 않습니다. 의미 변환은 HWPML 또는 Flat OPC에 적용합니다. XLSX는 위 엑셀 명령으로 작업하거나 ZIP XML을 package 명령으로 편집할 수 있으며 기존 sheet/eval/formula-suite 진단 명령도 유지합니다.
+임의 XML을 자동으로 document나 HWP 본문으로 해석하지는 않습니다. 의미 변환은 HWPML 또는 Flat OPC에 적용합니다. XLSX는 위 스프레드시트 명령으로 작업하거나 ZIP XML을 package 명령으로 편집할 수 있으며 기존 sheet/eval/formula-suite 진단 명령도 유지합니다.
 
 ## 에이전트 연결
 
@@ -209,19 +209,19 @@ Codex:
 codex mcp add hanx -- /절대/경로/hanx mcp
 ```
 
-Claude Code:
+AI 클라이언트 Code:
 
 ```sh
 claude mcp add --scope user hanx -- /절대/경로/hanx mcp
 ```
 
-Claude Desktop의 `mcpServers` 항목 예제:
+AI 클라이언트 Desktop의 `mcpServers` 항목 예제:
 
 ```json
 {"mcpServers":{"hanx":{"command":"/절대/경로/hanx","args":["mcp"]}}}
 ```
 
-클라이언트를 다시 시작하거나 MCP 설정을 새로 불러온 뒤 hanx 도구를 확인하세요. 기존 앱이나 대화는 설치 과정에서 강제로 종료하지 않습니다. ChatGPT 웹은 이 Mac의 CLI나 로컬 Codex 설정을 직접 읽지 않습니다. 로컬 실행이 가능한 ChatGPT/Codex 환경 또는 별도로 연결한 커넥터가 필요합니다.
+클라이언트를 다시 시작하거나 MCP 설정을 새로 불러온 뒤 hanx 도구를 확인하세요. 기존 앱이나 대화는 설치 과정에서 강제로 종료하지 않습니다. AI 클라이언트 웹은 이 Mac의 CLI나 로컬 Codex 설정을 직접 읽지 않습니다. 로컬 실행이 가능한 AI 클라이언트/Codex 환경 또는 별도로 연결한 커넥터가 필요합니다.
 
 에이전트에게 줄 요청 예:
 
@@ -236,14 +236,12 @@ MCP 도구는 `hanx_capabilities`, `hanx_read`, `hanx_create`, `hanx_edit`, `han
 개발 빌드: `./build-cli.sh`, 양쪽 Mac 아키텍처 빌드: `./build-cli.sh --universal`.
 검사: `python3 -m unittest discover -s Tests/AgentCLI`, `Tests/run-editing.sh`, `build/hanx-cli formula-suite Tests/formulas.tsv`.
 
-참고: [한컴 공개 명세](https://www.hancom.com/support/downloadCenter/hwpOwpml), [MCP stdio](https://modelcontextprotocol.io/specification/2025-11-25/basic/transports), [Codex MCP 설정](https://learn.chatgpt.com/docs/extend/mcp), [로컬 MCP 연결](https://modelcontextprotocol.io/docs/develop/connect-local-servers).
 
 
-## 출처와 라이선스
+## 라이선스
 
 
-독립 작성 소스는 MIT 라이선스로 배포합니다. 자세한 조건은 LICENSE와 NOTICE를 확인하세요. 이 프로젝트는 한글과컴퓨터 또는 Microsoft의 공식 제품이 아닙니다. 시스템에 설치된 글꼴을 사용합니다. 공개 명세와 파일 호환성 조사 내역은 docs/legal/RESEARCH.md에 정리했습니다.
-
+[MIT License](LICENSE)
 
 ### 슬라이드 동영상과 문단, 행과 열 편집
 
@@ -264,3 +262,17 @@ MCP 도구는 `hanx_capabilities`, `hanx_read`, `hanx_create`, `hanx_edit`, `han
 `videoData`는 16 MiB 이하 MP4 또는 M4V의 Base64 데이터입니다. `imageData`를 함께 넣으면 PNG 포스터를 지정할 수 있고, 생략하면 기본 포스터를 사용합니다. 영상은 PPTX에 포함됩니다. 재생은 운영체제가 지원하는 코덱에 따릅니다. 외부 동영상 주소를 다운로드하지 않습니다.
 
 `set_paragraph_layout`은 텍스트, 필드와 그림을 유지합니다. `alignment`, `indentLeft`, `indentRight`, `firstLine`, `spaceBefore`, `spaceAfter`, `lineSpacing`, `pageBreakBefore`를 받습니다. 길이는 pt 단위입니다. `lineSpacing.kind`는 `multiple`, `percentOfSize`, `exact`, `atLeast`입니다. `style_paragraph`에는 `verticalAlign`과 `spacing`도 지정할 수 있습니다.
+
+## 버전 확인과 업데이트
+
+| 작업 | 명령 |
+| --- | --- |
+| 현재 버전과 최신 여부 | `hanx --version` |
+| 최신 배포 확인 | `hanx --check-update` |
+| npm 또는 Homebrew 설치 업데이트 | `hanx --update` |
+
+최신 버전이면 터미널에 `Up to date`, 새 버전이 있으면 `Update available`을 표시합니다. 네트워크가 연결되지 않으면 `Version check unavailable`을 표시합니다. npm과 Homebrew의 버전 응답은 자동화에서도 사용할 수 있는 JSON입니다. 직접 설치한 독립 CLI의 `--version` JSON은 로컬 버전만 반환하고 `--check-update`가 최신 배포를 조회합니다.
+
+`--update`는 설치한 관리자로 CLI를 갱신합니다. 기존 설정에서 GUI를 선택한 경우 앱도 갱신합니다. 권한이 부족하면 설치 관리자 오류를 표시하며 관리자 권한으로 자동 재실행하지 않습니다. ZIP이나 설치 파일로 직접 설치한 앱과 독립 CLI는 최신 다운로드로 교체하세요.
+
+이 명령이 없는 이전 배포판은 한 번만 `npm install -g @juyoungsuh/hanx@latest` 또는 `brew update && brew upgrade StudentsView/tap/hanx`로 갱신하세요.

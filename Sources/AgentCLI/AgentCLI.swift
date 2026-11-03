@@ -7,13 +7,15 @@ import FoundationNetworking
 #endif
 
 enum AgentCLI {
-    static let commands:Set<String>=["--convert","--help","-h","help","--version","version","capabilities","schema","read","create","edit","convert","xml","package","spreadsheet","mcp","serve"]
+    static let commands:Set<String>=["--update","update","--check-update","--convert","--help","-h","help","--version","version","capabilities","schema","read","create","edit","convert","xml","package","spreadsheet","mcp","serve"]
     static var help: String {
         let rows: [(String, String)] = [
             ("시작 화면", "hanx"),
             ("파일 변환", "hanx --convert  (드롭 → ↑ ↓ 선택 → Enter)"),
             ("도움말", "hanx --help"),
-            ("버전", "hanx --version"),
+            ("버전과 최신 여부", "hanx --version"),
+            ("업데이트", "hanx --update (npm / Homebrew)"),
+            ("최신 배포 확인", "hanx --check-update"),
             ("지원 기능", "hanx capabilities --pretty"),
             ("변환", "hanx convert 원본.hwp --output 결과.docx"),
             ("본문 읽기", "hanx read 문서.docx --text"),
@@ -41,7 +43,7 @@ enum AgentCLI {
             ("HWPML 출력", "--xml-format hwpml"),
             ("PDF 입력", "텍스트 추출 / 배치 복원 / OCR 미지원"),
             ("문서 형식", "HWP / DOCX / HWPX / HWPML / PDF / TXT / MD / JSON"),
-            ("엑셀 형식", "XLSX / CSV / TSV / PDF / JSON"),
+            ("스프레드시트 형식", "XLSX / CSV / TSV / PDF / JSON"),
             ("슬라이드", "PPTX / PDF / JSON"),
             ("XML 형식", "일반 XML / HWPML / Flat OPC"),
             ("변환 범위", "같은 문서 종류의 지원 형식 간 변환"),
@@ -75,7 +77,7 @@ enum AgentCLI {
     }
     static func pdfCapabilities() -> [String:Any] {
 #if HANX_PORTABLE || !canImport(AppKit)
-        return ["input":"Selectable text using local Poppler; no layout reconstruction or OCR", "output":"Local LibreOffice renderer; pagination and fonts can differ from macOS", "inputAvailable":PortableTool.find("pdfinfo") != nil && PortableTool.find("pdftotext") != nil, "outputAvailable":PortableTool.find("soffice") != nil, "dependencies":["input":["pdfinfo","pdftotext"], "output":["soffice"]]]
+        return ["input":"Selectable text using local PDF text tools; no layout reconstruction or OCR", "output":"Local PDF renderer renderer; pagination and fonts can differ from macOS", "inputAvailable":PortableTool.find("pdfinfo") != nil && PortableTool.find("pdftotext") != nil, "outputAvailable":PortableTool.find("soffice") != nil, "dependencies":["input":["pdfinfo","pdftotext"], "output":["soffice"]]]
 #else
         return ["input":"Selectable text as document; no layout reconstruction or OCR", "output":"Documents, spreadsheets, presentations using HanX renderers", "inputAvailable":true, "outputAvailable":true]
 #endif
@@ -100,7 +102,7 @@ enum AgentCLI {
                 "slideEdits":[["op":"duplicate_slide","slide":0],["op":"set_transition","slide":1,"kind":"push","duration":0.8]],
                 "xmlEdits":[["op":"set_text","xpath":"//*[local-name()='title']","text":"새 제목"]]
             ],
-            "limits":[AgentSheets.warning,"Model-based HWP/DOCX/PPTX conversion supports the existing HanX model; unsupported controls can be omitted. Read warnings and use package patch to preserve other OOXML parts.","HWPML model conversion supports text, basic styles, tables, page setup, headers/footers and embedded images. Other controls remain editable through xml edit.","XML DTD/external entity expansion and macros/scripts are not executed.","Generic XML has no automatic semantic conversion to office documents; use HWPML, Flat OPC, or a document specification.","ChatGPT web needs a local execution bridge or connector; installing this CLI alone does not grant cloud chats access to the Mac."]
+            "limits":[AgentSheets.warning,"Model-based HWP/DOCX/PPTX conversion supports the existing HanX model; unsupported controls can be omitted. Read warnings and use package patch to preserve other OOXML parts.","HWPML model conversion supports text, basic styles, tables, page setup, headers/footers and embedded images. Other controls remain editable through xml edit.","XML DTD/external entity expansion and macros/scripts are not executed.","Generic XML has no automatic semantic conversion to office documents; use HWPML, Flat OPC, or a document specification.","AI 클라이언트 web needs a local execution bridge or connector; installing this CLI alone does not grant cloud chats access to the Mac."]
         ]
     }
     static func parse(_ argv:[String])throws->(String,[String:Any]) {
@@ -154,7 +156,7 @@ enum AgentCLI {
     static func execute(_ command:String,_ args:[String:Any])throws->[String:Any] {
         if command == "capabilities" || command == "schema" { return capabilities() }
         if command == "version" { return ["version":AgentIO.version] }
-        if command == "sheet_functions" { return ["functions":FunctionLibrary.table.keys.sorted(),"blockedExternalIO":["WEBSERVICE","IMPORTCSV","IMPORTTEXT"],"note":"Registered function names include offline/external stubs. No guarantee of complete Excel parity."] }
+        if command == "sheet_functions" { return ["functions":FunctionLibrary.table.keys.sorted(),"blockedExternalIO":["WEBSERVICE","IMPORTCSV","IMPORTTEXT"],"note":"Registered function names include offline/external stubs. No guarantee of complete spreadsheet parity."] }
         let directory=AgentIO.url(args["baseDirectory"] as? String ?? FileManager.default.currentDirectoryPath)
         let force=try AgentIO.bool(args["force"],"force")
         func input()throws->String {
@@ -208,7 +210,7 @@ enum AgentCLI {
             var warnings = (try file.result()["warnings"]) as? [String] ?? []
             if ext == "pdf" {
 #if HANX_PORTABLE || !canImport(AppKit)
-                warnings.append("PDF uses local LibreOffice; font metrics, pagination and supported drawing features can differ from the macOS renderer. Animations are static.")
+                warnings.append("PDF uses local PDF renderer; font metrics, pagination and supported drawing features can differ from the macOS renderer. Animations are static.")
 #else
                 warnings.append("PDF는 HanX의 지원 개체를 기준으로 렌더링합니다. 슬라이드 전환과 애니메이션은 정지된 페이지로 저장합니다.")
 #endif
@@ -226,6 +228,11 @@ enum AgentCLI {
         }
     }
     static func run(_ argv:[String])->Int32 {
+        if let command=argv.first,["--update","update","--check-update"].contains(command) {
+            guard argv.count == 1 else { print("지원하지 않는 업데이트 옵션입니다.");return 2 }
+            return AgentUpdate.run(command)
+        }
+        if let command=argv.first,["--version","version"].contains(command),argv.count == 1,AgentUpdate.terminalOutput { return AgentUpdate.run(command) }
         if argv.isEmpty { print(AgentInteractive.welcome); return 0 }
         if ["--help","-h","help"].contains(argv[0]) || argv.contains("--help") || argv.contains("-h") { print(help); return 0 }
         if argv[0] == "--convert" { return AgentInteractive.run(Array(argv.dropFirst())) }

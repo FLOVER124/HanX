@@ -187,12 +187,12 @@ async function installGUI(components='gui', yes=false) {
   saveState({...readState(),gui:installed,guiVersion:VERSION,guiComponents:components}); return installed;
 }
 function pdfGuide() {
-  console.log('PDF rendering uses optional local LibreOffice (soffice) and Poppler (pdfinfo/pdftotext). HanX does not install them automatically.');
+  console.log('PDF rendering uses optional local rendering (soffice) and text tools (pdfinfo/pdftotext). HanX does not install them automatically.');
   console.log(process.platform==='darwin'?'Optional install: brew install --cask libreoffice; brew install poppler':process.platform==='linux'?'Optional Debian/Ubuntu install: sudo apt-get install libreoffice poppler-utils':'Optional install: winget install --id TheDocumentFoundation.LibreOffice; install Poppler from a trusted distribution and add its bin directory to your user PATH.');
   console.log('Run hanx capabilities --pretty to check availability, then retry PDF export.');
 }
 async function installPDF() {
-  console.log('선택한 PDF 도구 설치: LibreOffice와 Poppler. 별도 애플리케이션이며 설치 관리자가 권한을 요청할 수 있습니다.');
+  console.log('선택한 PDF 렌더러와 텍스트 도구를 설치합니다. 별도 애플리케이션이며 설치 관리자가 권한을 요청할 수 있습니다.');
   if(process.platform==='win32') await run('powershell.exe',['-NoProfile','-ExecutionPolicy','Bypass','-File',path.join(__dirname,'install-pdf.ps1'),'-Install']);
   else if(process.platform==='darwin') { await run('brew',['install','--cask','libreoffice']); await run('brew',['install','poppler']); }
   else {
@@ -206,7 +206,7 @@ async function installPDF() {
 async function askPDF() {
   if(!process.stdin.isTTY||!process.stdout.isTTY) return false;
   const rl=readline.createInterface({input:process.stdin,output:process.stdout});
-  try {return await new Promise((resolve,reject)=>{rl.once('SIGINT',()=>reject(new Error('HanX setup cancelled.'))); rl.once('close',()=>resolve(false)); rl.question('PDF 변환 도구(LibreOffice, Poppler)도 설치할까요? [y/N] ',answer=>resolve(/^y(es)?$/i.test(answer.trim())));});} finally {rl.close();}
+  try {return await new Promise((resolve,reject)=>{rl.once('SIGINT',()=>reject(new Error('HanX setup cancelled.'))); rl.once('close',()=>resolve(false)); rl.question('PDF 변환 도구(렌더러, 텍스트 추출)도 설치할까요? [y/N] ',answer=>resolve(/^y(es)?$/i.test(answer.trim())));});} finally {rl.close();}
 }
 async function setup(args=[],context={}) {
   const options=parseOptions(args); const components=options.components || (options.yes?'cli':await chooseComponents());

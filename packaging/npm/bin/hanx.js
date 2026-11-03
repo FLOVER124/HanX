@@ -21,6 +21,16 @@ async function main() {
   const setup = require('../lib/setup.js');
   const command = process.argv[2];
   try {
+    if (['--update','update','--check-update','--version','version'].includes(command)) {
+      const updater=require('../lib/update.js'),current=require('../package.json').version;
+      const args=process.argv.slice(3);
+      if(args.some(a=>a!=='--pretty'))throw Error('지원하지 않는 업데이트 옵션입니다.');
+      if(command==='--update'||command==='update'){await updater.update({root:path.resolve(__dirname,'..'),current});return;}
+      const info=await updater.check({current});
+      if(process.stdout.isTTY){console.log(`HanX ${current}  ${info.status}`);if(info.updateAvailable)console.log(`Latest ${info.latestVersion}  hanx --update`);}
+      else console.log(JSON.stringify({ok:true,version:current,data:info},null,args.includes('--pretty')?2:0));
+      return;
+    }
     if (command === 'setup') { await setup.setup(process.argv.slice(3)); return; }
     if (command === 'gui') { await setup.launchGUI(); return; }
     if (setup.readState().components === 'gui') { fail('cli_not_selected', 'GUI only is selected. Run hanx setup --components cli --yes (or all) to enable terminal commands.'); return; }

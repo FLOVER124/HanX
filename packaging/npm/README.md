@@ -1,6 +1,6 @@
 # HanX
 
-로컬 AI 에이전트가 엑셀의 셀과 수식을 읽고 수정하고 계산하는 CLI와 문서 편집 앱입니다. HWP, DOCX, HWPX, PPTX, XLSX, XML과 PDF를 지원합니다.
+로컬 AI 에이전트가 스프레드시트의 셀과 수식을 읽고 수정하고 계산하는 CLI와 문서 편집 앱입니다. HWP, DOCX, HWPX, PPTX, XLSX, XML과 PDF를 지원합니다.
 
 macOS 13 이상(Apple Silicon/Intel), Windows x64, Ubuntu 22.04 이상 x64를 대상으로 합니다. npm에는 Node.js 18 이상이 필요합니다.
 
@@ -21,7 +21,7 @@ hanx --convert
 
 GUI만 설치해도 작은 설정 실행기는 남습니다. 문서 처리 CLI는 활성화하지 않으며 앱 안의 엔진은 편집과 MCP 연결에 사용합니다.
 
-Windows/Linux의 PDF 출력에는 LibreOffice, 읽기에는 Poppler가 필요합니다. 설치 화면에서 PDF 도구를 선택하거나 `--pdf-dependencies`를 명시하면 설치를 진행합니다. macOS 기본 네이티브 배포판은 PDF 처리를 포함합니다.
+Windows/Linux의 PDF 출력에는 PDF renderer, 읽기에는 PDF text tools가 필요합니다. 설치 화면에서 PDF 도구를 선택하거나 `--pdf-dependencies`를 명시하면 설치를 진행합니다. macOS 기본 네이티브 배포판은 PDF 처리를 포함합니다.
 
 ```sh
 hanx spreadsheet read 매출.xlsx --sheet 매출 --range A1:D5 --pretty

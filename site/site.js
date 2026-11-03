@@ -15,12 +15,12 @@
   setLinks('[data-repo]', repository);
   setLinks('[data-releases]', repository && `${repository}/releases`);
   setLinks('[data-license]', repository && `${repository}/blob/main/${config.licensePath || 'LICENSE'}`);
-  setLinks('[data-provenance]', repository && `${repository}/blob/main/${config.provenancePath || 'PROVENANCE.md'}`);
+
 
   const channels = {
     npm: { ready: config.npm?.available && !unresolved(config.npm.package), command: `npm install -g ${config.npm?.package || ''}\nhanx setup`, title: 'npm으로 앱과 CLI 설치', pending: 'npm 배포 준비 중', detail: config.npm?.package?.startsWith('https://') ? 'GitHub 릴리스의 npm 패키지를 직접 설치합니다. npm 레지스트리 등록은 진행 중입니다. Node.js 18 이상이 필요합니다.' : '설치 후 방향키로 GUI만, CLI만, 둘 다를 선택합니다. Node.js 18 이상이 필요합니다.' },
     brew: { ready: config.brew?.available && !unresolved(config.brew.formula), command: `brew install ${config.brew?.formula || ''}\nhanx setup`, title: 'Homebrew로 앱과 CLI 설치', pending: 'Homebrew 배포 준비 중', detail: 'macOS와 Linux에서 설치합니다. hanx setup에서 GUI와 CLI 구성을 고르세요. Windows에서는 npm 또는 Setup.exe를 사용하세요.' },
-    pkg: { ready: config.pkg?.available && repoReady && !unresolved(config.pkg.asset), title: `HanX ${config.pkg?.version || config.version || ''} Mac 설치 패키지`, pending: '설치 패키지 배포 준비 중', detail: `최신 GUI 앱은 ${config.version || ''}입니다. 위의 Mac 앱 ZIP, Windows 설치 마법사, Linux AppImage 또는 Debian 패키지를 선택하세요. 마지막 공증 pkg는 2.9.0이며 최신 버전의 pkg는 제공하지 않습니다.` }
+    pkg: { ready: config.pkg?.available && repoReady && !unresolved(config.pkg.asset), title: '사용 중인 운영체제를 선택하세요', pending: '설치 패키지 배포 준비 중', detail: `최신 GUI 앱은 ${config.version || ''}입니다. 위의 Mac 앱 ZIP, Windows 설치 마법사, Linux AppImage 또는 Debian 패키지를 선택하세요. 마지막 공증 pkg는 2.9.0이며 최신 버전의 pkg는 제공하지 않습니다.` }
   };
   Object.entries(channels).forEach(([key, channel]) => {
     const status = document.querySelector(`[data-channel-status="${key}"]`);
@@ -106,4 +106,34 @@
     img.addEventListener('error', fallback);
     if (img.complete && img.naturalWidth === 0) fallback();
   });
+})();
+
+// The browser compares a user-entered version; it never inspects local applications.
+(() => {
+ const configured=window.HANX_SITE?.version;let latest=configured;
+ const valid=s=>/^\d{1,6}\.\d{1,6}\.\d{1,6}$/.test(s);
+ const render=()=>document.querySelectorAll('[data-latest-version]').forEach(n=>n.textContent=latest);
+ render();
+ const refresh=fetch('https://registry.npmjs.org/@juyoungsuh%2fhanx/latest',{signal:AbortSignal.timeout(5000)}).then(r=>{if(!r.ok)throw Error();return r.json();}).then(p=>{if(!valid(p.version))throw Error();latest=p.version;render();}).catch(()=>{});
+ document.getElementById('version-check-form')?.addEventListener('submit',async event=>{
+  event.preventDefault();const result=document.getElementById('version-check-result'),input=document.getElementById('installed-version').value.trim().replace(/^v/,'');
+  if(!valid(input)){result.textContent='2.11.0처럼 숫자 세 자리로 입력하세요.';return;}
+  result.textContent='버전을 확인하고 있습니다.';await refresh;
+  if(!valid(latest)){result.textContent='배포 버전을 확인할 수 없습니다. 잠시 후 다시 확인하세요.';return;}
+  const a=input.split('.').map(Number),b=latest.split('.').map(Number);let order=0;
+  for(let i=0;i<3;i++)if(a[i]!==b[i]){order=Math.sign(a[i]-b[i]);break;}
+  result.textContent=order===0?'Up to date — 최신 버전입니다.':order<0?`Update available — ${latest} 버전으로 업데이트하세요.`:'현재 배포보다 새로운 버전입니다.';
+ });
+})();
+
+(() => {
+ const reel=document.querySelector('.format-reel');if(!reel)return;
+ const reduced=matchMedia('(prefers-reduced-motion: reduce)');let timer=null,reset=null,index=0;
+ function stop(){clearInterval(timer);clearTimeout(reset);timer=null;}
+ function start(){stop();index=0;reel.style.transition='none';reel.style.transform='translateY(0)';if(reduced.matches||document.hidden)return;
+  timer=setInterval(()=>{index++;reel.style.transition='';reel.style.transform=`translateY(-${index*1.5}em)`;
+   if(index===6)reset=setTimeout(()=>{reel.style.transition='none';reel.style.transform='translateY(0)';index=0;},700);
+  },2200);
+ }
+ reduced.addEventListener('change',start);document.addEventListener('visibilitychange',start);window.addEventListener('pagehide',stop);window.addEventListener('pageshow',start);start();
 })();

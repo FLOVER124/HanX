@@ -44,7 +44,7 @@ test('text edits preserve paragraph layout and reject edits that would remove em
  }finally{await s.close();}
 });
 test('technical conversion warnings have a short Korean summary',()=>{
- assert.match(M.warningSummary(['Spreadsheet model editing preserves supported cells']),/Excel/);
+ assert.match(M.warningSummary(['Spreadsheet model editing preserves supported cells']),/스프레드시트/);
  assert.match(M.warningSummary(['PDF selectable text has no layout reconstruction']),/PDF/);
  assert.equal(M.warningSummary([]),'');
 });

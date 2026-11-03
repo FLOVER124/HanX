@@ -37,7 +37,7 @@ enum PortableTool {
     }
     static func run(_ name: String, _ args: [String], in directory: URL) throws -> String {
         guard let executable = find(name) else {
-            throw AgentError("missing_dependency", "PDF operation requires local \(name). Install \(name == "soffice" ? "LibreOffice" : "Poppler (pdfinfo and pdftotext)") and add its executable directory to PATH.")
+            throw AgentError("missing_dependency", "PDF operation requires local \(name). Install the required PDF tool and add its executable directory to PATH.")
         }
         let log = directory.appendingPathComponent(UUID().uuidString + ".log")
         FileManager.default.createFile(atPath: log.path, contents: nil)
@@ -88,7 +88,7 @@ enum AgentPDF {
             // Isolate the profile, so an existing GUI process cannot consume this request.
             _ = try PortableTool.run("soffice", ["-env:UserInstallation=" + dir.appendingPathComponent("profile").absoluteString, "--headless", "--convert-to", "pdf", "--outdir", dir.path, input.path], in: dir)
             let output = dir.appendingPathComponent("input.pdf")
-            guard let data = try? Data(contentsOf: output), PDFReader.isPDF(data) else { throw AgentError("invalid_input", "LibreOffice produced no PDF") }
+            guard let data = try? Data(contentsOf: output), PDFReader.isPDF(data) else { throw AgentError("invalid_input", "PDF renderer produced no PDF") }
             return data
         }
     }
@@ -107,7 +107,7 @@ enum PDFReader {
             let text = try String(contentsOf: output, encoding: .utf8)
             guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { throw FormatError.unsupported("PDF contains no extractable text. Scanned PDFs require OCR, which HanX does not perform.") }
             let doc = UDocument()
-            doc.warnings = ["PDF import extracts selectable text and page sizes using local Poppler. Layout, tables, images and annotations are not reconstructed; scanned pages require OCR."]
+            doc.warnings = ["PDF import extracts selectable text and page sizes using local PDF text tools. Layout, tables, images and annotations are not reconstructed; scanned pages require OCR."]
             var pages = text.components(separatedBy: "\u{0c}")
             if pages.last?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == true { pages.removeLast() }
             guard pages.count <= 5000 else { throw FormatError.unsupported("PDF exceeds 5000 pages") }

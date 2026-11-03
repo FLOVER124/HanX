@@ -101,7 +101,7 @@ final class EditorWindowController: NSWindowController, NSTextViewDelegate, NSTo
         switch hwDocument.sourceFormat {
         case .hwp: fmt = "한글 문서 (HWP 5.0)"
         case .hwpx: fmt = "한글 표준 문서 (HWPX)"
-        case .docx: fmt = "Word 문서 (DOCX)"
+        case .docx: fmt = "document 문서 (DOCX)"
         case .unknown: fmt = "새 문서"
         }
         let p = hwDocument.page
