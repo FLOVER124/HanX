@@ -461,30 +461,34 @@ final class SheetWindowController: NSWindowController, SheetGridDelegate, NSTool
         gridCommit(ref, input: "=SUM(\(CellRef(row: top + 1, col: ref.col).a1):\(CellRef(row: ref.row - 1, col: ref.col).a1))")
     }
 
-    private func shiftFormulas(rowAt: Int? = nil, colAt: Int? = nil, by n: Int) {
-        for ws in doc.book.sheets {
-            for (k, v) in ws.cells where v.isFormula {
-                ws.cells[k]?.input = FormulaEngine.shift(v.input, rowAt: rowAt, colAt: colAt, by: n)
-            }
+    @objc func insertRow(_ s: Any?) { structural("행 삽입", axis: .row, inserting: true) }
+    @objc func deleteRow(_ s: Any?) { structural("행 삭제", axis: .row, inserting: false) }
+    @objc func insertColumn(_ s: Any?) { structural("열 삽입", axis: .column, inserting: true) }
+    @objc func deleteColumn(_ s: Any?) { structural("열 삭제", axis: .column, inserting: false) }
+
+    private func structural(_ name: String, axis: SheetStructuralEditing.Axis, inserting: Bool) {
+        commitPendingEditing()
+        let before = SheetStructuralEditing.Snapshot(doc.book)
+        do {
+            try SheetStructuralEditing.apply(book: doc.book, sheet: sheet, cell: grid.cursor, axis: axis, inserting: inserting)
+            registerStructuralUndo(before, name: name)
+        } catch {
+            let alert = NSAlert()
+            alert.messageText = name
+            alert.informativeText = error.localizedDescription
+            if let window { alert.beginSheetModal(for: window) } else { alert.runModal() }
         }
     }
 
-    @objc func insertRow(_ s: Any?) { structural("행 삽입") { $0.shift(rows: self.grid.cursor.row, by: 1); self.shiftFormulas(rowAt: self.grid.cursor.row, by: 1) } }
-    @objc func deleteRow(_ s: Any?) { structural("행 삭제") { $0.shift(rows: self.grid.cursor.row + 1, by: -1); self.shiftFormulas(rowAt: self.grid.cursor.row + 1, by: -1) } }
-    @objc func insertColumn(_ s: Any?) { structural("열 삽입") { $0.shift(cols: self.grid.cursor.col, by: 1); self.shiftFormulas(colAt: self.grid.cursor.col, by: 1) } }
-    @objc func deleteColumn(_ s: Any?) { structural("열 삭제") { $0.shift(cols: self.grid.cursor.col + 1, by: -1); self.shiftFormulas(colAt: self.grid.cursor.col + 1, by: -1) } }
-
-    /// Structural edits snapshot the whole workbook for undo.
-    private func structural(_ name: String, _ op: (Worksheet) -> Void) {
-        let snapshot = doc.book.sheets.map { ($0, $0.cells) }
-        op(sheet)
-        doc.engine.invalidate()
-        doc.undoManager?.registerUndo(withTarget: self) { wc in
-            for (ws, cells) in snapshot { ws.cells = cells }
-            wc.doc.engine.invalidate(); wc.refresh()
+    private func registerStructuralUndo(_ snapshot: SheetStructuralEditing.Snapshot, name: String) {
+        doc.undoManager?.registerUndo(withTarget: self) { controller in
+            let inverse = SheetStructuralEditing.Snapshot(controller.doc.book)
+            snapshot.restore()
+            controller.registerStructuralUndo(inverse, name: name)
         }
         doc.undoManager?.setActionName(name)
-        refresh()
+        doc.engine.invalidate()
+        NotificationCenter.default.post(name: .sheetChanged, object: doc)
     }
 
     // MARK: Data commands

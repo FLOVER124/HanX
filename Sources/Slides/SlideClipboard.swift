@@ -38,6 +38,7 @@ enum SlideClipboard {
             result.shapes=slide.shapes.map { shape in
                 var result=shape
                 if let id=shape.imageID { result.imageID=ids[id] ?? id }
+                if let id=shape.videoID { result.videoID=ids[id] ?? id }
                 result.paragraphs=shape.paragraphs.map(paragraph)
                 if let t=shape.table { result.table=table(t) }
                 return result
@@ -65,6 +66,7 @@ enum SlideClipboard {
             if let id=slide.backgroundImage { used.insert(id) }
             for shape in slide.shapes {
                 if let id=shape.imageID { used.insert(id) }
+                if let id=shape.videoID { used.insert(id) }
                 shape.paragraphs.forEach(paragraph)
                 if let table=shape.table { for row in table.rows { for cell in row { blocks(cell.blocks) } } }
             }

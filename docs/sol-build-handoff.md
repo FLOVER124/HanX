@@ -1,36 +1,39 @@
 # HanX Astra → Sol handoff
 
-2.10.0 was built and published on 2026-11-03. Native Mac tests, Windows/Linux installers, registry-based public installation, Homebrew and Pages passed. App and CLI notarization passed. No new pkg was created. Earlier source-only notes below describe the development handoff before this release.
+Updated 2026-11-03. Public release remains 2.10.0. The changes below are source work after that release. No new application build, CLI compilation, installer, signing, notarization, deployment or CI run was performed for this work. Installed binaries still contain the released implementation.
 
-## Role rule from the user
+## Role and workspace
 
-The user identifies the model each turn. GPT-6 Astra implements features and edits source. GPT-6.1 Sol handles compilation, builds, installer creation and deployment. Do not start build/CI/signing/publish merely because code is complete. No new pkg unless explicitly requested. Source-only commits use [skip ci].
+The user assigns feature implementation to GPT-6 Astra and builds/distribution to GPT-6.1 Sol. Do not start build/CI/publish merely because source is complete. No new pkg unless explicitly requested. Source commits use `[skip ci]`.
 
-## Current source
+Editable source is `/Applications/HanX-Source`. The public Git checkout is under the project work directory at `work/hanword-release-2026-10-30/public`. Preserve user-edited README and legal wording. Do not write through `build/HanX.app`, which points at the installed app.
 
-/Applications/HanX-Source is the editable source; the public checkout mirrors it on advanced-editing-2.10.0. Public latest release remains 2.9.1. Version metadata 2.10.0 describes the candidate source, not a shipped build. Existing locally notarized 2.10.0 candidates predate subject segmentation, full transitions and table editing: DO NOT PUBLISH THOSE OLD BINARIES. Rebuild from the final source commit when authorized.
+## New source
 
-## New source after the previous binary
+- Slide image and movie drag/drop, including Korean filenames and placement at the drop point. Imports prepare the batch before editing. Portable imports accept PNG/JPEG and MP4/M4V, up to 16 files and 16 MiB total. Native image picker retains existing image-format support and normalizes imported pictures to PNG. New pictures are bounded to 16 million pixels.
+- Embedded movie data is referenced by optional `SlideShape.videoID`; `imageID` remains its poster. PPTX writer adds video/media relationships, content types and video timing; reader retains embedded bytes. Native and portable clipboard paths include/remap both references. CLI `videoData` supports bounded MP4/M4V insertion with an optional PNG `imageData` poster.
+- Portable editor preview and slideshow use local HTML video. Navigation and close pause and release video resources. Native editor double-click and slide-show click use AVKit in a dismissible sheet. Native asset reference restrictions prevent movie references from reading other locations. No remote movie fetching.
+- Portable slide thumbnails handle context-menu cut/copy/paste/duplicate/delete, Ctrl/Cmd+C/X/V/D and Delete/Backspace. Menu-bar clipboard actions route to thumbnails or ordinary text editing according to focus. Up/Down/Home/End navigate thumbnails; the context-menu key and Shift+F10 open the slide menu.
+- Portable SVG geometry covers the 24 native shape kinds and is shared by stage, thumbnail and slideshow rendering.
+- Document paragraph layout operation changes alignment, indentation, spacing and page breaks without rebuilding inlines. Character styling includes superscript/subscript and spacing. Development sessions retain compatibility with the previously released engine's text-layout behavior.
+- Shared sheet row/column insertion/deletion adjusts formulas, names, dimensions, merged cells, freeze boundaries and chart source ranges. Native undo/redo restores the workbook snapshot. Portable data ribbon and CLI expose all four operations. Unsupported formula syntax, ambiguous unqualified defined names, spill intersections, out-of-bounds shifts and complete chart-source deletion are rejected before mutation.
 
-- Native Vision request (macOS14+), full-resolution EXIF-normalized mask, original-alpha compositing and keep/remove brush. macOS13 retains manual/solid fallback. Native code has NOT been compiled since these changes.
-- Portable offline U2NetP model and ONNX Runtime Web runtime under desktop/assets/segmentation. Model and prebuilt runtime were copied, not compiled. manifest.json pins byte sizes/SHA256 and primary-source licensing evidence; retain NOTICE/license files. Existing assets/** packaging should include them. Verify installed Windows/Linux Worker/WASM/file-URL CSP behavior, not just source execution.
-- All native model transition kinds are browser-rendered. Inspect visual samples and auto/click/keyboard timing; effects are not claimed to reproduce PowerPoint pixel-for-pixel.
-- Slide table insert/edit module. set_table_cell preserves plain-cell formatting and rejects object-bearing cells; Swift implementation and new Python round-trip test need a newly compiled CLI.
-- Fix desktop edit allowlist to include set_animations and set_table_cell; source tests should guard these.
+## Verified using existing runtimes
 
-## Checks for Sol, when authorized
+- `cd desktop && npm test`: 58 tests passed. Integration tests use the existing 2.10.0 CLI, so this does not validate newly added Swift operations.
+- Existing Electron ran `test/renderer-ui.cjs`, `test/slide-media-ui.cjs`, `test/presentation-playback-ui.cjs`, `test/sheet-chart-data-ui.cjs` and `test/slide-arrangement-ui.cjs`, all passed on this Mac. Renderer tests mock the native IPC boundary. The media test decodes and plays a real generated H.264 MP4 through the app CSP and checks cleanup on slide navigation/close.
+- JavaScript syntax checks and Python test syntax checks passed.
+- `desktop/test/fixtures/clip.mp4` is a generated two-second solid-blue H.264 fixture with no audio or third-party media. FFmpeg was used to make the test fixture; no app was built.
 
-1. Compile the native CLI, portable CLI, and Mac GUI. Run Tests/AgentCLI, both native image suites, CleanGUI and editing regressions with the NEW binary.
-2. Run npm test in desktop, plus installed Electron test/renderer-ui.cjs, test/image-tools-ui.cjs, test/subject-segmentation-ui.cjs and test/presentation-playback-ui.cjs. These are source tests, not packaging commands.
-3. Native manual validation: real photographs, portrait/landscape/mirrored EXIF, keep/remove strokes at corners, semitransparent input, repeated edit after removal, cancel or switch modes while inference runs, failed Vision detection, macOS13 fallback, undo/redo, save/reopen PNG transparency.
-4. Portable manual validation: same image cases; photo-quality/edge failures; offline launch, damaged/missing model, inference cancellation/timeout and packaged runtime asset loading.
-5. Re-run Windows/Linux installer and distribution tests from the exact final commit. Earlier run 41392325126 failed stale Windows version checks and preview-test sequencing; those were fixed. Reruns were CANCELLED by user request; there is no successful final Windows/Linux installer certification.
-6. When distribution is explicitly authorized: rebuild all artifacts, sign/notarize Mac artifacts, use fresh checksums, update release manifest/npm/brew/site consistently, and preserve user's README/legal wording. Never re-use obsolete candidate archives or infer npm token validity; credentials stay in Keychain.
+## Required after a Sol build
 
-## Known remaining limits
+1. Compile CLI and native Mac GUI from the new source, then run the full AgentCLI suite, including `test_sheet_structure.py` and the new movie/paragraph tests in `test_cli.py`. These tests have NOT run against a newly compiled engine.
+2. Run `Tests/run-editing.sh`; new native movie clipboard and PPTX round-trip assertions are included. Run the existing interaction, clean GUI and image-background suites.
+3. Check native drag/drop, insert-dialog imports, Korean/space filenames, multi-file failure atomicity, undo/redo, double-click playback, slideshow playback, closing the parent window and cleanup of temporary movies. Verify preserved video and poster bytes after PPTX save/reopen and cross-document paste.
+4. Run the same Electron tests on Windows/Linux and in packaged apps with the new bundled CLI. Test the generated H.264 fixture and real supported videos. Windows/Linux runtime and codec behavior has NOT been verified in this source turn. CI definitions include the new media and sheet tests, but no workflow was started.
+5. Open exported embedded-video PPTX in PowerPoint and check playback, duplicate slides and animations. This interoperability check is pending.
+6. Only when authorized to distribute, bump versions, rebuild/sign/notarize as needed, use new checksums and update npm/Homebrew/GitHub consistently. Do not reuse previous binaries or infer that an npm credential is valid.
 
-Full native/portable advanced-tool parity is not complete. Rich document structural tools, sheet structural edits/reference repair, filters and additional imported shape geometries remain separate work. Small U2NetP model may need manual edge correction; Mac Vision and U2NetP do not guarantee identical masks. Session original-image restoration is not persisted as editable provenance across closing/reopening a PPTX; edited PNG itself persists.
+## Remaining differences
 
-## Checks for the spreadsheet and arrangement changes
-
-Run the full AgentCLI suite, including test_sheet_data.py, against the newly compiled engine on each target. Check sort/fill across formulas, mixed references, older implicit-intersection formulas, merged cells and blocked spills. On the Mac, exercise sort/fill and undo/redo through the native ribbon. In the portable editor, add a chart from a calculated range, change its kind and geometry, save as XLSX, reopen and delete the chart. Cover grouped slide alignment on rotated and locked shapes, drag cancellation and one-step undo. The existing-runtime tests are desktop/test/sheet-chart-data-ui.cjs and desktop/test/slide-arrangement-ui.cjs.
+Do not claim full platform parity. Native movie playback currently uses a sheet while portable slideshow playback is inline. Native and portable media poster generation differ. Codec support depends on the platform; imported unsupported video bytes may survive PPTX round-trip without being playable locally. Portable image import accepts fewer image formats than the native picker. Headers, footers, advanced document tables, filters, multi-slide selection and other advanced editor tools still need parity work. Background removal algorithms differ between macOS Vision and portable U2NetP. Exact PowerPoint transition rendering is not claimed.

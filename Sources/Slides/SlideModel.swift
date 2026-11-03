@@ -44,6 +44,8 @@ struct SlideShape: Codable {
     var wrap = true
     var autofitScale: Double = 1
     var imageID: String?
+    /// An embedded movie uses imageID for its editable poster.
+    var videoID: String?
     var table: Table?
     var tableRowHeights: [Double] = []
     var placeholder: String?
@@ -327,4 +329,9 @@ enum ShapeGeometry {
         let x=pts.map { $0.0 }.min()!, y=pts.map { $0.1 }.min()!
         return Frame(x:x,y:y,w:pts.map { $0.0 }.max()!-x,h:pts.map { $0.1 }.max()!-y)
     }
+}
+
+enum SlideMovie {
+    static let posterKey = "hanx/default-movie-poster.png"
+    static let poster = ImageData(name: "movie-poster.png", data: Data(base64Encoded: "iVBORw0KGgoAAAANSUhEUgAAAFAAAAAtCAIAAAC2z3vlAAAAqUlEQVR4nO3RsQ3DQBTDUA+T3hN4/21SpHFrD5EvEncCOIAedHzOa6sOfEHBBRdccMEFj4O/v/sN56XBQnYCrDKHwB52FGxgA2DWzIBBNglG2Dw4bFaAk2wROMPWgafNRvAo2wseYtvBfzfbwRs9PDTMCB6aJAWPal3gaaoInKFawEktDA5TSTBCxcCgNg1mqVEw7oyCcWQOjPNyYG0Fr17Bq1fw6m0HfgBSWlZt7iPSGAAAAABJRU5ErkJggg==")!)
 }

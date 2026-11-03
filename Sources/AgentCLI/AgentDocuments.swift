@@ -7,7 +7,7 @@ import FoundationNetworking
 #endif
 
 enum AgentDocuments {
-    static let documentOps=["replace_text","append_paragraph","append_block","insert_block","delete_block","set_paragraph","style_paragraph","set_cell","set_page"]
+    static let documentOps=["replace_text","append_paragraph","append_block","insert_block","delete_block","set_paragraph","set_paragraph_layout","style_paragraph","set_cell","set_page"]
     static let slideOps=["replace_text","add_slide","duplicate_slide","delete_slide","move_slide","set_notes","set_transition","add_shape","update_shape","delete_shape","duplicate_shape","reorder_shape","set_animations","set_table_cell"]
 
     static func color(_ value:Any?,_ label:String)throws->RGB? {
@@ -28,19 +28,68 @@ enum AgentDocuments {
         }
         if value["color"] != nil { c.color=try color(value["color"],"color") ?? .black }
         if value["highlight"] != nil { c.highlight=try color(value["highlight"],"highlight") }
+        if let v=value["verticalAlign"] {
+            guard let name=v as? String,let align=VerticalAlign(rawValue:name) else { throw AgentError("invalid_argument","Invalid verticalAlign") }
+            c.verticalAlign=align
+        }
+        if let v=value["spacing"] { c.spacing=try AgentIO.number(v,"spacing") }
         return c
     }
-    static func paragraph(_ value:Any,base:CharProps=CharProps())throws->Paragraph {
+    static func paragraph(_ value:Any,base:CharProps=CharProps(),original:Paragraph?=nil)throws->Paragraph {
         let spec:[String:Any]
         if let text=value as? String { spec=["text":text] } else { spec=try AgentIO.map(value,"paragraph") }
         var p=Paragraph(); p.markProps=try style(spec["style"] as? [String:Any] ?? [:],base:base)
-        p.props.alignment = .left
+        if let original { p.props=original.props } else { p.props.alignment = .left }
         if let name=spec["alignment"] as? String { guard let a=Alignment(rawValue:name) else { throw AgentError("invalid_argument","Unknown alignment: \(name)") }; p.props.alignment=a }
         if let s=spec["styleName"] as? String { p.props.styleName=s }
         if let runs=spec["runs"] as? [Any] {
-            for value in runs { let run=try AgentIO.map(value,"run"); let text=try AgentIO.string(run["text"],"run.text"); p.inlines.append(.text(text,try style(run,base:p.markProps))) }
+            for value in runs {
+                let run=try AgentIO.map(value,"run")
+                var base=p.markProps
+                if let source=run["sourceRun"] {
+                    let index=try AgentIO.index(source,"sourceRun")
+                    guard let original,original.inlines.indices.contains(index) else { throw AgentError("invalid_index","sourceRun out of range") }
+                    switch original.inlines[index] {
+                    case .text(_,let c),.tab(let c),.lineBreak(let c): base=c
+                    default: throw AgentError("invalid_argument","sourceRun must reference editable content")
+                    }
+                }
+                let props=try style(run,base:base)
+                switch run["kind"] as? String {
+                case "tab": p.inlines.append(.tab(props))
+                case "lineBreak": p.inlines.append(.lineBreak(props))
+                case nil,"text": p.inlines.append(.text(try AgentIO.string(run["text"],"run.text"),props))
+                default: throw AgentError("invalid_argument","Unknown run kind")
+                }
+            }
         } else { p.inlines=[.text(try AgentIO.string(spec["text"] ?? "","text"),p.markProps)] }
         return p
+    }
+    static func paragraphLayout(_ op:[String:Any],base:ParaProps)throws->ParaProps {
+        var props=base
+        if let value=op["alignment"] {
+            guard let name=value as? String,let align=Alignment(rawValue:name) else { throw AgentError("invalid_argument","Invalid alignment") }
+            props.alignment=align
+        }
+        if let v=op["indentLeft"] { props.indentLeft=try AgentIO.number(v,"indentLeft") }
+        if let v=op["indentRight"] { props.indentRight=try AgentIO.number(v,"indentRight") }
+        if let v=op["firstLine"] { props.firstLine=try AgentIO.number(v,"firstLine") }
+        if let v=op["spaceBefore"] { props.spaceBefore=try AgentIO.number(v,"spaceBefore") }
+        if let v=op["spaceAfter"] { props.spaceAfter=try AgentIO.number(v,"spaceAfter") }
+        if let value=op["lineSpacing"] {
+            let spacing=try AgentIO.map(value,"lineSpacing")
+            let amount=try AgentIO.number(spacing["value"],"lineSpacing.value")
+            guard amount>0 else { throw AgentError("invalid_argument","lineSpacing.value must be positive") }
+            switch spacing["kind"] as? String {
+            case "multiple": props.lineSpacing = .multiple(amount)
+            case "percentOfSize": props.lineSpacing = .percentOfSize(amount)
+            case "exact": props.lineSpacing = .exact(amount)
+            case "atLeast": props.lineSpacing = .atLeast(amount)
+            default: throw AgentError("invalid_argument","Unknown line spacing rule")
+            }
+        }
+        if let v=op["pageBreakBefore"] { props.pageBreakBefore=try AgentIO.bool(v,"pageBreakBefore") }
+        return props
     }
     static func table(_ spec:[String:Any])throws->Table {
         guard let rows=spec["rows"] as? [[Any]],!rows.isEmpty,rows.count<=10_000 else { throw AgentError("invalid_argument","table.rows must be a nonempty array of rows") }
@@ -157,6 +206,21 @@ enum AgentDocuments {
             let u=path.hasPrefix("/") || path.hasPrefix("~") ? AgentIO.url(path) : directory.appendingPathComponent(path)
             let data=try AgentIO.read(u.path),key="agent/\(UUID().uuidString)"
             images[key]=ImageData(name:u.lastPathComponent,data:data); s.kind = .image; s.imageID=key; s.lockAspect=true
+        }
+        if let value = spec["videoData"] {
+            let media = try AgentIO.map(value, "videoData")
+            guard Set(media.keys).isSubset(of: ["name", "data"]) else { throw AgentError("invalid_argument", "Unknown videoData property") }
+            let name = try AgentIO.string(media["name"], "videoData.name")
+            let encoded = try AgentIO.string(media["data"], "videoData.data")
+            guard !name.contains("/"), !name.contains("\\"), name.utf8.count <= 255,
+                  ["mp4","m4v"].contains((name as NSString).pathExtension.lowercased()),
+                  encoded.utf8.count <= 22_369_624, let bytes = Data(base64Encoded: encoded),
+                  bytes.count <= 16_777_216, bytes.count >= 12, bytes[4..<8].elementsEqual("ftyp".utf8)
+            else { throw AgentError("invalid_argument", "Choose an MP4/M4V file up to 16 MiB") }
+            let key = "movie/\(UUID().uuidString)"
+            images[key] = ImageData(name:name, data:bytes)
+            s.videoID = key; s.kind = .image
+            if s.imageID == nil { images[SlideMovie.posterKey] = SlideMovie.poster; s.imageID = SlideMovie.posterKey }
         }
         return s
     }
@@ -283,11 +347,12 @@ enum AgentDocuments {
         for value in operations {
             let op=try AgentIO.map(value,"operation"),name=try AgentIO.string(op["op"],"op")
             let common:Set<String>=["op"]
-            let shapeKeys:Set<String>=["kind","name","x","y","width","height","rotation","fill","line","lineWidth","lockAspect","flipH","flipV","text","runs","paragraphs","style","table","imagePath","imageData","imageID"]
+            let shapeKeys:Set<String>=["kind","name","x","y","width","height","rotation","fill","line","lineWidth","lockAspect","flipH","flipV","text","runs","paragraphs","style","table","imagePath","imageData","imageID","videoData"]
             let keys:[String:Set<String>]=[
                 "replace_text":["find","replace"],"append_paragraph":["section","text","runs","style","alignment","styleName"],
                 "append_block":["section","block"],"insert_block":["section","block","value"],"delete_block":["section","block"],
                 "set_paragraph":["section","block","text","runs","style","alignment","styleName"],"style_paragraph":["section","block","style"],
+                "set_paragraph_layout":["section","block","alignment","indentLeft","indentRight","firstLine","spaceBefore","spaceAfter","lineSpacing","pageBreakBefore"],
                 "set_cell":["section","block","row","column","text"],"set_page":["section","page"],
                 "add_slide":["at","value"],"duplicate_slide":["slide"],"delete_slide":["slide"],"move_slide":["slide","to"],
                 "set_notes":["slide","text"],"set_transition":["slide","kind","duration","direction","advanceAfter","advanceOnClick","vertical","inward"],
@@ -337,10 +402,14 @@ enum AgentDocuments {
                 guard d.sections[si].blocks.indices.contains(bi) else { throw AgentError("invalid_index","block out of range") }
                 switch name {
                 case "delete_block":d.sections[si].blocks.remove(at:bi)
+                case "set_paragraph_layout":
+                    guard case .paragraph(var p)=d.sections[si].blocks[bi] else { throw AgentError("invalid_operation","block is not a paragraph") }
+                    p.props=try paragraphLayout(op,base:p.props)
+                    d.sections[si].blocks[bi] = .paragraph(p)
                 case "set_paragraph","style_paragraph":
                     guard case .paragraph(let p)=d.sections[si].blocks[bi] else { throw AgentError("invalid_operation","block is not a paragraph") }
                     if name == "style_paragraph" { d.sections[si].blocks[bi] = .paragraph(try styling(p,AgentIO.map(op["style"],"style"))) }
-                    else { d.sections[si].blocks[bi] = .paragraph(try paragraph(op,base:p.markProps)) }
+                    else { d.sections[si].blocks[bi] = .paragraph(try paragraph(op,base:p.markProps,original:p)) }
                 case "set_cell":
                     guard case .table(var t)=d.sections[si].blocks[bi] else { throw AgentError("invalid_operation","block is not a table") }
                     let r=try AgentIO.index(op["row"],"row"),c=try AgentIO.index(op["column"],"column")

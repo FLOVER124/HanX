@@ -243,3 +243,24 @@ MCP 도구는 `hanx_capabilities`, `hanx_read`, `hanx_create`, `hanx_edit`, `han
 
 
 독립 작성 소스는 MIT 라이선스로 배포합니다. 자세한 조건은 LICENSE와 NOTICE를 확인하세요. 이 프로젝트는 한글과컴퓨터 또는 Microsoft의 공식 제품이 아닙니다. 시스템에 설치된 글꼴을 사용합니다. 공개 명세와 파일 호환성 조사 내역은 docs/legal/RESEARCH.md에 정리했습니다.
+
+
+### 슬라이드 동영상과 문단, 행과 열 편집
+
+다음 항목은 2.10.0 이후 소스에 추가됐으며 다음 빌드부터 사용할 수 있습니다.
+
+| 작업 | 편집 작업 JSON |
+| --- | --- |
+| 동영상 추가 | `{"op":"add_shape","slide":0,"value":{"kind":"image","name":"소개 영상","videoData":{"name":"소개 영상.mp4","data":"BASE64"}}}` |
+| 문단 들여쓰기 | `{"op":"set_paragraph_layout","section":0,"block":0,"indentLeft":18,"firstLine":-8}` |
+| 문단 줄 간격 | `{"op":"set_paragraph_layout","section":0,"block":0,"lineSpacing":{"kind":"multiple","value":1.5}}` |
+| 행 삽입 | `{"op":"insert_row","sheet":0,"cell":"A3"}` |
+| 행 삭제 | `{"op":"delete_row","sheet":0,"cell":"A3"}` |
+| 열 삽입 | `{"op":"insert_column","sheet":0,"cell":"C1"}` |
+| 열 삭제 | `{"op":"delete_column","sheet":0,"cell":"C1"}` |
+
+`hanx edit 입력파일 --ops 작업.json --output 결과파일`로 적용합니다. 행은 기준 셀 위에, 열은 기준 셀 왼쪽에 하나씩 삽입됩니다. 관련 셀 참조, 병합 범위, 이름 정의와 차트 범위도 조정합니다. 안전하게 수정할 수 없는 수식이나 배열 결과가 있으면 저장 전에 작업을 거부합니다.
+
+`videoData`는 16 MiB 이하 MP4 또는 M4V의 Base64 데이터입니다. `imageData`를 함께 넣으면 PNG 포스터를 지정할 수 있고, 생략하면 기본 포스터를 사용합니다. 영상은 PPTX에 포함됩니다. 재생은 운영체제가 지원하는 코덱에 따릅니다. 외부 동영상 주소를 다운로드하지 않습니다.
+
+`set_paragraph_layout`은 텍스트, 필드와 그림을 유지합니다. `alignment`, `indentLeft`, `indentRight`, `firstLine`, `spaceBefore`, `spaceAfter`, `lineSpacing`, `pageBreakBefore`를 받습니다. 길이는 pt 단위입니다. `lineSpacing.kind`는 `multiple`, `percentOfSize`, `exact`, `atLeast`입니다. `style_paragraph`에는 `verticalAlign`과 `spacing`도 지정할 수 있습니다.

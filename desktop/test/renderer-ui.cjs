@@ -14,9 +14,10 @@ app.on('window-all-closed',()=>{});
  const p={inlines:[{text:{_0:'본문',_1:{size:12}}}],markProps:{size:12},props:{alignment:'left'}};
  const q={inlines:[{text:{_0:'다른 문단',_1:{fontName:'Arial',size:24,bold:true}}}],markProps:{fontName:'Arial',size:24,bold:true},props:{alignment:'right'}};
  const states={document:{kind:'document',model:{sections:[{page:{width:595,height:842,marginTop:72,marginBottom:72,marginLeft:72,marginRight:72},blocks:[{paragraph:{_0:p}},{paragraph:{_0:q}}]}],images:{}},text:'본문'},spreadsheet:{kind:'spreadsheet',model:{sheets:[{name:'Sheet1',cells:{A1:{input:'=1/0'},B1:{input:'다른 셀',style:{fontName:'Arial',fontSize:24,bold:true,italic:true,underline:true,align:'right'}}},merges:[]},{name:'Sheet2',cells:{},merges:[]}]},calculated:[{A1:{display:'#DIV/0!',type:'error'}},{}],formulaErrors:[{cell:'A1',error:'#DIV/0!'}]},presentation:{kind:'presentation',model:{width:960,height:540,images:{},slides:[{background:{r:255,g:255,b:255},shapes:[{id:1,name:'제목',kind:'text',frame:{x:100,y:100,w:300,h:80},paragraphs:[p]}],notes:'',transition:{kind:'fade',duration:.5}}]}}};
- let current=states.document,operations=[];
- contextBridge.exposeInMainWorld('uiTest',{operations:()=>operations,failNext:()=>{current.fail=true;}});
- contextBridge.exposeInMainWorld('hanx',{initial:async()=>current,newFile:async kind=>current=states[kind],edit:async ops=>{if(current.fail){delete current.fail;throw Error('테스트 작업 오류');}operations.push(...ops);return current;},open:async()=>{},save:async()=>{},undo:async()=>{},copySlide:async()=>{},pasteSlide:async()=>current,onAction:()=>{},reportError:async message=>operations.push({error:message}),clipboard:async action=>operations.push({clipboard:action}),help:async topic=>operations.push({help:topic}),connections:async()=>({engine:'/test/hanx'})});`);
+ states.presentation.model.slides.push({...states.presentation.model.slides[0],notes:'other'});
+ let current=states.document,operations=[],menuAction;
+ contextBridge.exposeInMainWorld('uiTest',{operations:()=>operations,menuAction:action=>menuAction(action),failNext:()=>{current.fail=true;}});
+ contextBridge.exposeInMainWorld('hanx',{initial:async()=>current,newFile:async kind=>current=states[kind],edit:async ops=>{if(current.fail){delete current.fail;throw Error('테스트 작업 오류');}operations.push(...ops);return current;},open:async()=>{},save:async()=>{},undo:async()=>{},copySlide:async index=>operations.push({copy:index}),pasteSlide:async index=>{operations.push({paste:index});return current;},onAction:callback=>{menuAction=callback},reportError:async message=>operations.push({error:message}),clipboard:async action=>operations.push({clipboard:action}),help:async topic=>operations.push({help:topic}),connections:async()=>({engine:'/test/hanx'})});`);
  const win=new BrowserWindow({show:false,width:1280,height:900,webPreferences:{preload,contextIsolation:true,nodeIntegration:false,sandbox:true}});
  const errors=[];win.webContents.on('console-message',(_event,...args)=>{const message=typeof args[0]==='object'?args[0].message:args[1];if(String(message).includes('Uncaught'))errors.push(message);});
  const js=code=>win.webContents.executeJavaScript(code);
@@ -53,6 +54,19 @@ app.on('window-all-closed',()=>{});
   await js("document.querySelector('[role=tab][aria-selected=true]').dispatchEvent(new KeyboardEvent('keydown',{key:'ArrowRight',bubbles:true}))");
   assert.equal(await js("document.querySelector('[role=tab][aria-selected=true]').textContent"),'글자 모양');
   assert.equal(await js("document.activeElement.getAttribute('role')"),'tab');
+  await setField('첨자','superscript');assert.equal(await js('uiTest.operations().at(-1).style.verticalAlign'),'superscript');
+  await setField('자간 (pt)','1.5');assert.equal(await js('uiTest.operations().at(-1).style.spacing'),1.5);
+  await click('쪽 문단');await setField('첫 줄 들여쓰기 (pt)','-8');
+  assert.deepEqual(await js('uiTest.operations().at(-1)'),{op:'set_paragraph_layout',section:0,block:1,firstLine:-8});
+  await click('홈');await setField('문단 정렬','center');
+  assert.deepEqual(await js('uiTest.operations().at(-1)'),{op:'set_paragraph_layout',section:0,block:1,alignment:'center'});
+  const serialized=await js(`(()=>{
+    const props={fontName:'Arial',spacing:2,highlight:{r:255,g:255,b:0},verticalAlign:'subscript',strike:true};
+    const p={inlines:[{text:{_0:'old',_1:props}},{tab:{_0:props}},{lineBreak:{_0:props}}],props:{},markProps:{}};
+    const node=richParagraph(p,{});document.body.append(node);node.firstChild.textContent='edited';
+    const values=[richRuns(node,p),getComputedStyle(node.firstChild).verticalAlign,getComputedStyle(node.firstChild).backgroundColor];node.remove();return values;
+  })()`);
+  assert.deepEqual(serialized,[[{sourceRun:0,text:'edited'},{sourceRun:1,kind:'tab'},{sourceRun:2,kind:'lineBreak'}],'sub','rgb(255, 255, 0)']);
   await newFile('spreadsheet');
   assert.equal(await js("document.querySelector('[aria-label=\"A1\"]').value"),'#DIV/0!','Formula error remains cell data');
   assert.equal(await js("document.querySelector('.formula-errors')"),null,'No persistent formula error list');
@@ -125,6 +139,28 @@ app.on('window-all-closed',()=>{});
    if(effect.endsWith('Out')||effect==='disappear')assert.equal(await js("Number(getComputedStyle(document.querySelector('dialog [data-shape-id]')).opacity)"),0,effect);
    await js('testShow.close()');
   }
+  await js("document.querySelectorAll('#outline button')[0].click()");
+  for(const [key,index] of [['ArrowDown',1],['ArrowUp',0],['End',1],['Home',0]]) {
+    await js(`document.activeElement.dispatchEvent(new KeyboardEvent('keydown',{key:${JSON.stringify(key)},bubbles:true,cancelable:true}))`);
+    assert.equal(await js('selected'),index);assert.equal(await js('Number(document.activeElement.dataset.slideIndex)'),index);
+  }
+  const thumbKey=async(key,modifier)=>js(`(async()=>{
+    const t=document.querySelectorAll('#outline button')[1];t.focus();
+    const event=new KeyboardEvent('keydown',{key:${JSON.stringify(key)},${modifier}:true,bubbles:true,cancelable:true});
+    t.dispatchEvent(event);await pending;return event.defaultPrevented;
+  })()`);
+  for(const [key,modifier,expected] of [['c','ctrlKey',{copy:1}],['x','metaKey',{op:'delete_slide',slide:1}],['v','metaKey',{paste:2}],['d','ctrlKey',{op:'duplicate_slide',slide:1}],['Delete','bubbles',{op:'delete_slide',slide:1}],['Backspace','bubbles',{op:'delete_slide',slide:1}]]){
+   assert.equal(await thumbKey(key,modifier),true,key);assert.deepEqual(await js('uiTest.operations().at(-1)'),expected);
+   if(key==='x')assert.deepEqual(await js('uiTest.operations().at(-2)'),{copy:1});
+  }
+  await js("document.querySelectorAll('#outline button')[0].click();document.querySelectorAll('#outline button')[1].dispatchEvent(new MouseEvent('contextmenu',{bubbles:true,cancelable:true}));");
+  await js("[...document.querySelectorAll('#contextMenu button')].find(b=>b.textContent==='슬라이드 복사').click();pending");
+  assert.deepEqual(await js('uiTest.operations().at(-1)'),{copy:1});
+  await js("document.querySelectorAll('#outline button')[1].focus();uiTest.menuAction('copy');pending");
+  assert.deepEqual(await js('uiTest.operations().at(-1)'),{copy:1});
+  await js("const input=document.createElement('textarea');document.body.append(input);input.focus();uiTest.menuAction('copy');");
+  assert.deepEqual(await js('uiTest.operations().at(-1)'),{clipboard:'copy'});
+  assert.equal(await js("document.activeElement.dispatchEvent(new KeyboardEvent('keydown',{key:'x',ctrlKey:true,bubbles:true,cancelable:true}))"),true);
   assert.deepEqual(errors,[]);console.log('HANX_RENDERER_UI_OK');
  }finally{win.destroy();await fs.rm(directory,{recursive:true,force:true});app.quit();}
 })().catch(error=>{console.error(error);app.exit(1);});

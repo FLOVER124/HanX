@@ -290,11 +290,21 @@ final class PPTXReader {
             if s.kind == .text && !s.hasText && decoration { return [] }
             return [s]
         case "pic":
-            guard let f = xfrm(e.child("spPr")), let rid = e.first("blip")?.relAttr("embed"), let id = image(rid, p) else { return [] }
+            guard let f = xfrm(e.child("spPr")) else { return [] }
+            let videoRel = e.first("videoFile")?.relAttr("link")
+            let movieID = videoRel.flatMap { image($0, p) }
+                ?? (videoRel != nil ? (e.first("media")?.relAttr("embed")).flatMap { image($0, p) } : nil)
+            var poster = (e.first("blip")?.relAttr("embed")).flatMap { image($0, p) }
+            if movieID != nil && poster == nil {
+                pres.images[SlideMovie.posterKey] = SlideMovie.poster
+                poster = SlideMovie.posterKey
+            }
+            guard let id = poster else { return [] }
             var s = SlideShape()
             s.kind = .image
             s.frame = map(f)
             s.imageID = id
+            s.videoID = movieID
             let tx = e.child("spPr")?.child("xfrm")
             s.rotation = (tx?.attrDouble("rot") ?? 0)/60000
             s.flipH = tx?.attr("flipH") == "1"; s.flipV = tx?.attr("flipV") == "1"

@@ -10,7 +10,7 @@ import FoundationNetworking
 /// All mutations happen before the caller atomically publishes a new file.
 enum AgentSheets {
     static let maxCells=100_000
-    static let operations=["set_cell","set_range","sort_range","fill_range","add_chart","update_chart","delete_chart","fill_formula","style_range","clear_range","add_sheet","delete_sheet","merge","unmerge","freeze","set_column_width","set_row_height","define_name"]
+    static let operations=["insert_row","delete_row","insert_column","delete_column","set_cell","set_range","sort_range","fill_range","add_chart","update_chart","delete_chart","fill_formula","style_range","clear_range","add_sheet","delete_sheet","merge","unmerge","freeze","set_column_width","set_row_height","define_name"]
     static let warning="Spreadsheet model editing preserves supported cells, styles, merges, names and basic charts. Unsupported Excel objects, pivot tables, macros and connections can be omitted; use package patch to retain unrelated XML parts. Calculation uses HanX's engine, not Microsoft Excel."
     static func keys(_ value:[String:Any],_ allowed:Set<String>)throws {
         for k in value.keys where !allowed.contains(k) { throw AgentError("invalid_argument","Unknown spreadsheet property: \(k)") }
@@ -148,6 +148,7 @@ enum AgentSheets {
     }
     static func edit(_ b:Workbook,_ ops:[Any])throws {
         let fields:[String:Set<String>]=[
+            "insert_row":["cell"],"delete_row":["cell"],"insert_column":["cell"],"delete_column":["cell"],
             "add_chart":["value"],"update_chart":["index","value"],"delete_chart":["index"],
             "sort_range":["range","keyColumn","ascending","header"],"fill_range":["range","direction"],"set_cell":["cell","input","value","style"],"set_range":["start","values"],"fill_formula":["range","formula"],"style_range":["range","style"],"clear_range":["range"],"add_sheet":["name"],"delete_sheet":[],"merge":["range"],"unmerge":["range"],"freeze":["rows","columns"],"set_column_width":["column","width"],"set_row_height":["row","height"],"define_name":["name","formula"]]
         for value in ops {
@@ -157,6 +158,12 @@ enum AgentSheets {
             if op == "define_name" { try define(b,name:AgentIO.string(d["name"],"name"),formula:AgentIO.string(d["formula"],"formula")); continue }
             let ws=try sheet(b,d["sheet"])
             switch op {
+            case "insert_row", "delete_row", "insert_column", "delete_column":
+                let anchor = try ref(d["cell"])
+                do {
+                    try SheetStructuralEditing.apply(book: b, sheet: ws, cell: anchor,
+                        axis: op.hasSuffix("_row") ? .row : .column, inserting: op.hasPrefix("insert_"))
+                } catch { throw AgentError("invalid_operation", error.localizedDescription) }
             case "delete_sheet": guard b.sheets.count>1 else { throw AgentError("invalid_operation","Cannot delete the last worksheet") }; b.sheets.removeAll {$0===ws}
             case "set_cell":
                 let r=try ref(d["cell"]); var data=d; for k in ["op","sheet","cell"] { data.removeValue(forKey:k) }

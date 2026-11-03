@@ -31,6 +31,12 @@
       throw Error("채우기 방향을 선택하세요.");
     return { op: "fill_range", sheet, range: A.range(selection), direction };
   }
+  function structureOperation(sheet, cell, op) {
+    if (!["insert_row", "delete_row", "insert_column", "delete_column"].includes(op))
+      throw Error("행 또는 열 작업을 선택하세요.");
+    const address = A.address(String(cell).trim().toUpperCase());
+    return {op, sheet, cell: address.column + (address.row + 1)};
+  }
   function groups(ctx) {
     const {
       el,
@@ -43,6 +49,7 @@
       cellRange,
       cell,
     } = ctx;
+    const anchor = field("기준 셀", cell || "A1", () => {});
     const range = field("데이터 범위", cellRange || cell || "A1", () => {}),
       key = field("정렬 기준 열", A.address(cell || "A1").column, () => {}),
       header = selectField(
@@ -66,6 +73,16 @@
         }
       };
     return [
+      ribbonGroup("행과 열", anchor, ...[
+        ["위에 행 삽입", "insert_row"], ["행 삭제", "delete_row"],
+        ["왼쪽에 열 삽입", "insert_column"], ["열 삭제", "delete_column"],
+      ].map(([label, op]) => button(label, () => {
+        const target = anchor.querySelector("input");
+        try {
+          const operation = structureOperation(selected, target.value, op);
+          target.setCustomValidity(""); edit(operation);
+        } catch (error) { target.setCustomValidity(error.message); target.reportValidity(); }
+      }))),
       ribbonGroup("범위", range),
       ribbonGroup(
         "정렬",
@@ -105,7 +122,7 @@
       ),
     ];
   }
-  const api = { sortOperation, fillOperation, groups };
+  const api = { sortOperation, fillOperation, structureOperation, groups };
   if (typeof module !== "undefined") module.exports = api;
   else root.HanXSheetData = api;
 })(typeof window !== "undefined" ? window : globalThis);

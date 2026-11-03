@@ -4,8 +4,8 @@ const path = require('node:path');
 const os = require('node:os');
 const {tableCellEditable}=require('./model.js');
 const {randomUUID}=require('node:crypto');
-function visitSlideMedia(value,visit){if(!value||typeof value!=='object')return;for(const key of ['imageID','backgroundImage'])if(typeof value[key]==='string')value[key]=visit(value[key]);if(typeof value.image?.id==='string')value.image.id=visit(value.image.id);for(const child of Object.values(value))visitSlideMedia(child,visit);}
-const ALLOWED = new Set(['replace_text','append_paragraph','append_block','insert_block','delete_block','set_paragraph','style_paragraph','set_cell','set_page','add_slide','duplicate_slide','delete_slide','move_slide','set_notes','set_transition','add_shape','update_shape','delete_shape','duplicate_shape','reorder_shape','set_animations','set_table_cell','set_range','fill_formula','sort_range','fill_range','add_chart','update_chart','delete_chart','style_range','clear_range','add_sheet','delete_sheet','merge','unmerge','freeze','set_column_width','set_row_height','define_name']);
+function visitSlideMedia(value,visit){if(!value||typeof value!=='object')return;for(const key of ['imageID','videoID','backgroundImage'])if(typeof value[key]==='string')value[key]=visit(value[key]);if(typeof value.image?.id==='string')value.image.id=visit(value.image.id);for(const child of Object.values(value))visitSlideMedia(child,visit);}
+const ALLOWED = new Set(['replace_text','append_paragraph','append_block','insert_block','delete_block','set_paragraph','set_paragraph_layout','style_paragraph','set_cell','set_page','add_slide','duplicate_slide','delete_slide','move_slide','set_notes','set_transition','add_shape','update_shape','delete_shape','duplicate_shape','reorder_shape','set_animations','set_table_cell','insert_row','delete_row','insert_column','delete_column','set_range','fill_formula','sort_range','fill_range','add_chart','update_chart','delete_chart','style_range','clear_range','add_sheet','delete_sheet','merge','unmerge','freeze','set_column_width','set_row_height','define_name']);
 function validateOperations(ops) {
   if (!Array.isArray(ops) || !ops.length || ops.length > 10000) throw Error('Expected 1–10000 editing operations.');
   if (JSON.stringify(ops).length > 24e6) throw Error('This edit is too large.');
@@ -63,6 +63,7 @@ class Session {
       }
       if(batch.length===1&&op.op==='set_cell'&&this.kind==='document'){const before=await runEngine(this.executable,['read',current]),cell=before.model.sections?.[op.section||0]?.blocks?.[op.block]?.table?._0.rows?.[op.row]?.[op.column];if(cell&&!tableCellEditable(cell))throw Error('그림, 필드 또는 중첩 표가 포함된 셀은 읽기 전용입니다.');}
       const target=await this.next();await runEngine(this.executable,['edit',current,'--ops','-','--output',target],batch);
+      // Retain layout when development uses a previously released engine too.
       if(original){const after=await runEngine(this.executable,['read',target]),paragraph=after.model.sections[op.section||0].blocks[op.block].paragraph._0;paragraph.props={...original.props,...(op.alignment?{alignment:op.alignment}:{}),...(op.styleName!==undefined?{styleName:op.styleName}:{})};await runEngine(this.executable,['create','--spec','-','--output',target,'--force'],{kind:after.kind,model:after.model});}
       current=target;
     }

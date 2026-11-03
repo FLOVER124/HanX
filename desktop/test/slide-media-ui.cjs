@@ -1,0 +1,54 @@
+// Existing Electron runtime only. Native operations are captured, not compiled.
+const {app,BrowserWindow}=require('electron');
+const fs=require('node:fs/promises'),path=require('node:path'),os=require('node:os');
+const assert=require('node:assert/strict');
+app.on('window-all-closed',()=>{});
+(async()=>{
+ await app.whenReady();
+ const directory=await fs.mkdtemp(path.join(os.tmpdir(),'hanx-media-ui-'));
+ const movie=await fs.readFile(path.join(__dirname,'fixtures/clip.mp4'));
+ const preload=path.join(directory,'preload.cjs');
+ await fs.writeFile(preload,`const {contextBridge}=require('electron');const operations=[],errors=[];
+ const state={kind:'presentation',model:{width:960,height:540,images:{},slides:[{shapes:[],notes:''},{shapes:[],notes:''}]}};
+ contextBridge.exposeInMainWorld('mediaTest',{operations:()=>operations,errors:()=>errors,movie:()=>${JSON.stringify(movie.toString('base64'))}});
+ contextBridge.exposeInMainWorld('hanx',{initial:async()=>state,edit:async ops=>{operations.push(...ops);return state;},onAction(){},reportError:async message=>errors.push(message)});`);
+ const win=new BrowserWindow({width:1280,height:900,show:false,webPreferences:{preload,sandbox:true,contextIsolation:true,backgroundThrottling:false}});
+ const js=async code=>{try{return await win.webContents.executeJavaScript(code,true);}catch(error){throw Error(code.slice(0,200)+'\n'+error.message);}};
+ const wait=async code=>{for(let i=0;i<150;i++){if(await js(code))return;await new Promise(r=>setTimeout(r,20));}throw Error('Timed out: '+code);};
+ try{
+  await win.loadFile(path.resolve(__dirname,'../index.html'));await js('pending');
+  await js(`window.testImage=async()=>{const c=document.createElement('canvas');c.width=80;c.height=40;c.getContext('2d').fillRect(0,0,80,40);return new File([await new Promise(r=>c.toBlob(r))],'한글 그림.png',{type:'image/png'});};
+   window.testMovie=()=>new File([Uint8Array.from(atob(mediaTest.movie()),c=>c.charCodeAt(0))],'소개 영상.mp4',{type:'video/mp4'});
+   window.dropFiles=async files=>{const dt=new DataTransfer();for(const file of files)dt.items.add(file);const stage=document.querySelector('.slide-stage'),r=stage.getBoundingClientRect();const event=new DragEvent('drop',{bubbles:true,cancelable:true,dataTransfer:dt,clientX:r.left+r.width*.25,clientY:r.top+r.height*.5});stage.dispatchEvent(event);await pending;return event.defaultPrevented;};void 0;`);
+  assert.equal(await js('(async()=>dropFiles([await testImage()]))()'),true);
+  let op=(await js('mediaTest.operations()')).at(-1);
+  assert.equal(op.op,'add_shape');assert.equal(op.slide,0);assert.equal(op.value.name,'한글 그림.png');
+  assert.deepEqual([op.value.x,op.value.width,op.value.height],[200,80,40]);assert.ok(Math.abs(op.value.y-250)<1);
+  assert.equal(Buffer.from(op.value.imageData.data,'base64').subarray(1,4).toString(),'PNG');
+  const count=await js('mediaTest.operations().length');
+  await js("(async()=>dropFiles([await testImage(),new File(['bad'],'잘못된 파일.txt')]))()");
+  assert.equal(await js('mediaTest.operations().length'),count,'An invalid batch must not partially insert');
+  assert.equal(await js('mediaTest.errors().length'),1);
+  await js('dropFiles([testMovie()])');op=(await js('mediaTest.operations()')).at(-1);
+  assert.equal(op.value.videoData.data,movie.toString('base64'));assert.equal(op.value.name,'소개 영상.mp4');
+  await js(`state.model.images={poster:{name:'poster.png',data:mediaTest.operations()[0].value.imageData.data},movie:{name:'소개 영상.mp4',data:mediaTest.movie()}};
+   state.model.slides[0].shapes=[{id:10,kind:'image',name:'소개 영상',frame:{x:100,y:100,w:480,h:270},imageID:'poster',videoID:'movie',paragraphs:[]}];render();
+   document.querySelector('.play-movie').click();window.previewVideo=document.querySelector('.movie-preview video');void 0;`);
+  await wait('previewVideo.currentTime>0&&!previewVideo.paused');
+  await js("document.querySelector('.movie-preview button').click()");
+  await wait('!previewVideo.isConnected');
+  assert.equal(await js('previewVideo.paused&&!previewVideo.hasAttribute("src")&&!previewVideo.isConnected'),true);
+  await js('window.show=HanXPlayback.start({model:state.model,index:0,renderSlide:staticSlide});window.slideVideo=show.dialog.querySelector("video");slideVideo.play()');
+  await wait('slideVideo.currentTime>0&&!slideVideo.paused');
+  await js('slideVideo.dispatchEvent(new KeyboardEvent("keydown",{key:"ArrowRight",bubbles:true,cancelable:true}))');
+  assert.equal(await js('show.dialog.querySelector("video")===slideVideo'),true,'Video controls must not navigate slides');
+  await js('show.next()');
+  assert.equal(await js('slideVideo.paused&&!slideVideo.hasAttribute("src")&&!slideVideo.isConnected'),true,'Leaving slide must release movie playback');
+  await js('show.previous();window.slideVideo=show.dialog.querySelector("video");slideVideo.play()');
+  await wait('slideVideo.currentTime>0&&!slideVideo.paused');
+  await js('slideVideo.dispatchEvent(new KeyboardEvent("keydown",{key:"Escape",bubbles:true,cancelable:true}))');
+  assert.equal(await js('slideVideo.paused&&!slideVideo.hasAttribute("src")&&!show.dialog.isConnected'),true);
+  assert.equal(await js('mediaTest.errors().length'),1,'Valid video must not report codec errors');
+  console.log('HANX_SLIDE_MEDIA_UI_OK');
+ }finally{win.destroy();await fs.rm(directory,{recursive:true,force:true});app.quit();}
+})().catch(error=>{console.error(error);app.exit(1);});

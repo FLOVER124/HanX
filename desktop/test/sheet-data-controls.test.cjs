@@ -8,3 +8,14 @@ test('fill uses an explicit bounded range and recognized direction',()=>{
  assert.deepEqual(D.fillOperation(0,'A2:D8','right'),{op:'fill_range',sheet:0,range:'A2:D8',direction:'right'});
  assert.throws(()=>D.fillOperation(0,'A1:A2','sideways'));assert.throws(()=>D.fillOperation(0,'A1:A100001','down'));
 });
+
+test('structural edits use a validated anchor and reach the engine allowlist',()=>{
+ const {validateOperations}=require('../engine.cjs');
+ for(const op of ['insert_row','delete_row','insert_column','delete_column']) {
+  const value=D.structureOperation(2,' $b$12 ',op);
+  assert.deepEqual(value,{op,sheet:2,cell:'B12'});
+  assert.deepEqual(validateOperations([value]),[value]);
+ }
+ for(const cell of ['A0','XFE1','A1048577','A1:B2',''])assert.throws(()=>D.structureOperation(0,cell,'insert_row'));
+ assert.throws(()=>D.structureOperation(0,'A1','erase'));
+});

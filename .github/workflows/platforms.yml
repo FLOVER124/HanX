@@ -93,6 +93,7 @@ jobs:
           python -m unittest discover -s Tests/AgentCLI -p test_cli.py
           python -m unittest discover -s Tests/AgentCLI -p test_spreadsheets.py
           python -m unittest discover -s Tests/AgentCLI -p test_sheet_data.py
+          python -m unittest discover -s Tests/AgentCLI -p test_sheet_structure.py
           python -m unittest discover -s Tests/AgentCLI -p test_mcp.py
       - name: Stage npm platform binary
         shell: bash
@@ -123,6 +124,7 @@ jobs:
         working-directory: desktop
         run: |
           xvfb-run -a node_modules/.bin/electron test/renderer-ui.cjs --no-sandbox
+          xvfb-run -a node_modules/.bin/electron test/slide-media-ui.cjs --no-sandbox
           xvfb-run -a node_modules/.bin/electron test/image-tools-ui.cjs --no-sandbox
           xvfb-run -a node_modules/.bin/electron test/slide-arrangement-ui.cjs --no-sandbox
           xvfb-run -a node_modules/.bin/electron test/sheet-chart-data-ui.cjs --no-sandbox
@@ -134,6 +136,10 @@ jobs:
         run: |
           & .\node_modules\.bin\electron.cmd test/renderer-ui.cjs
           if ($LASTEXITCODE -ne 0) { throw 'Renderer UI test failed' }
+          & .\node_modules\.bin\electron.cmd test/slide-media-ui.cjs
+          if ($LASTEXITCODE -ne 0) { throw 'Slide media UI test failed' }
+          & .\node_modules\.bin\electron.cmd test/sheet-chart-data-ui.cjs
+          if ($LASTEXITCODE -ne 0) { throw 'Sheet data UI test failed' }
           & .\node_modules\.bin\electron.cmd test/image-tools-ui.cjs
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           & .\node_modules\.bin\electron.cmd . --smoke-test

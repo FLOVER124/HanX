@@ -43,6 +43,42 @@ class CLI(unittest.TestCase):
         self.runcli('edit',p,'--ops',ops,'--output',out); text=self.runcli('read',out)['text']; self.assertIn('반갑습니다 HanX',text); self.assertIn('합계\t20',text); self.assertIn('추가 문단',text)
         root=ET.fromstring(zipfile.ZipFile(out).read('word/document.xml')); ns={'w':'http://schemas.openxmlformats.org/wordprocessingml/2006/main'}
         colors=[x.get('{'+ns['w']+'}val') for x in root.findall('.//w:color',ns)]; self.assertIn('FF0000',colors); self.assertIn('0000FF',colors)
+    def test_layout_and_text_edits_preserve_inline_objects_and_run_properties(self):
+        seed=self.runcli('read',self.make_doc())['model']
+        p=seed['sections'][0]['blocks'][0]['paragraph']['_0']
+        run=p['markProps'].copy()
+        run.update(eastAsianFontName='굴림',underline='wave',strike=True,verticalAlign='superscript',
+                   spacing=1.25,widthRatio=83,highlight={'r':255,'g':255,'b':0})
+        p['props'].update(styleName='본문',listLabel='①',spaceAfter=18)
+        p['inlines']=[{'text':{'_0':'글','_1':run}},{'tab':{'_0':run}},{'lineBreak':{'_0':run}},
+                      {'field':{'_0':'page','_1':run}},{'image':{'id':'pic','width':12,'height':12}}]
+        seed['images']={'pic':{'name':'pic.png','data':'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Wl6xAAAAABJRU5ErkJggg=='}}
+        model=self.root/'source.json'
+        self.runcli('create','--spec','-','--output',model,stdin=json.dumps({'kind':'document','model':seed}))
+        layout={'op':'set_paragraph_layout','block':0,'alignment':'right','firstLine':-12,'lineSpacing':{'kind':'exact','value':20}}
+        output=self.root/'layout.json'
+        self.runcli('edit',model,'--ops','-','--output',output,stdin=json.dumps([layout]))
+        after=self.runcli('read',output)['model']['sections'][0]['blocks'][0]['paragraph']['_0']
+        self.assertEqual(after['inlines'],p['inlines'])
+        self.assertEqual(after['props'],dict(p['props'],alignment='right',firstLine=-12,lineSpacing={'exact':{'_0':20}}))
+        self.assertEqual(after['markProps'],p['markProps'])
+        # Edit a text-only block as the desktop does, retaining imported metadata via sourceRun.
+        p['inlines']=p['inlines'][:3]
+        text_source=self.root/'text.json'
+        self.runcli('create','--spec','-','--output',text_source,stdin=json.dumps({'kind':'document','model':seed}))
+        edit={'op':'set_paragraph','block':0,'runs':[{'text':'글자','sourceRun':0},{'kind':'tab','sourceRun':1},{'kind':'lineBreak','sourceRun':2}]}
+        expected=[{'text':{'_0':'글자','_1':run}},*p['inlines'][1:]]
+        for ext in ['json','docx']:
+            out=self.root/('text-edit.'+ext)
+            self.runcli('edit',text_source,'--ops','-','--output',out,stdin=json.dumps([edit]))
+            result=self.runcli('read',out)['model']['sections'][0]['blocks'][0]['paragraph']['_0']
+            if ext=='json':
+                self.assertEqual(result['inlines'],expected)
+                self.assertEqual(result['props'],p['props'])
+            else:
+                self.assertEqual(result['inlines'][0]['text']['_0'],'글자')
+                for key in ['underline','strike','verticalAlign','spacing','highlight']:
+                    self.assertEqual(result['inlines'][0]['text']['_1'][key],run[key])
     def test_refuses_overwrite_and_invalid_batch_preserves_files(self):
         p=self.make_doc(); original=p.read_bytes(); err=self.runcli('create','--spec',self.root/'doc.json','--output',p,ok=False); self.assertEqual(err['code'],'output_exists'); self.assertEqual(original,p.read_bytes())
         ops=self.spec('bad.json',[{'op':'append_paragraph','text':'should not commit'},{'op':'set_cell','block':999,'row':0,'column':0,'text':'bad'}]); out=self.root/'bad.docx'
@@ -62,6 +98,45 @@ class CLI(unittest.TestCase):
         self.assertIn('기존 추가',self.runcli('read',out)['text']);self.assertIn('옆 셀',self.runcli('read',out)['text'])
         self.assertEqual(self.runcli('read',source)['model'],before)
         self.runcli('edit',source,'--ops','-','--output',self.root/'invalid.pptx',stdin=json.dumps([{'op':'set_table_cell','slide':0,'shapeId':shape['id'],'row':99,'column':0,'text':'bad'}]),ok=False)
+
+    def test_movie_embedded_media_roundtrip_and_validation(self):
+        import base64
+        movie = (pathlib.Path(__file__).resolve().parents[2] / 'desktop/test/fixtures/clip.mp4').read_bytes()
+        encoded = base64.b64encode(movie).decode()
+        source = self.root / '소개 영상.json'
+        spec = {'kind':'presentation','slides':[{'shapes':[{'kind':'image','name':'소개 영상',
+            'videoData':{'name':'소개 영상.mp4','data':encoded}}]}]}
+        self.runcli('create','--spec','-','--output',source,stdin=json.dumps(spec))
+        model = self.runcli('read',source)['model']
+        shape = next(s for s in model['slides'][0]['shapes'] if s.get('videoID'))
+        self.assertEqual(base64.b64decode(model['images'][shape['videoID']]['data']),movie)
+        self.assertIn(shape['imageID'],model['images'])
+        pptx = self.root / '동영상 발표.pptx'
+        self.runcli('edit',source,'--ops','-','--output',pptx,stdin=json.dumps([
+            {'op':'duplicate_slide','slide':0}, {'op':'set_notes','slide':1,'text':'복제된 동영상'}]))
+        with zipfile.ZipFile(pptx) as archive:
+            rels = ET.fromstring(archive.read('ppt/slides/_rels/slide1.xml.rels'))
+            videos = [r for r in rels if r.attrib['Type'].endswith('/video')]
+            media = [r for r in rels if r.attrib['Type'].endswith('/media')]
+            self.assertEqual(len(videos),1);self.assertEqual(len(media),1)
+            self.assertEqual(videos[0].attrib['Target'],media[0].attrib['Target'])
+            self.assertEqual(archive.read('ppt/'+videos[0].attrib['Target'][3:]),movie)
+            xml = ET.fromstring(archive.read('ppt/slides/slide1.xml'))
+            ns = {'p':'http://schemas.openxmlformats.org/presentationml/2006/main'}
+            self.assertIsNotNone(xml.find('.//p:timing//p:video',ns))
+            ids = [e.attrib['id'] for e in xml.findall('.//p:timing//p:cTn',ns)]
+            self.assertEqual(len(ids),len(set(ids)))
+            self.assertIn(b'video/mp4',archive.read('[Content_Types].xml'))
+        reopened = self.runcli('read',pptx)['model']
+        for slide in reopened['slides']:
+            video = next(s for s in slide['shapes'] if s.get('videoID'))
+            self.assertEqual(base64.b64decode(reopened['images'][video['videoID']]['data']),movie)
+        for value in [{'name':'bad.mp4','data':base64.b64encode(b'not a movie').decode()},
+                      {'name':'../clip.mp4','data':encoded}, {'name':'clip.mp4','data':encoded,'url':'https://example.invalid'}]:
+            output = self.root/'invalid-movie.pptx'
+            self.runcli('edit',source,'--ops','-','--output',output,ok=False,stdin=json.dumps([
+                {'op':'update_shape','slide':0,'shapeId':shape['id'],'videoData':value}]))
+            self.assertFalse(output.exists())
 
     def test_animation_edit_and_pptx_roundtrip(self):
         source=self.root/'animation.json'

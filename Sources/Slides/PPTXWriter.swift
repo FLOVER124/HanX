@@ -45,13 +45,36 @@ enum PPTXWriter {
                 imageRel[id] = r
                 return r
             }
+            func movieRelationships(_ key: String) -> (video: String, media: String)? {
+                guard let asset = pres.images[key] else { return nil }
+                let filename: String
+                if let existing = media[key] { filename = existing }
+                else {
+                    mediaCount += 1
+                    let supported = ["mp4","m4v","mov","webm","avi","wmv","mpeg","mpg"]
+                    let ext = supported.contains(asset.ext) ? asset.ext : "bin"
+                    filename = "video\(mediaCount).\(ext)"
+                    media[key] = filename
+                    z.add("ppt/media/\(filename)", asset.data, compress: false)
+                }
+                func relationship(_ type: String) -> String {
+                    relN += 1
+                    let id = "rId\(relN)"
+                    rels += "<Relationship Id=\"\(id)\" Type=\"\(type)\" Target=\"../media/\(filename)\"/>"
+                    return id
+                }
+                return (relationship(relBase + "/video"), relationship("http://schemas.microsoft.com/office/2007/relationships/media"))
+            }
+            var movieTargets: [Int] = []
             var tree = ""
             var nextID = 2
             var xmlID: [Int: Int] = [:]
             for s in slide.shapes {
                 nextID += 1
                 xmlID[s.id] = nextID
-                tree += shapeXML(s, id: nextID, imageRel: rel(forImage:))
+                let movie = s.videoID.flatMap(movieRelationships)
+                if movie != nil { movieTargets.append(nextID) }
+                tree += shapeXML(s, id: nextID, imageRel: rel(forImage:), movie: movie)
             }
             var bg = ""
             if let id = slide.backgroundImage, let r = rel(forImage: id) {
@@ -74,7 +97,7 @@ enum PPTXWriter {
             <?xml version="1.0" encoding="UTF-8" standalone="yes"?><p:sld xmlns:a="\(nsA)" xmlns:r="\(nsR)" xmlns:p="\(nsP)"><p:cSld>\(bg)<p:spTree>\
             <p:nvGrpSpPr><p:cNvPr id="1" name=""/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr><p:grpSpPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="0" cy="0"/>\
             <a:chOff x="0" y="0"/><a:chExt cx="0" cy="0"/></a:xfrm></p:grpSpPr>\(tree)</p:spTree></p:cSld><p:clrMapOvr><a:masterClrMapping/></p:clrMapOvr>\
-            \(transitionXML(slide.transition))\(timingXML(slide.animations, ids: xmlID))</p:sld>
+            \(transitionXML(slide.transition))\(timingXML(slide.animations, ids: xmlID, movies: movieTargets))</p:sld>
             """)
             slideRels.append("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?><Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\">\(rels)</Relationships>")
         }
@@ -85,6 +108,11 @@ enum PPTXWriter {
             if !pres.slides[i].notes.isEmpty { overrides += "<Override PartName=\"/ppt/notesSlides/notesSlide\(i+1).xml\" ContentType=\"application/vnd.openxmlformats-officedocument.presentationml.notesSlide+xml\"/>" }
         }
         if hasNotes { overrides += "<Override PartName=\"/ppt/notesMasters/notesMaster1.xml\" ContentType=\"application/vnd.openxmlformats-officedocument.presentationml.notesMaster+xml\"/>" }
+        let movieExtensions = Set(media.values.filter { $0.hasPrefix("video") }.map { ($0 as NSString).pathExtension })
+        let movieTypes = ["mp4":"video/mp4","m4v":"video/mp4","mov":"video/quicktime","webm":"video/webm","avi":"video/x-msvideo","wmv":"video/x-ms-wmv","mpeg":"video/mpeg","mpg":"video/mpeg"]
+        for ext in movieExtensions.sorted() {
+            overrides += "<Default Extension=\"\(ext)\" ContentType=\"\(movieTypes[ext] ?? "application/octet-stream")\"/>"
+        }
         z.add("[Content_Types].xml", """
         <?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">\
         <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/>\
@@ -186,9 +214,9 @@ enum PPTXWriter {
 
     /// Builds the PresentationML timing tree:
     /// tmRoot › mainSeq › click group (par) › with/after group (par) › effect (par).
-    static func timingXML(_ anims: [SlideAnimation], ids: [Int: Int]) -> String {
+    static func timingXML(_ anims: [SlideAnimation], ids: [Int: Int], movies: [Int] = []) -> String {
         let valid = anims.filter { ids[$0.shapeID] != nil }
-        guard !valid.isEmpty else { return "" }
+        guard !valid.isEmpty || !movies.isEmpty else { return "" }
         var ctn = 2
         func next() -> Int { ctn += 1; return ctn }
 
@@ -213,11 +241,14 @@ enum PPTXWriter {
             seq += "<p:par><p:cTn id=\"\(next())\" fill=\"hold\"><p:stCondLst><p:cond delay=\"indefinite\"/></p:stCondLst><p:childTnLst>\(groups)</p:childTnLst></p:cTn></p:par>"
         }
         let built = Set(valid.compactMap { ids[$0.shapeID] }).sorted().map { "<p:bldP spid=\"\($0)\" grpId=\"0\" animBg=\"1\"/>" }.joined()
-        return "<p:timing><p:tnLst><p:par><p:cTn id=\"1\" dur=\"indefinite\" restart=\"never\" nodeType=\"tmRoot\"><p:childTnLst>"
-            + "<p:seq concurrent=\"1\" nextAc=\"seek\"><p:cTn id=\"2\" dur=\"indefinite\" nodeType=\"mainSeq\"><p:childTnLst>\(seq)</p:childTnLst></p:cTn>"
+        let sequence = seq.isEmpty ? "" : "<p:seq concurrent=\"1\" nextAc=\"seek\"><p:cTn id=\"2\" dur=\"indefinite\" nodeType=\"mainSeq\"><p:childTnLst>\(seq)</p:childTnLst></p:cTn>"
             + "<p:prevCondLst><p:cond evt=\"onPrev\" delay=\"0\"><p:tgtEl><p:sldTgt/></p:tgtEl></p:cond></p:prevCondLst>"
             + "<p:nextCondLst><p:cond evt=\"onNext\" delay=\"0\"><p:tgtEl><p:sldTgt/></p:tgtEl></p:cond></p:nextCondLst></p:seq>"
-            + "</p:childTnLst></p:cTn></p:par></p:tnLst><p:bldLst>\(built)</p:bldLst></p:timing>"
+        let videoNodes = movies.map { target in
+            "<p:video><p:cMediaNode vol=\"80000\"><p:cTn id=\"\(next())\" fill=\"hold\" display=\"0\"><p:stCondLst><p:cond delay=\"indefinite\"/></p:stCondLst></p:cTn><p:tgtEl><p:spTgt spid=\"\(target)\"/></p:tgtEl></p:cMediaNode></p:video>"
+        }.joined()
+        let builds = built.isEmpty ? "" : "<p:bldLst>\(built)</p:bldLst>"
+        return "<p:timing><p:tnLst><p:par><p:cTn id=\"1\" dur=\"indefinite\" restart=\"never\" nodeType=\"tmRoot\"><p:childTnLst>\(sequence)\(videoNodes)</p:childTnLst></p:cTn></p:par></p:tnLst>\(builds)</p:timing>"
     }
 
     private static func effectXML(_ a: SlideAnimation, spid: Int, next: () -> Int) -> String {
@@ -289,12 +320,16 @@ enum PPTXWriter {
         return "<a:ln w=\"\(DrawingML.emu(s.lineWidth))\">\(solid(c))</a:ln>"
     }
 
-    static func shapeXML(_ s: SlideShape, id: Int, imageRel: (String) -> String?) -> String {
+    static func shapeXML(_ s: SlideShape, id: Int, imageRel: (String) -> String?, movie: (video: String, media: String)? = nil) -> String {
         let name = XMLEscape.text(s.name.isEmpty ? "Shape \(id)" : s.name)
         switch s.kind {
         case .image:
             guard let img = s.imageID, let r = imageRel(img) else { return "" }
-            return "<p:pic><p:nvPicPr><p:cNvPr id=\"\(id)\" name=\"\(name)\"/><p:cNvPicPr><a:picLocks noChangeAspect=\"\(s.lockAspect ? 1 : 0)\"/></p:cNvPicPr><p:nvPr/></p:nvPicPr>"
+            let click = movie == nil ? "" : "<a:hlinkClick r:id=\"\" action=\"ppaction://media\"/>"
+            let video = movie.map { refs in
+                "<a:videoFile r:link=\"\(refs.video)\"/><p:extLst><p:ext uri=\"{DAA4B4D4-6D71-4841-9C94-3DE7FCFB9230}\"><p14:media xmlns:p14=\"http://schemas.microsoft.com/office/powerpoint/2010/main\" r:embed=\"\(refs.media)\"/></p:ext></p:extLst>"
+            } ?? ""
+            return "<p:pic><p:nvPicPr><p:cNvPr id=\"\(id)\" name=\"\(name)\">\(click)</p:cNvPr><p:cNvPicPr><a:picLocks noChangeAspect=\"\(s.lockAspect ? 1 : 0)\"/></p:cNvPicPr><p:nvPr>\(video)</p:nvPr></p:nvPicPr>"
                 + "<p:blipFill><a:blip r:embed=\"\(r)\"/><a:stretch><a:fillRect/></a:stretch></p:blipFill>"
                 + "<p:spPr>\(xfrm(s))<a:prstGeom prst=\"rect\"><a:avLst/></a:prstGeom>\(s.line != nil ? line(s) : "")</p:spPr></p:pic>"
         case .line:

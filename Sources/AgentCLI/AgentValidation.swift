@@ -108,6 +108,10 @@ enum AgentValidation {
                     try dimension(shape.frame.h,"Shape height",zero:shape.kind == .line)
                     try require(shape.kind != .line || shape.frame.w>0 || shape.frame.h>0,"Line has no extent")
                     if let id=shape.imageID { try require(p.images[id] != nil,"Missing image data: \(id)") }
+                    if let id=shape.videoID {
+                        try require(shape.kind == .image && shape.imageID != nil,"Movie shapes need an image poster")
+                        try require(p.images[id] != nil,"Missing video data: \(id)")
+                    }
                     for paragraph in shape.paragraphs { try self.paragraph(paragraph,images:p.images) }
                     if let table=shape.table { try self.table(table,images:p.images) }
                     try require(shape.lineWidth>=0 && shape.lineWidth<=1000,"Invalid line width")

@@ -43,6 +43,10 @@ async function check() {
     assert.deepEqual(edits.at(-1),{op:'sort_range',sheet:0,range:'A1:B3',keyColumn:'B',ascending:false,header:false});
     await js("document.querySelector('[aria-label=\"데이터 범위\"]').value='B2:B3';[...document.querySelectorAll('#tools button')].find(b=>b.textContent==='아래로 채우기').click();pending");
     assert.deepEqual((await js('recorded()')).at(-1),{op:'fill_range',sheet:0,range:'B2:B3',direction:'down'});
+    for(const [label,op] of [['위에 행 삽입','insert_row'],['행 삭제','delete_row'],['왼쪽에 열 삽입','insert_column'],['열 삭제','delete_column']]) {
+      await js(`ribbonTab='데이터';renderRibbon();document.querySelector('[aria-label="기준 셀"]').value='C4';[...document.querySelectorAll('#tools button')].find(b=>b.textContent===${JSON.stringify(label)}).click();pending`);
+      assert.deepEqual((await js('recorded()')).at(-1),{op,sheet:0,cell:'C4'});
+    }
     console.log('HANX_CHART_AND_RANGE_UI_OK');
   } finally {
     win.destroy();

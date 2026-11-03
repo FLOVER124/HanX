@@ -1,38 +1,18 @@
-# Advanced editing source status
+# Advanced editing status
 
-2.10.0 was built and published on 2026-11-03. Native Mac tests, Windows/Linux installers, registry-based public installation, Homebrew and Pages passed. App and CLI notarization passed. No new pkg was created. Earlier source-only notes below describe the development handoff before this release.
+Updated 2026-11-03. Release 2.10.0 is published. Subsequent source changes have not been built or released.
 
-This is source work for 2.10.0, not a published release. The user owns subsequent builds and distribution. Public 2.9.1 has not been replaced. Do not restart build, signing, installation or deployment automatically.
+## Current source changes
 
-## Implemented and checked
+| Area | Added or corrected | Verification |
+| --- | --- | --- |
+| Slide imports | Image/movie drop placement, Korean names, bounded atomic batches | Portable real-browser tests passed; native runtime pending |
+| Video | Embedded PPTX references and bytes, poster, local playback, clipboard media remapping | Real MP4 browser playback/cleanup passed; new CLI/PPTX/native tests await compilation |
+| Slide navigation | Context menu, Ctrl/Cmd+C/X/V/D, deletion, text-focus separation, thumbnail navigation | Browser shortcut and menu tests passed |
+| Shapes | All 24 native shape kinds render with shared portable SVG geometry | Node geometry tests and browser rendering passed |
+| Documents | Paragraph layout without rewriting fields/images, character spacing and superscript/subscript | Browser dispatch passed; new Swift round-trip tests await compilation |
+| Sheets | Row/column insertion/deletion, reference and metadata adjustment, native snapshot undo, portable controls | Portable control/validation tests passed; Swift structural tests await compilation |
 
-- Mac source now supports Vision subject separation on macOS 14+, solid/manual fallback, keep/remove brush refinement, alpha-preserving compositing and current-session original restore. Native changes await compilation/testing by Sol.
-- Portable source now includes local U2NetP/ONNX Runtime Web subject separation, keep/remove brush refinement, solid-color mode, transparent PNG and original restoration. No runtime external request is needed; the model and runtime are vendored with hashes and license notices. The existing Electron runtime successfully performed real model inference and cancellation; this is not a benchmark of photographic quality.
-- Portable trusted local PNG/JPEG insertion via the native file picker, bounded dimensions and size. Renderer cannot select arbitrary filesystem paths through edit operations.
-- Exact slide shape duplication with rich styles, media/table data and animation references, plus front/back ordering.
-- Portable image flips, background image rendering, locked-aspect resize with rotated/flipped shapes, contextual typography/fill/stroke controls.
-- Portable document orientation/margins and sheet row/column dimensions, actual frozen grid rows/columns, relative formula fill.
-- Portable nineteen object animation effects, timeline editing, click/with/after triggers, duration/delay/direction, keyboard slideshow and all 21 transition kinds in HanX’s native model. Pattern geometry approximates the named PowerPoint effects; pixel-identical rendering is not claimed.
-- CLI imageData/imageID replacement, duplicate_shape, reorder_shape and set_animations support remains usable through CLI/MCP.
+58 Node tests passed with the existing CLI. Five Electron suites passed on macOS, including real MP4 playback and resource cleanup. These results do not certify Windows/Linux packaged apps or the uncompiled native changes.
 
-- Portable slide-table insertion and inline text editing now issue bounded set_table_cell operations; complex object-bearing cells are protected. New Swift operation awaits Sol compilation and round-trip tests.
-
-## Verification before build cancellation
-
-Mac CLI 71 tests, desktop 39 tests, native image tests (7 algorithm and 22 integration assertions), clean dialog tests and existing editing checks passed. Real Electron renderer, image editing/save/reopen and existing format smoke passed. Windows/Linux source compilation passed on the initial CI run, but full installer validation did not finish successfully. Windows version fixture and preview test sequencing were fixed; the rerun was cancelled at user request. This is not certification of the new Windows/Linux installers.
-
-## Remaining parity work
-
-Full advanced-tool compatibility is not complete. Remaining work includes native subject-removal runtime verification and photographic edge-quality evaluation; portable structural spreadsheet edits with reference repair and filters; richer document tables/headers/footers/fields; additional imported shape rendering. The detailed original audit is in advanced-parity-audit.md. Do not describe the whole application as feature-identical across platforms.
-
-## Astra source checks after build cancellation
-
-Source tests ran using installed Node/Electron only. No compiler, application build, packaging, signing, deployment or CI was run. Checked 46 Node tests, actual local ONNX inference/cancel, browser mask/PNG edit round-trip using the prior CLI binary, renderer controls including table operation dispatch, and rendered transition lifecycle tests. New Swift and table save/reopen tests are written but deliberately not run against the old engine.
-
-## Spreadsheet and slide arrangement source update
-
-Mac and portable sort/fill entry points use the shared SheetRangeEditing rules. Sorting accepts a bounded range and key column, keeps equal-key rows stable and empty keys last. Fill down/right copies styles and translates relative references. Moving an older scalar Excel formula keeps its implicit-intersection flag. Merged cells and dynamic spill areas are checked before mutation. Portable chart controls show and edit the five basic chart kinds. The CLI accepts add_chart, update_chart and delete_chart.
-
-Portable slide selection supports modifier clicks, group movement, six edge/center alignments and equal spacing. Rotation counts when finding visible edges. Locked shapes are excluded. The existing engine restored the three affected shapes with one undo in a session test.
-
-The installed Node/Electron checks passed, including 55 Node tests, renderer controls, selection behavior and all five SVG chart types. Swift source changes and new XLSX round-trip fixtures await a Sol build.
+Build instructions, exact test files and remaining differences are in [sol-build-handoff.md](sol-build-handoff.md). Full advanced-tool parity is still incomplete. Native movie sheets differ from portable inline playback; media format/codec support, rich document structures, sheet filters and multi-slide selection need additional work.

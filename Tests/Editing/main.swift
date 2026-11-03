@@ -117,3 +117,19 @@ check(mapped.backgroundImage == "new-media" && mapped.shapes[0].imageID == "new-
 if case .image(let id,_,_)=mapped.shapes[0].paragraphs[0].inlines[0] { check(id == "new-media","inline media remapped") } else { fatalError("inline image missing") }
 if case .table(let t)=mapped.shapes[0].table!.rows[0][0].blocks[0],case .paragraph(let p)=t.rows[0][0].blocks[0],case .image(let id,_,_)=p.inlines[0] { check(id == "new-media","nested table media remapped") } else { fatalError("nested media missing") }
 print("PASS clipboard media references remapped through nested tables")
+
+let moviePresentation=Presentation()
+var movieShape=SlideShape(id:1,name:"동영상",kind:.image,frame:Frame(x:20,y:20,w:320,h:180))
+movieShape.imageID="poster";movieShape.videoID="movie"
+moviePresentation.images["poster"]=SlideMovie.poster
+let clip=try Data(contentsOf:URL(fileURLWithPath:"desktop/test/fixtures/clip.mp4"))
+moviePresentation.images["movie"]=ImageData(name:"소개 영상.mp4",data:clip)
+moviePresentation.slides=[Slide(shapes:[movieShape])]
+let movieClipboard=SlideClipboard.decode(try SlideClipboard.encode(moviePresentation))!
+check(movieClipboard.images.count == 2 && movieClipboard.images["movie"]?.data == clip,"movie clipboard includes bytes and poster")
+let remappedMovie=SlideClipboard.remappingMedia(movieClipboard.slides,ids:["movie":"copied-video","poster":"copied-poster"])[0].shapes[0]
+check(remappedMovie.videoID == "copied-video" && remappedMovie.imageID == "copied-poster","movie clipboard remaps both references")
+let movieBack=try PPTXReader(zip:ZipReader(data:PPTXWriter.write(moviePresentation))).read()
+let movieID=movieBack.slides[0].shapes[0].videoID!
+check(movieBack.images[movieID]?.data == clip,"PPTX preserves embedded movie bytes")
+print("PASS movie PPTX roundtrip and native clipboard references")

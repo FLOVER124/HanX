@@ -219,8 +219,8 @@ struct FormulaParser {
     private var tokens: [Token] = []
     private var i = 0
 
-    static func parse(_ formula: String) -> Expr? {
-        guard let toks = tokenize(formula) else { return nil }
+    static func parse(_ formula: String, observe: ((Token, Range<Int>) -> Void)? = nil) -> Expr? {
+        guard let toks = tokenize(formula, observe: observe) else { return nil }
         var p = FormulaParser()
         p.tokens = toks
         guard let e = p.comparison(), p.peek == .end else { return nil }
@@ -236,12 +236,14 @@ struct FormulaParser {
         return n
     }
 
-    static func tokenize(_ s: String) -> [Token]? {
+    static func tokenize(_ s: String, observe: ((Token, Range<Int>) -> Void)? = nil) -> [Token]? {
         var out: [Token] = []
         let c = Array(s)
         var i = 0
         func isIdentChar(_ ch: Character) -> Bool { ch.isLetter || ch.isNumber || ch == "_" || ch == "." || ch == "$" || ch == "\\" }
         while i < c.count {
+            let start = i, previousCount = out.count
+            defer { if out.count > previousCount, let token = out.last { observe?(token, start..<i) } }
             let ch = c[i]
             if ch.isWhitespace { i += 1; continue }
             // Row range like 1:3 or $1:$3 starts with a digit or $digit.

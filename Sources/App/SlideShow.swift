@@ -316,7 +316,23 @@ final class SlideShowController {
         busyUntil=CACurrentMediaTime(); scheduleAutoAdvance()
     }
 
+    private func playMovie(at point: NSPoint) -> Bool {
+        guard fitRect.contains(point) else { return false }
+        let x = (point.x-fitRect.minX)/scale, y = (fitRect.maxY-point.y)/scale
+        for shape in pres.slides[index].shapes.reversed() {
+            if let layer = layers[shape.id], (layer.presentation() ?? layer).opacity < 0.01 { continue }
+            let local = ShapeGeometry.local(x:x,y:y,frame:shape.frame,rotation:shape.rotation)
+            guard SlideRenderer.cg(shape.frame).contains(NSPoint(x:local.0,y:local.1)) else { continue }
+            guard let id = shape.videoID else { return false }
+            autoTimer?.invalidate(); pendingNext?.invalidate(); pendingNext=nil
+            SlideMedia.play(pres.images[id], in:window) { [weak self] in self?.scheduleAutoAdvance() }
+            return true
+        }
+        return false
+    }
+
     private func handle(_ e: NSEvent) {
+        if e.type == .leftMouseDown, playMovie(at:e.locationInWindow) { return }
         if e.type == .leftMouseDown { if stepIndex < steps.count || pres.slides[index].transition.advanceOnClick { next() }; return }
         if e.type == .rightMouseDown { previous(); return }
         switch e.keyCode {
