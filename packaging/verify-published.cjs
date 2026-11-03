@@ -35,7 +35,8 @@ if(process.platform==='linux'){
 }else run(gui,guiArgs);
 call('setup','--components','gui','--yes');
 assert.equal(state().components,'gui');
-const disabled=spawnSync(process.execPath,[cli,'--version'],{encoding:'utf8',timeout:30000});
+assert.equal(JSON.parse(call('--version')).data.version,version);
+const disabled=spawnSync(process.execPath,[cli,'capabilities'],{encoding:'utf8',timeout:30000});
 assert.notEqual(disabled.status,0);
 assert.equal(JSON.parse(disabled.stderr).error.code,'cli_not_selected');
 call('setup','--components','cli','--yes');
