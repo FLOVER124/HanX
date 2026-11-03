@@ -6,20 +6,20 @@ class Hanx < Formula
 
   on_macos do
     url "https://github.com/StudentsView/HanX/releases/download/v2.12.0/HanX-CLI-2.12.0-macOS.zip"
-    sha256 "b7f986223e0c9a6cf323d881a819bcb8bdf40adcc958d14389430f1aa89e43a0"
+    sha256 "6314978e05db66cb915ca8016c7b2b44abfe4f78f6ad2f129bb75ca71de7b753"
     depends_on :macos => :ventura
   end
   on_linux do
     on_intel do
       url "https://github.com/StudentsView/HanX/releases/download/v2.12.0/HanX-CLI-2.12.0-linux-x64.tar.gz"
-      sha256 "3d20703e21708dc52a9d06c3f561204b2c45cb501a2c4b1d2f08145fb8eb3960"
+      sha256 "37a63d17808a5a00ca614fff6c1800adc49dc153c70dbe3d66b19c9821d16754"
     end
   end
   depends_on "node"
 
   resource "setup" do
     url "https://github.com/StudentsView/HanX/releases/download/v2.12.0/HanX-Setup-2.12.0.tar.gz"
-    sha256 "8f8ae6f536a5c98d1b53a80fdff0cc2a787367c0b5ed1af7298154a9747fe0ea"
+    sha256 "986f33e18a58bfe1a3a92aae22abda6dccde558567e614bf3c86da5d6809aa3f"
   end
 
   def install

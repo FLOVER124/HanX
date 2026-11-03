@@ -1,3 +1,5 @@
+Release update, 2026-11-03: 2.12.0 passed the new Mac CLI (83), formulas (416), desktop (58), npm (23), native interaction and GUI suites. Mac app and CLI notarization passed. Windows/Linux native verification passed in run 41596660935 at commit c277814684d4195fa568e9d70cb09ca2e4e0f7ca. The previous source-only notes below are historical.
+
 Release update, 2026-11-03: 2.11.0 passed the new Mac CLI (83), formulas (416), desktop (58), npm (16), native interaction and GUI suites. Mac app and CLI notarization passed. Windows/Linux native verification passed in run 41592138566 at commit 157af987289bcc4347d13d81166e081a66dcc021. The previous source-only notes below are historical.
 
 # HanX Astra → Sol handoff
