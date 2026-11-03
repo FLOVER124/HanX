@@ -2,6 +2,15 @@
 
 새 문서, 스프레드시트, 프레젠테이션의 기본 로컬 확장자는 `.hanx`입니다. 파일에 기록한 종류에 따라 편집기가 열립니다. `hanx read "작업.hanx"`로 종류와 내용을 확인하고, `hanx convert "발표.hanx" --output "발표.pptx"`처럼 같은 종류의 다른 형식으로 내보낼 수 있습니다.
 
+프레젠테이션의 모든 슬라이드에 배경을 적용하는 예입니다. 원본은 유지되고 편집 결과는 새 파일에 저장됩니다.
+
+```sh
+hanx edit "발표.hanx" --ops examples/slide-background-edits.json --output "발표-배경.hanx"
+```
+
+편지지와 A4 라벨 양식은 `create`의 문서 명세에 `"template": "letter"` 또는 `"template": "labels"`를 지정합니다. 문서 편집 연산에는 `insert_page_break`, `insert_divider`, `set_section_text`가 있습니다.
+
+
 
 로컬 AI 에이전트가 CLI 또는 MCP로 스프레드시트 파일의 셀과 범위를 읽고 수정하고 수식을 계산합니다. HWP, DOCX, HWPX, HWPML, PPTX와 XML도 읽고 생성하고 수정하고 변환합니다. 네이티브 엔진과 함께 제공되는 실행 라이브러리로 동작합니다. 네이티브 CLI 실행에는 Python, Node.js, AI API 키와 추가 유료 라이브러리가 필요하지 않습니다. npm으로 설치하는 경우에는 Node.js 18 이상이 필요합니다.
 

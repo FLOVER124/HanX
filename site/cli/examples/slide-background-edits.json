@@ -1,0 +1,12 @@
+[
+  {
+    "op": "set_background",
+    "slide": 0,
+    "color": "183B57",
+    "middleColor": "2E8C91",
+    "middlePosition": 35,
+    "endColor": "E3F3DA",
+    "angle": 135,
+    "copyToAll": true
+  }
+]

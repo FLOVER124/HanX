@@ -26,9 +26,10 @@ class NPMPackage(unittest.TestCase):
     def test_launcher_reports_missing_binary_without_launching_shell(self):
         launcher=ROOT/'packaging/npm/bin/hanx.js'
         with tempfile.TemporaryDirectory(prefix='HanX launch ') as d:
-            target=pathlib.Path(d)/'hanx.js'
-            if launcher.exists():target.write_bytes(launcher.read_bytes())
-            p=subprocess.run(['node',str(target),'--version'],capture_output=True,text=True)
+            script = """const {resolveBinary} = require(process.argv[1]);
+try { resolveBinary(process.argv[2], 'darwin', 'arm64'); }
+catch(error) { process.stderr.write(JSON.stringify({code:error.code})); process.exitCode=1; }"""
+            p=subprocess.run(['node','-e',script,str(launcher),d],capture_output=True,text=True)
             self.assertEqual(p.returncode,1)
-            self.assertIn('native_binary_missing',p.stderr)
+            self.assertEqual(json.loads(p.stderr)['code'],'native_binary_missing')
 if __name__=='__main__':unittest.main()
