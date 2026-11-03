@@ -19,7 +19,13 @@ class Terminal:
             elif self.p.poll() is not None:raise AssertionError(self.output.decode(errors='replace'))
     def send(self,text):os.write(self.master,text.encode())
     def finish(self):
-        self.p.wait(timeout=15)
+        deadline = time.monotonic() + 15
+        while self.p.poll() is None:
+            if time.monotonic() > deadline:
+                raise AssertionError('Conversion did not finish: ' + self.output.decode(errors='replace'))
+            if select.select([self.master], [], [], .1)[0]:
+                self.output += os.read(self.master, 65536)
+
         after=termios.tcgetattr(self.slave)
         # Darwin may set PENDIN when restoring canonical input to reprocess queued bytes.
         before=list(self.before);after[3]&=~termios.PENDIN;before[3]&=~termios.PENDIN
@@ -54,7 +60,7 @@ class Interactive(unittest.TestCase):
         with tempfile.TemporaryDirectory(prefix='한글 변환 ') as d:
             p=pathlib.Path(d)/'보고서 $(touch HACKED).txt';p.write_text('드래그 변환 확인')
             code,_=self.interact(p,drop=shlex.quote(str(p)))
-            self.assertEqual(code,0);out=p.with_suffix('.hwpx');self.assertTrue(out.exists())
+            self.assertEqual(code,0);out=p.with_suffix('.hanx');self.assertTrue(out.exists())
             r=subprocess.run([str(BIN),'read',str(out),'--text'],capture_output=True,text=True);self.assertIn('드래그 변환 확인',r.stdout)
             self.assertEqual(p.read_text(),'드래그 변환 확인');self.assertFalse(pathlib.Path('HACKED').exists())
     def test_existing_output_is_preserved(self):
@@ -76,7 +82,7 @@ class Interactive(unittest.TestCase):
     def test_pdf_selection_exports_pdf_with_original_stem(self):
         with tempfile.TemporaryDirectory(prefix='한글 PDF ') as d:
             p=pathlib.Path(d)/'보고서.txt';p.write_text('한글 PDF 변환')
-            code,_=self.interact(p,keys='\x1b[B\x1b[B\x1b[B\r');self.assertEqual(code,0)
+            code,_=self.interact(p,keys='\x1b[B'*4+'\r');self.assertEqual(code,0)
             self.assertTrue(p.with_suffix('.pdf').read_bytes().startswith(b'%PDF-'))
     def test_direct_input_argument_opens_format_picker(self):
         with tempfile.TemporaryDirectory() as d:
