@@ -23,7 +23,7 @@ app.on('window-all-closed',()=>{});
   assert.equal(await js('(async()=>dropFiles([await testImage()]))()'),true);
   let op=(await js('mediaTest.operations()')).at(-1);
   assert.equal(op.op,'add_shape');assert.equal(op.slide,0);assert.equal(op.value.name,'한글 그림.png');
-  assert.deepEqual([op.value.x,op.value.width,op.value.height],[200,80,40]);assert.ok(Math.abs(op.value.y-250)<1);
+  assert.deepEqual([op.value.width,op.value.height],[80,40]);assert.ok(Math.abs(op.value.x-200)<1);assert.ok(Math.abs(op.value.y-250)<1);
   assert.equal(Buffer.from(op.value.imageData.data,'base64').subarray(1,4).toString(),'PNG');
   const count=await js('mediaTest.operations().length');
   await js("(async()=>dropFiles([await testImage(),new File(['bad'],'잘못된 파일.txt')]))()");
