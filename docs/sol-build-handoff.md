@@ -1,5 +1,7 @@
 # HanX Astra → Sol handoff
 
+2.10.0 was built and published on 2026-11-03. Native Mac tests, Windows/Linux installers, registry-based public installation, Homebrew and Pages passed. App and CLI notarization passed. No new pkg was created. Earlier source-only notes below describe the development handoff before this release.
+
 ## Role rule from the user
 
 The user identifies the model each turn. GPT-6 Astra implements features and edits source. GPT-6.1 Sol handles compilation, builds, installer creation and deployment. Do not start build/CI/signing/publish merely because code is complete. No new pkg unless explicitly requested. Source-only commits use [skip ci].

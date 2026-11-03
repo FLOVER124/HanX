@@ -1,5 +1,7 @@
 # Advanced editing source status
 
+2.10.0 was built and published on 2026-11-03. Native Mac tests, Windows/Linux installers, registry-based public installation, Homebrew and Pages passed. App and CLI notarization passed. No new pkg was created. Earlier source-only notes below describe the development handoff before this release.
+
 This is source work for 2.10.0, not a published release. The user owns subsequent builds and distribution. Public 2.9.1 has not been replaced. Do not restart build, signing, installation or deployment automatically.
 
 ## Implemented and checked
