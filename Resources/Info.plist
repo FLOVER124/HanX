@@ -10,6 +10,20 @@
 	<array>
 		<dict>
 			<key>CFBundleTypeName</key>
+			<string>HanX 파일</string>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>LSHandlerRank</key>
+			<string>Owner</string>
+			<key>LSItemContentTypes</key>
+			<array>
+				<string>org.studentsview.hanx.file</string>
+			</array>
+			<key>NSDocumentClass</key>
+			<string>HWDocument</string>
+		</dict>
+		<dict>
+			<key>CFBundleTypeName</key>
 			<string>한글 문서 (HWP)</string>
 			<key>CFBundleTypeRole</key>
 			<string>Editor</string>
@@ -216,9 +230,9 @@
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
-	<string>2.12.0</string>
+	<string>2.13.0</string>
 	<key>CFBundleVersion</key>
-	<string>7</string>
+	<string>8</string>
 	<key>LSMinimumSystemVersion</key>
 	<string>13.0</string>
 	<key>NSHighResolutionCapable</key>
@@ -300,6 +314,28 @@
 					<string>md</string>
 					<string>markdown</string>
 				</array>
+			</dict>
+		</dict>
+	</array>
+	<key>UTExportedTypeDeclarations</key>
+	<array>
+		<dict>
+			<key>UTTypeIdentifier</key>
+			<string>org.studentsview.hanx.file</string>
+			<key>UTTypeDescription</key>
+			<string>HanX 파일</string>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.data</string>
+			</array>
+			<key>UTTypeTagSpecification</key>
+			<dict>
+				<key>public.filename-extension</key>
+				<array>
+					<string>hanx</string>
+				</array>
+				<key>public.mime-type</key>
+				<string>application/vnd.hanx</string>
 			</dict>
 		</dict>
 	</array>

@@ -218,6 +218,7 @@ final class DOCXWriter {
         var s = "<w:p><w:pPr>"
         if let st = pr.styleName, let id = DOCXWriter.styleIDs[st]?.id { s += "<w:pStyle w:val=\"\(id)\"/>" }
         if pr.pageBreakBefore { s += "<w:pageBreakBefore/>" }
+        if let border = pr.bottomBorder { s += "<w:pBdr>" + edge("bottom", border) + "</w:pBdr>" }
         var spacing = "<w:spacing w:before=\"\(Units.toTwips(pr.spaceBefore))\" w:after=\"\(Units.toTwips(pr.spaceAfter))\""
         switch pr.lineSpacing {
         case .multiple(let m): spacing += " w:line=\"\(Int((m * 240).rounded()))\" w:lineRule=\"auto\""
@@ -352,19 +353,19 @@ final class DOCXWriter {
 }
 
 extension DOCXWriter {
+    func edge(_ name: String, _ l: BorderLine) -> String {
+        guard l.visible else { return "<w:\(name) w:val=\"nil\"/>" }
+        let v: String
+        switch l.style {
+        case .double: v = "double"
+        case .dotted: v = "dotted"
+        case .dashed: v = "dashed"
+        default: v = "single"
+        }
+        return "<w:\(name) w:val=\"\(v)\" w:sz=\"\(max(2, Int((l.width * 8).rounded())))\" w:space=\"0\" w:color=\"\(l.color.hex)\"/>"
+    }
     /// tcBorders + shading + margins + vertical alignment, in schema order.
     fileprivate func cellProps(_ cell: TableCell) -> String {
-        func edge(_ name: String, _ l: BorderLine) -> String {
-            guard l.visible else { return "<w:\(name) w:val=\"nil\"/>" }
-            let v: String
-            switch l.style {
-            case .double: v = "double"
-            case .dotted: v = "dotted"
-            case .dashed: v = "dashed"
-            default: v = "single"
-            }
-            return "<w:\(name) w:val=\"\(v)\" w:sz=\"\(max(2, Int((l.width * 8).rounded())))\" w:space=\"0\" w:color=\"\(l.color.hex)\"/>"
-        }
         let b = cell.borders
         var s = "<w:tcBorders>" + edge("top", b.top) + edge("left", b.left) + edge("bottom", b.bottom) + edge("right", b.right) + "</w:tcBorders>"
         if let bg = cell.background { s += "<w:shd w:val=\"clear\" w:color=\"auto\" w:fill=\"\(bg.hex)\"/>" }

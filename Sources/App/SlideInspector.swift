@@ -564,7 +564,7 @@ final class SlideInspector: NSView, NSTableViewDataSource, NSTableViewDelegate, 
 
     @objc private func backgroundChanged(_ w: NSColorWell) {
         let c = rgb(w.color)
-        host?.modifySlide("배경") { $0.background = c; $0.backgroundImage = nil }
+        host?.modifySlide("배경") { $0.background = c; $0.backgroundImage = nil; $0.backgroundEnd = nil }
     }
     @objc private func backgroundImage(_ s: Any?) { host?.addImageBackground() }
 

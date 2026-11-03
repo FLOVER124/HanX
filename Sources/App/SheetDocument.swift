@@ -16,14 +16,14 @@ final class SheetDocument: NSDocument {
     private var inPlaceSaveConfirmed = false
 
     override class var autosavesInPlace: Bool { false }
-    override class var readableTypes: [String] { [DocType.xlsx, DocType.csv, DocType.tsv] }
-    override class var writableTypes: [String] { [DocType.xlsx, DocType.csv, DocType.tsv, DocType.html, DocType.pdf] }
-    override class func isNativeType(_ type: String) -> Bool { type == DocType.xlsx }
+    override class var readableTypes: [String] { [HanXFile.type, DocType.xlsx, DocType.csv, DocType.tsv] }
+    override class var writableTypes: [String] { [HanXFile.type, DocType.xlsx, DocType.csv, DocType.tsv, DocType.html, DocType.pdf] }
+    override class func isNativeType(_ type: String) -> Bool { type == HanXFile.type || type == DocType.xlsx }
 
     override func makeWindowControllers() { addWindowController(SheetWindowController(document: self)) }
 
     override func read(from url: URL, ofType typeName: String) throws {
-        do { book = try SheetIO.load(url: url) } catch let e as FormatError {
+        do { book = typeName == HanXFile.type ? try XLSXReader.read(HanXFile.payload(Data(contentsOf: url), expecting: .spreadsheet)) : try SheetIO.load(url: url) } catch let e as FormatError {
             throw NSError(domain: "HanX", code: 1, userInfo: [NSLocalizedDescriptionKey: "문서를 열 수 없습니다", NSLocalizedFailureReasonErrorKey: e.description])
         }
         engine = FormulaEngine(book: book)
@@ -34,6 +34,7 @@ final class SheetDocument: NSDocument {
     override func data(ofType typeName: String) throws -> Data {
         windowControllers.compactMap { $0 as? SheetWindowController }.forEach { $0.commitPendingEditing() }
         switch typeName {
+        case HanXFile.type: return HanXFile.encode(.spreadsheet, payload: XLSXWriter.write(book))
         case DocType.csv: return DelimitedText.write(book.sheets[currentSheetIndex], engine: engine, separator: ",")
         case DocType.tsv: return DelimitedText.write(book.sheets[currentSheetIndex], engine: engine, separator: "\t")
         case DocType.html: return Data(SheetHTML.html(book, engine: engine).utf8)
@@ -50,7 +51,7 @@ final class SheetDocument: NSDocument {
     }
 
     override func save(_ sender: Any?) {
-        if fileURL != nil && !inPlaceSaveConfirmed { saveAs(sender) } else { super.save(sender) }
+        if fileURL != nil && fileType != HanXFile.type && !inPlaceSaveConfirmed { saveImportedAsHanX() } else { super.save(sender) }
     }
 
     override func save(to url: URL, ofType typeName: String, for op: NSDocument.SaveOperationType, completionHandler: @escaping (Error?) -> Void) {
@@ -63,7 +64,7 @@ final class SheetDocument: NSDocument {
     override var shouldRunSavePanelWithAccessoryView: Bool { true }
 
     override func fileNameExtension(forType typeName: String, saveOperation: NSDocument.SaveOperationType) -> String? {
-        [DocType.xlsx: "xlsx", DocType.csv: "csv", DocType.tsv: "tsv", DocType.html: "html", DocType.pdf: "pdf"][typeName]
+        [HanXFile.type: "hanx", DocType.xlsx: "xlsx", DocType.csv: "csv", DocType.tsv: "tsv", DocType.html: "html", DocType.pdf: "pdf"][typeName]
             ?? super.fileNameExtension(forType: typeName, saveOperation: saveOperation)
     }
 

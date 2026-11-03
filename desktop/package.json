@@ -1,6 +1,6 @@
 {
   "name": "hanx-desktop",
-  "version": "2.12.0",
+  "version": "2.13.0",
   "description": "Local HanX document, spreadsheet and presentation editor",
   "main": "main.cjs",
   "private": true,
@@ -16,6 +16,7 @@
   "build": {
     "appId": "org.studentsview.hanx",
     "productName": "HanX",
+    "fileAssociations": [{"ext":"hanx","name":"HanX 파일","role":"Editor","mimeType":"application/vnd.hanx"}],
     "executableName": "HanX",
     "copyright": "Copyright © HanX contributors",
     "directories": {

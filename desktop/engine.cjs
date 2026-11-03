@@ -5,7 +5,7 @@ const os = require('node:os');
 const {tableCellEditable}=require('./model.js');
 const {randomUUID}=require('node:crypto');
 function visitSlideMedia(value,visit){if(!value||typeof value!=='object')return;for(const key of ['imageID','videoID','backgroundImage'])if(typeof value[key]==='string')value[key]=visit(value[key]);if(typeof value.image?.id==='string')value.image.id=visit(value.image.id);for(const child of Object.values(value))visitSlideMedia(child,visit);}
-const ALLOWED = new Set(['replace_text','append_paragraph','append_block','insert_block','delete_block','set_paragraph','set_paragraph_layout','style_paragraph','set_cell','set_page','add_slide','duplicate_slide','delete_slide','move_slide','set_notes','set_transition','add_shape','update_shape','delete_shape','duplicate_shape','reorder_shape','set_animations','set_table_cell','insert_row','delete_row','insert_column','delete_column','set_range','fill_formula','sort_range','fill_range','add_chart','update_chart','delete_chart','style_range','clear_range','add_sheet','delete_sheet','merge','unmerge','freeze','set_column_width','set_row_height','define_name']);
+const ALLOWED = new Set(['replace_text','append_paragraph','append_block','insert_block','insert_page_break','insert_divider','set_section_text','delete_block','set_paragraph','set_paragraph_layout','style_paragraph','set_cell','set_page','add_slide','duplicate_slide','delete_slide','move_slide','set_notes','set_background','set_transition','add_shape','update_shape','delete_shape','duplicate_shape','reorder_shape','set_animations','set_table_cell','insert_row','delete_row','insert_column','delete_column','set_range','fill_formula','sort_range','fill_range','add_chart','update_chart','delete_chart','style_range','clear_range','add_sheet','delete_sheet','merge','unmerge','freeze','set_column_width','set_row_height','define_name']);
 function validateOperations(ops) {
   if (!Array.isArray(ops) || !ops.length || ops.length > 10000) throw Error('Expected 1–10000 editing operations.');
   if (JSON.stringify(ops).length > 24e6) throw Error('This edit is too large.');
@@ -43,14 +43,14 @@ function runEngine(executable,args,input) {
   });
 }
 const defaults={document:{kind:'document',blocks:[{text:''}]},spreadsheet:{kind:'spreadsheet',sheets:[{name:'Sheet1',rows:[['']]}]},presentation:{kind:'presentation',slides:[{title:'제목을 입력하세요',body:['내용을 입력하세요']}]}};
-const formats={document:['docx','hwpx','hwp','hml','txt','md','json','pdf'],spreadsheet:['xlsx','csv','tsv','json','pdf'],presentation:['pptx','json','pdf']};
+const formats={document:['hanx','docx','hwpx','hwp','hml','txt','md','json','pdf'],spreadsheet:['hanx','xlsx','csv','tsv','json','pdf'],presentation:['hanx','pptx','json','pdf']};
 class Session {
   constructor(executable){this.executable=executable;this.file=null;this.source=null;this.dirty=false;this.history=[];this.future=[];this.counter=0;}
   async init(){this.directory=await fs.mkdtemp(path.join(os.tmpdir(),'hanx-desktop-'));return this;}
   async next(){return path.join(this.directory,`${++this.counter}.json`);}
   async read(){const data=await runEngine(this.executable,['read',this.file]);if(data.kind==='spreadsheet'){data.calculated=[];for(let i=0;i<data.model.sheets.length;i++){const sheet=await runEngine(this.executable,['spreadsheet','read',this.file,'--sheet',data.model.sheets[i].name]);data.calculated.push(Object.fromEntries(sheet.cells.map(c=>[c.address,c])));}}return {...data,path:this.source,dirty:this.dirty,canUndo:!!this.history.length,canRedo:!!this.future.length};}
-  async open(source){const data=await runEngine(this.executable,['read',source]);if(!formats[data.kind])throw Error('Open a document, spreadsheet, or presentation.');const target=await this.next();await runEngine(this.executable,['create','--spec','-','--output',target],{kind:data.kind,model:data.model});this.file=target;this.source=source;this.dirty=false;this.kind=data.kind;this.history=[];this.future=[];return this.read();}
-  async create(kind){if(!defaults[kind])throw Error('Unknown file type.');const target=await this.next();await runEngine(this.executable,['create','--spec','-','--output',target],defaults[kind]);this.file=target;this.source=null;this.kind=kind;this.dirty=false;this.history=[];this.future=[];return this.read();}
+  async open(source){const data=await runEngine(this.executable,['read',source]);if(!formats[data.kind])throw Error('Open a document, spreadsheet, or presentation.');const target=await this.next();await runEngine(this.executable,['create','--spec','-','--output',target],{kind:data.kind,model:data.model});this.file=target;this.source=source;this.imported=path.extname(source).toLowerCase()!=='.hanx';this.dirty=false;this.kind=data.kind;this.history=[];this.future=[];return this.read();}
+  async create(kind,template){if(!defaults[kind])throw Error('Unknown file type.');const target=await this.next();await runEngine(this.executable,['create','--spec','-','--output',target],template?{kind,template}:defaults[kind]);this.file=target;this.source=null;this.imported=false;this.kind=kind;this.dirty=false;this.history=[];this.future=[];return this.read();}
   async edit(ops){
     validateOperations(ops);if(!this.file)throw Error('먼저 파일을 열거나 새로 만드세요.');
     let current=this.file;
@@ -86,7 +86,7 @@ class Session {
     const target=await this.next();await runEngine(this.executable,['create','--spec','-','--output',target],{kind:'presentation',model:data.model});this.history.push(this.file);this.future=[];this.file=target;this.dirty=true;return this.read();
   }
   async undo(redo=false){const from=redo?this.future:this.history,to=redo?this.history:this.future;if(from.length){to.push(this.file);this.file=from.pop();this.dirty=true;}return this.read();}
-  async save(destination){if(!this.file)throw Error('Open or create a file first.');const ext=path.extname(destination).slice(1).toLowerCase();if(!formats[this.kind].includes(ext))throw Error(`Choose a supported ${this.kind} format.`);const result=await runEngine(this.executable,['convert',this.file,'--output',destination,'--force']);if(ext!=='pdf'){this.source=destination;this.dirty=false;}return {...await this.read(),saveWarnings:result.warnings||[],exported:ext==='pdf'};}
+  async save(destination){if(!this.file)throw Error('Open or create a file first.');const ext=path.extname(destination).slice(1).toLowerCase();if(!formats[this.kind].includes(ext))throw Error(`Choose a supported ${this.kind} format.`);const result=await runEngine(this.executable,['convert',this.file,'--output',destination,'--force']);if(ext!=='pdf'){this.source=destination;this.imported=false;this.dirty=false;}return {...await this.read(),saveWarnings:result.warnings||[],exported:ext==='pdf'};}
   async close(){if(this.directory)await fs.rm(this.directory,{recursive:true,force:true});}
 }
 module.exports={validateOperations,engineCandidates,resolveEngine,runEngine,Session,formats};

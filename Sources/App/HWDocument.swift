@@ -45,8 +45,8 @@ final class HWDocument: NSDocument {
     }
 
     override class var autosavesInPlace: Bool { false }
-    override class var readableTypes: [String] { [DocType.hwp, DocType.hwpx, DocType.docx, DocType.hwt, DocType.dotx, DocType.txt, DocType.rtf, DocType.md, DocType.html, DocType.pdf] }
-    override class var writableTypes: [String] { [DocType.hwp, DocType.hwpx, DocType.docx, DocType.pdf, DocType.html, DocType.txt, DocType.rtf, DocType.md] }
+    override class var readableTypes: [String] { [HanXFile.type, DocType.hwp, DocType.hwpx, DocType.docx, DocType.hwt, DocType.dotx, DocType.txt, DocType.rtf, DocType.md, DocType.html, DocType.pdf] }
+    override class var writableTypes: [String] { [HanXFile.type, DocType.hwp, DocType.hwpx, DocType.docx, DocType.pdf, DocType.html, DocType.txt, DocType.rtf, DocType.md] }
     override class func isNativeType(_ type: String) -> Bool { writableTypes.contains(type) }
 
     var sourceFormat: SourceFormat { model.source }
@@ -78,7 +78,7 @@ final class HWDocument: NSDocument {
         if ["hwt", "dotx"].contains(url.pathExtension.lowercased()) {
             DispatchQueue.main.async { [weak self] in
                 self?.fileURL = nil
-                self?.fileType = d.source == .docx ? DocType.docx : DocType.hwp
+                self?.fileType = HanXFile.type
             }
         }
     }
@@ -102,7 +102,7 @@ final class HWDocument: NSDocument {
             attr = AttributedBridge.attributedString(from: d)
         }
         textStorage.setAttributedString(attr)
-        DispatchQueue.main.async { [weak self] in self?.fileType = DocType.docx; self?.fileURL = nil; self?.displayNameOverride = url.deletingPathExtension().lastPathComponent }
+        DispatchQueue.main.async { [weak self] in self?.fileType = HanXFile.type; self?.fileURL = nil; self?.displayNameOverride = url.deletingPathExtension().lastPathComponent }
     }
 
     private var displayNameOverride: String?
@@ -176,6 +176,7 @@ final class HWDocument: NSDocument {
         let doc = currentModel()
         let typeName = HWDocument.writableTypes.first { $0.caseInsensitiveCompare(typeName) == .orderedSame } ?? typeName
         switch typeName {
+        case HanXFile.type: return HanXFile.encode(.document, payload: DOCXWriter(doc).write())
         case DocType.txt: return Data(doc.plainText.utf8)
         case DocType.md: return Data(MarkdownWriter.write(doc).utf8)
         case DocType.html: return Data(HTMLWriter.write(doc).utf8)
@@ -210,8 +211,8 @@ final class HWDocument: NSDocument {
     }
 
     override func save(_ sender: Any?) {
-        if fileURL != nil && !inPlaceSaveConfirmed {
-            saveAs(sender)
+        if fileURL != nil && fileType != HanXFile.type && !inPlaceSaveConfirmed {
+            saveImportedAsHanX()
         } else {
             super.save(sender)
         }
@@ -248,6 +249,7 @@ final class HWDocument: NSDocument {
 
     override func fileNameExtension(forType typeName: String, saveOperation: NSDocument.SaveOperationType) -> String? {
         switch typeName {
+        case HanXFile.type: return "hanx"
         case DocType.docx: return "docx"
         case DocType.hwpx: return "hwpx"
         case DocType.hwp: return "hwp"

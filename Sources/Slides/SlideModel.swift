@@ -160,6 +160,27 @@ struct Slide: Codable {
     var transition = SlideTransition()
     var background: RGB? = RGB(r: 255, g: 255, b: 255)
     var backgroundImage: String?
+    // Optional fields keep older slide JSON readable.
+    var backgroundEnd: RGB?
+    var backgroundMiddle: RGB?
+    var backgroundMiddlePosition: Double?
+    var middleFraction: Double {
+        let position = backgroundMiddlePosition ?? 50
+        return position.isFinite ? max(0.00001, min(0.99999, position / 100)) : 0.5
+    }
+    var backgroundAngle: Double?
+    var gradientAngle: Double {
+        let value = backgroundAngle ?? 0
+        return value.isFinite ? (value.truncatingRemainder(dividingBy: 360) + 360).truncatingRemainder(dividingBy: 360) : 0
+    }
+    mutating func copyBackground(from source: Slide) {
+        background = source.background
+        backgroundEnd = source.backgroundEnd
+        backgroundAngle = source.backgroundAngle
+        backgroundMiddle = source.backgroundMiddle
+        backgroundMiddlePosition = source.backgroundMiddlePosition
+        backgroundImage = source.backgroundImage
+    }
     var notes = ""
 }
 

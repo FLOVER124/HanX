@@ -79,6 +79,13 @@ enum PPTXWriter {
             var bg = ""
             if let id = slide.backgroundImage, let r = rel(forImage: id) {
                 bg = "<p:bg><p:bgPr><a:blipFill><a:blip r:embed=\"\(r)\"/><a:stretch><a:fillRect/></a:stretch></a:blipFill><a:effectLst/></p:bgPr></p:bg>"
+            } else if let start = slide.background, let end = slide.backgroundEnd {
+                let middle = slide.backgroundMiddle.map {
+                    #"<a:gs pos="\#(Int((slide.middleFraction * 100000).rounded()))"><a:srgbClr val="\#($0.hex)"/></a:gs>"#
+                } ?? ""
+                bg = """
+                <p:bg><p:bgPr><a:gradFill><a:gsLst><a:gs pos="0"><a:srgbClr val="\(start.hex)"/></a:gs>\(middle)<a:gs pos="100000"><a:srgbClr val="\(end.hex)"/></a:gs></a:gsLst><a:lin ang="\(Int((slide.gradientAngle * 60000).rounded()) % 21600000)" scaled="0"/></a:gradFill><a:effectLst/></p:bgPr></p:bg>
+                """
             } else if let c = slide.background {
                 bg = "<p:bg><p:bgPr><a:solidFill><a:srgbClr val=\"\(c.hex)\"/></a:solidFill><a:effectLst/></p:bgPr></p:bg>"
             }

@@ -151,6 +151,17 @@ enum SlideRenderer {
         let bounds = NSRect(x: 0, y: 0, width: pres.width, height: pres.height)
         (slide.background.map(AttributedBridge.nsColor) ?? .white).setFill()
         bounds.fill()
+        if let start = slide.background, let end = slide.backgroundEnd {
+            let radians = slide.gradientAngle * .pi / 180
+            let dx = cos(radians), dy = sin(radians)
+            let half = (abs(dx) * bounds.width + abs(dy) * bounds.height) / 2
+            let from = NSPoint(x: bounds.midX - dx * half, y: bounds.midY - dy * half)
+            let to = NSPoint(x: bounds.midX + dx * half, y: bounds.midY + dy * half)
+            let colors = [start,slide.backgroundMiddle,end].compactMap { $0 }.map(AttributedBridge.nsColor)
+            let locations: [CGFloat] = slide.backgroundMiddle == nil ? [0,1] : [0,slide.middleFraction,1]
+            NSGradient(colors:colors,atLocations:locations,colorSpace:.sRGB)?
+                .draw(from: from, to: to, options: [.drawsBeforeStartingLocation, .drawsAfterEndingLocation])
+        }
         if let id = slide.backgroundImage, let d = pres.images[id], let img = NSImage(data: d.data) {
             img.draw(in: bounds, from: .zero, operation: .sourceOver, fraction: 1, respectFlipped: true, hints: nil)
         }

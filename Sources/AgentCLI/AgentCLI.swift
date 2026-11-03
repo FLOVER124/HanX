@@ -89,7 +89,7 @@ enum AgentCLI {
         return [
             "name":"HanX","version":AgentIO.version,"notices":[LegalNotices.independence],
             "guidePath":guide?.path ?? "",
-            "formats":["document":["pdf","hwp","hwpx","docx","hml","txt","md","json"],"presentation":["pptx","json","pdf"],"spreadsheet":["xlsx","csv","tsv","json","pdf"],"xml":["generic XML with XPath","HWPML 2.x","Flat OPC","DOCX/PPTX/HWPX/XLSX package XML"]],
+            "formats":["document":["hanx","pdf","hwp","hwpx","docx","hml","txt","md","json"],"presentation":["hanx","pptx","json","pdf"],"spreadsheet":["hanx","xlsx","csv","tsv","json","pdf"],"xml":["generic XML with XPath","HWPML 2.x","Flat OPC","DOCX/PPTX/HWPX/XLSX package XML"]],
             "pdf":pdfCapabilities(),
             "spreadsheetFunctions":FunctionLibrary.table.keys.sorted(),
             "operations":["spreadsheet":AgentSheets.operations,"document":AgentDocuments.documentOps,"presentation":AgentDocuments.slideOps,"xml":["set_text","set_attribute","append_xml","replace_xml","delete"]],
@@ -182,7 +182,7 @@ enum AgentCLI {
                 var result=AgentSheets.typed(e.evaluateFormula(String(formula.dropFirst()),sheet:ws,cell:at)); result["sheet"]=ws.name; result["formula"]=formula; return result
             }
             let output=try AgentIO.string(args["output"],"output"),ext=AgentIO.url(output).pathExtension.lowercased()
-            var result=try save(AgentSheets.data(b,format:ext),kind:"spreadsheet",warnings:[AgentSheets.warning]); result["formulaErrors"]=AgentSheets.errors(b); return result
+            var result=try save(AgentFile.spreadsheet(b).data(for:ext),kind:"spreadsheet",warnings:[AgentSheets.warning]); result["formulaErrors"]=AgentSheets.errors(b); return result
         case "read":
             let file=try AgentFile.load(input()); var value=try file.result(); value["path"]=AgentIO.url(try input()).path
             if try AgentIO.bool(args["noModel"],"noModel") { value.removeValue(forKey:"model") }

@@ -204,11 +204,11 @@ enum AgentInteractive {
     static func formats(_ file: AgentFile, input: URL) -> [String] {
         let values: [String]
         switch file {
-        case .document: values = ["docx", "hwpx", "hwp", "pdf", "txt", "md", "html", "hml", "json", "xml"]
-        case .presentation: values = ["pptx", "pdf", "txt", "json", "xml"]
-        case .spreadsheet: values = ["xlsx", "csv", "tsv", "pdf", "html", "json", "xml"]
+        case .document: values = ["docx", "hanx", "hwpx", "hwp", "pdf", "txt", "md", "html", "hml", "json", "xml"]
+        case .presentation: values = ["pptx", "hanx", "pdf", "txt", "json", "xml"]
+        case .spreadsheet: values = ["xlsx", "hanx", "csv", "tsv", "pdf", "html", "json", "xml"]
         case .xml(let xml):
-            if xml.rootElement()?.local.uppercased() == "HWPML" { values = ["docx", "hwpx", "hwp", "pdf", "txt", "md", "html", "json"] }
+            if xml.rootElement()?.local.uppercased() == "HWPML" { values = ["docx", "hanx", "hwpx", "hwp", "pdf", "txt", "md", "html", "json"] }
             else if xml.rootElement()?.local == "package", let parts = xml.rootElement()?.children {
                 let names = parts.compactMap { ($0 as? XMLElement)?.attributes?.first { $0.local == "name" }?.stringValue }
                 if names.contains("/word/document.xml") { values = ["docx"] }

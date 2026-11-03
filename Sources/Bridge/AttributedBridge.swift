@@ -129,6 +129,13 @@ enum AttributedBridge {
         ps.tabStops = []
         ps.defaultTabInterval = ctx.defaultTab
         ps.textBlocks = outer
+        if let border = p.bottomBorder, border.visible {
+            let decoration = NSTextBlock()
+            decoration.setWidth(CGFloat(border.width), type: .absoluteValueType, for: .border, edge: .minY)
+            decoration.setBorderColor(NSColor(srgbRed: CGFloat(border.color.r)/255, green: CGFloat(border.color.g)/255,
+                                              blue: CGFloat(border.color.b)/255, alpha: 1), for: .minY)
+            ps.textBlocks = outer + [decoration]
+        }
         var rule: String?
         switch p.lineSpacing {
         case .multiple(let m): ps.lineHeightMultiple = CGFloat(max(0.5, m))
@@ -165,6 +172,9 @@ enum AttributedBridge {
         let (ps, rule) = paragraphStyle(p.props, mark: mark, outer: outer, ctx: ctx)
         let all = NSRange(location: 0, length: s.length)
         s.addAttribute(.paragraphStyle, value: ps, range: all)
+        if let border = p.props.bottomBorder, let encoded = try? JSONEncoder().encode(border) {
+            s.addAttribute(NSAttributedString.Key("HanXParagraphBottomBorder"), value: encoded, range: all)
+        }
         if let rule { s.addAttribute(.hwLineRule, value: rule, range: all) }
         if let st = p.props.styleName, EditorStyleNames.known.contains(st) { s.addAttribute(.hwStyle, value: st, range: all) }
         return s
@@ -486,6 +496,9 @@ enum AttributedBridge {
             para.markProps = charProps(attrs)
             let lineRule = text.attribute(.hwLineRule, at: range.location < text.length ? range.location : markAt, effectiveRange: nil) as? String
             para.props = paraProps(attrs[.paragraphStyle] as? NSParagraphStyle, rule: lineRule)
+            if let encoded = attrs[NSAttributedString.Key("HanXParagraphBottomBorder")] as? Data {
+                para.props.bottomBorder = try? JSONDecoder().decode(BorderLine.self, from: encoded)
+            }
             para.props.styleName = attrs[.hwStyle] as? String
         }
         var pending = ""

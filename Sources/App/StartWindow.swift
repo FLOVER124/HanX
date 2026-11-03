@@ -8,20 +8,29 @@ final class HWDocumentController: NSDocumentController {
     override func newDocument(_ sender: Any?) { StartWindowController.shared.showWindow(nil) }
 
     func create(_ kind: Kind) {
-        let type: String
-        switch kind {
-        // The document format (hwp, docx, …) is chosen when saving.
-        case .document: type = DocType.hwp
-        case .presentation: type = DocType.pptx
-        case .spreadsheet: type = DocType.xlsx
-        }
         do {
-            let doc = try makeUntitledDocument(ofType: type)
+            let doc: NSDocument
+            switch kind {
+            case .document: doc = try HWDocument(type: HanXFile.type)
+            case .presentation: doc = try SlideDocument(type: HanXFile.type)
+            case .spreadsheet: doc = try SheetDocument(type: HanXFile.type)
+            }
             addDocument(doc)
             doc.makeWindowControllers()
             doc.showWindows()
         } catch {
             presentError(error)
+        }
+    }
+
+    override func makeDocument(withContentsOf url: URL, ofType typeName: String) throws -> NSDocument {
+        guard typeName == HanXFile.type || url.pathExtension.lowercased() == "hanx" else {
+            return try super.makeDocument(withContentsOf: url, ofType: typeName)
+        }
+        switch try HanXFile.kind(at: url) {
+        case .document: return try HWDocument(contentsOf: url, ofType: HanXFile.type)
+        case .presentation: return try SlideDocument(contentsOf: url, ofType: HanXFile.type)
+        case .spreadsheet: return try SheetDocument(contentsOf: url, ofType: HanXFile.type)
         }
     }
 

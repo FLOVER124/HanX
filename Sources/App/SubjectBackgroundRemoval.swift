@@ -36,8 +36,35 @@ struct ImageBackgroundMask {
         return SolidBackgroundRemoval.Bitmap(rgba: pixels, width: w, height: h)
     }
 
-    mutating func stroke(from start: CGPoint, to end: CGPoint, radius: Double, keep: Bool) {
-        guard radius.isFinite, radius > 0, start.x.isFinite, start.y.isFinite, end.x.isFinite, end.y.isFinite else { return }
+    /// Separable box feather with clamped edges; the editable mask remains unchanged.
+    func feathered(radius: Int) -> ImageBackgroundMask {
+        let r = max(0, min(20, radius))
+        guard r > 0, width > 0, height > 0, values.count == width * height else { return self }
+        let divisor = Double(2 * r + 1)
+        var horizontal = [Double](repeating: 0, count: values.count)
+        var result = values
+        for y in 0..<height {
+            let row = y * width
+            var sum = 0.0
+            for dx in -r...r { sum += Double(values[row + max(0, min(width - 1, dx))]) }
+            for x in 0..<width {
+                horizontal[row + x] = sum / divisor
+                sum += Double(values[row + min(width - 1, x + r + 1)]) - Double(values[row + max(0, x - r)])
+            }
+        }
+        for x in 0..<width {
+            var sum = 0.0
+            for dy in -r...r { sum += horizontal[max(0, min(height - 1, dy)) * width + x] }
+            for y in 0..<height {
+                result[y * width + x] = UInt8(max(0, min(255, (sum / divisor).rounded())))
+                sum += horizontal[min(height - 1, y + r + 1) * width + x] - horizontal[max(0, y - r) * width + x]
+            }
+        }
+        return ImageBackgroundMask(values: result, width: width, height: height)
+    }
+
+    mutating func stroke(from start: CGPoint, to end: CGPoint, radius: Double, keep: Bool, hardness: Double = 1) {
+        guard hardness.isFinite, radius.isFinite, radius > 0, start.x.isFinite, start.y.isFinite, end.x.isFinite, end.y.isFinite else { return }
         let left = max(0, Int(floor(min(start.x, end.x) - radius)))
         let right = min(width - 1, Int(ceil(max(start.x, end.x) + radius)))
         let top = max(0, Int(floor(min(start.y, end.y) - radius)))
@@ -48,7 +75,12 @@ struct ImageBackgroundMask {
             let px = Double(x) + 0.5, py = Double(y) + 0.5
             let t = length > 0 ? max(0, min(1, ((px - start.x) * dx + (py - start.y) * dy) / length)) : 0
             let distance = hypot(px - (start.x + t * dx), py - (start.y + t * dy))
-            if distance <= radius { values[y * width + x] = keep ? 255 : 0 }
+            if distance <= radius {
+                let hard = max(0, min(1, hardness)), inner = radius * hard
+                let weight = distance <= inner || hard == 1 ? 1 : max(0, (radius - distance) / (radius - inner))
+                let index = y * width + x, old = Double(values[index]), target = keep ? 255.0 : 0.0
+                values[index] = UInt8(max(0, min(255, (old + (target - old) * weight).rounded())))
+            }
         } }
     }
 }

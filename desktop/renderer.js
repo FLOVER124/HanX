@@ -69,10 +69,58 @@ function paragraphLineHeight(spacing){
 }
 function richParagraph(p,images,onchange){const node=el('div',{class:'rich-paragraph',role:'textbox','aria-label':'문단 편집',style:{...M.runStyle(p.markProps),...(p.inlines?.length?{backgroundColor:'transparent',textDecoration:'none',verticalAlign:'baseline'}:{}),lineHeight:paragraphLineHeight(p.props?.lineSpacing),textAlign:p.props?.alignment==='distribute'?'justify':p.props?.alignment||'left',marginTop:(p.props?.spaceBefore||0)+'pt',marginBottom:(p.props?.spaceAfter||0)+'pt',paddingLeft:(p.props?.indentLeft||0)+'pt',paddingRight:(p.props?.indentRight||0)+'pt',textIndent:(p.props?.firstLine||0)+'pt'}});const hasObject=(p.inlines||[]).some(i=>i.image||i.field||i.pageBreak);node.contentEditable=onchange&&!hasObject?'true':'false';appendInlines(node,p,images);if(!node.childNodes.length)node.append(el('br'));let original=node.innerHTML;if(onchange)node.addEventListener('blur',()=>{if(node.innerHTML!==original&&!hasObject){const runs=richRuns(node,p);original=node.innerHTML;onchange(runs);}});node.addEventListener('paste',e=>{e.preventDefault();document.execCommand('insertText',false,e.clipboardData.getData('text/plain'));});return node;}
 function readOnlyTable(table,images){const result=el('table',{class:'doc-table'});for(const row of table.rows){const tr=el('tr');for(const c of row){if(c.isMergedAway)continue;const td=el('td',{colspan:c.colSpan,rowspan:c.rowSpan,style:{background:M.color(c.background,'transparent'),verticalAlign:c.verticalAlign}});for(const b of c.blocks){if(b.paragraph)td.append(richParagraph(b.paragraph._0,images));else if(b.table)td.append(readOnlyTable(b.table._0,images));}tr.append(td);}result.append(tr);}return result;}
-function renderDocument(model){const section=model.sections[selected],paper=el('article',{class:'paper',style:{width:section.page.width+'pt',minHeight:section.page.height+'pt',padding:`${section.page.marginTop}pt ${section.page.marginRight}pt ${section.page.marginBottom}pt ${section.page.marginLeft}pt`}});$('workspace').append(paper);section.blocks.forEach((block,index)=>{const wrap=el('div',{class:'document-block'});if(block.paragraph){const p=block.paragraph._0,node=richParagraph(p,model.images,runs=>edit({op:'set_paragraph',section:selected,block:index,runs}));node.addEventListener('focus',()=>{if(docBlock!==index){docBlock=index;renderRibbon();}});wrap.append(node);}else if(block.table){const table=readOnlyTable(block.table._0,model.images);const native=[];block.table._0.rows.forEach((row,r)=>row.forEach((c,col)=>{if(!c.isMergedAway)native.push([r,col,c]);}));Array.from(table.rows).flatMap(row=>Array.from(row.cells)).forEach((td,n)=>{const [r,c,source]=native[n];if(!M.tableCellEditable(source)){td.setAttribute('aria-readonly','true');td.title='그림, 필드 또는 중첩 표를 보존하기 위해 읽기 전용입니다.';return;}td.ondblclick=()=>{if(td.querySelector('textarea'))return;const text=source.blocks.map(M.blockText).join('\n');td.replaceChildren(textEditor(text,text=>edit({op:'set_cell',section:selected,block:index,row:r,column:c,text}),{'aria-label':`표 ${r+1}행 ${c+1}열`}));td.querySelector('textarea').focus();};});wrap.append(table);}wrap.append(button('×',()=>edit({op:'delete_block',section:selected,block:index}),'delete-block'));paper.append(wrap);});
-
+function sectionDecoration(blocks,images,label,pageNumber,pageCount){
+ if(!blocks?.length)return null;
+ const area=el('div',{class:'page-decoration','aria-label':label});
+ for(const block of blocks){
+  if(block.table)area.append(readOnlyTable(block.table._0,images));
+  if(block.paragraph){
+   const paragraph=block.paragraph._0;
+   const inlines=paragraph.inlines.map(i=>i.field?{text:{_0:String(i.field._0==='page'?pageNumber:pageCount),_1:i.field._1}}:i);
+   area.append(richParagraph({...paragraph,inlines},images));
+  }
+ }
+ return area;
 }
-
+function editSectionText(part){
+ const section=state.model.sections[selected],blocks=section[part]||[],label=part==='header'?'머리말':'꼬리말';
+ if(blocks.some(b=>!b.paragraph||b.paragraph._0.inlines.some(i=>!i.text))){
+  run(()=>{throw Error('그림, 표 또는 필드가 포함된 '+label+'은 이 편집기에서 수정할 수 없습니다.');});return;
+ }
+ const initial=blocks.map(M.blockText).join('\n'),field=el('textarea',{'aria-label':label,rows:5});
+ field.value=initial;
+ const dialog=el('dialog',{class:'section-text-dialog'},el('h2',{text:label}),field,el('div',{class:'dialog-actions'},
+  button('취소',()=>dialog.close()),button('적용',()=>{dialog.close();if(field.value!==initial)edit({op:'set_section_text',section:selected,part,text:field.value});},'primary')));
+ dialog.addEventListener('close',()=>dialog.remove(),{once:true});document.body.append(dialog);dialog.showModal();field.focus();
+}
+function renderDocument(model){
+ const section=model.sections[selected],pages=[];
+ const newPage=()=>{const paper=el('article',{class:'paper document-page',style:{width:section.page.width+'pt',minHeight:section.page.height+'pt',padding:`${section.page.marginTop}pt ${section.page.marginRight}pt ${section.page.marginBottom}pt ${section.page.marginLeft}pt`}});pages.push(paper);$('workspace').append(paper);return paper;};
+ let paper=newPage();
+ section.blocks.forEach((block,index)=>{
+  if(block.paragraph?._0.props.pageBreakBefore&&index>0)paper=newPage();
+  let wrap=el('div',{class:'document-block'});
+  if(block.paragraph){
+   const p=block.paragraph._0;
+   if(p.inlines.some(i=>i.pageBreak)){
+    let line=[];for(const item of p.inlines){
+     if(item.pageBreak){wrap.append(richParagraph({...p,inlines:line},model.images));paper.append(wrap);paper=newPage();wrap=el('div',{class:'document-block'});line=[];}else line.push(item);
+    }
+    wrap.append(richParagraph({...p,inlines:line},model.images));
+   }else{
+    const node=richParagraph(p,model.images,runs=>edit({op:'set_paragraph',section:selected,block:index,runs}));
+    node.addEventListener('focus',()=>{if(docBlock!==index){docBlock=index;renderRibbon();}});wrap.append(node);
+   }
+   const border=p.props.bottomBorder;
+   if(border&&border.style!=='none')wrap.style.borderBottom=`${border.width}pt ${border.style} ${M.color(border.color)}`;
+  }else if(block.table){const table=readOnlyTable(block.table._0,model.images);const native=[];block.table._0.rows.forEach((row,r)=>row.forEach((c,col)=>{if(!c.isMergedAway)native.push([r,col,c]);}));Array.from(table.rows).flatMap(row=>Array.from(row.cells)).forEach((td,n)=>{const [r,c,source]=native[n];if(!M.tableCellEditable(source)){td.setAttribute('aria-readonly','true');td.title='그림, 필드 또는 중첩 표를 보존하기 위해 읽기 전용입니다.';return;}td.ondblclick=()=>{if(td.querySelector('textarea'))return;const text=source.blocks.map(M.blockText).join('\n');td.replaceChildren(textEditor(text,text=>edit({op:'set_cell',section:selected,block:index,row:r,column:c,text}),{'aria-label':`표 ${r+1}행 ${c+1}열`}));td.querySelector('textarea').focus();};});wrap.append(table);}
+  wrap.append(button('×',()=>edit({op:'delete_block',section:selected,block:index}),'delete-block'));paper.append(wrap);
+ });
+ pages.forEach((paper,i)=>{
+  const header=sectionDecoration(section.header,model.images,'머리말',i+1,pages.length),footer=sectionDecoration(section.footer,model.images,'꼬리말',i+1,pages.length);
+  if(header)paper.prepend(header);if(footer){footer.classList.add('page-footer');paper.append(footer);}
+ });
+}
 function renderSpreadsheet(model){const sheet=model.sheets[selected],cells=sheet.cells||{},calculated=state.calculated?.[selected]||{};const formula=el('input',{id:'formula',placeholder:'값 또는 수식','aria-label':'수식 입력줄',onchange:e=>edit({op:'set_cell',sheet:selected,cell,input:e.target.value})});formula.value=cells[cell]?.input||'';const ref=el('input',{class:'cell-ref',value:cell,'aria-label':'셀 주소',onchange:e=>{const address=e.target.value.toUpperCase();if(/^[A-Z]{1,3}[1-9][0-9]{0,6}$/.test(address)){cell=address;cellRange=address;formula.value=cells[cell]?.input||'';renderRibbon();}}});const bar=el('div',{class:'formula-bar'},ref,el('span',{text:'ƒx'}),formula);const scroll=el('div',{class:'grid-scroll'}),table=el('table',{class:'sheet-grid'});const head=el('tr',{},el('th'));for(let c=0;c<gridCols;c++)head.append(el('th',{text:M.columnName(c)}));table.append(head);
  const covered=new Set(),merges={};for(const range of sheet.merges||[]){const [start,end]=range.split(':').map(parseCell);if(!start||!end)continue;merges[M.columnName(start.col)+(start.row+1)]={colSpan:end.col-start.col+1,rowSpan:end.row-start.row+1};for(let r=start.row;r<=end.row;r++)for(let c=start.col;c<=end.col;c++)if(r!==start.row||c!==start.col)covered.add(M.columnName(c)+(r+1));}
  for(let r=0;r<gridRows;r++){const row=el('tr',{},el('th',{text:r+1}));for(let c=0;c<gridCols;c++){const address=M.columnName(c)+(r+1),value=cells[address];if(covered.has(address))continue;const input=el('input',{'aria-label':address,value:calculated[address]?.display??value?.input??'',onfocus:()=>{cell=address;cellRange=address;ref.value=address;formula.value=cells[address]?.input||'';table.querySelectorAll('.active-cell').forEach(n=>n.classList.remove('active-cell'));input.classList.add('active-cell');renderRibbon();},ondblclick:()=>{input.value=cells[address]?.input||'';input.select();},onkeydown:e=>{if(e.key==='Enter'){e.preventDefault();input.blur();}else if(e.key==='F2'){e.preventDefault();input.value=cells[address]?.input||'';}},onchange:e=>{if(e.target.value!==(calculated[address]?.display??value?.input??''))edit({op:'set_cell',sheet:selected,cell:address,input:e.target.value});},onpaste:e=>{const text=e.clipboardData.getData('text');if(text.includes('\t')||text.includes('\n')){e.preventDefault();edit({op:'set_range',sheet:selected,start:address,values:text.replace(/\r/g,'').replace(/\n$/,'').split('\n').map(line=>line.split('\t').map(input=>({input})))});}}});if(value?.style)Object.assign(input.style,{fontWeight:value.style.bold?'700':'400',fontStyle:value.style.italic?'italic':'normal',color:value.style.color?'#'+value.style.color:'',background:value.style.fill?'#'+value.style.fill:'',textAlign:value.style.align==='general'?(calculated[address]?.type==='number'?'right':'left'):value.style.align,fontSize:(value.style.fontSize||11)+'pt',fontFamily:value.style.fontName?JSON.stringify(value.style.fontName):'',textDecoration:value.style.underline?'underline':'none'});const merge=merges[address];row.append(el('td',{colspan:merge?.colSpan,rowspan:merge?.rowSpan},input));}table.append(row);}applyGridMetrics(table,sheet);
@@ -128,6 +176,10 @@ function slideShapeContent(node,shape,model,scale,editable=false){
  if(graphic)node.append(graphic);
  if(shape.kind==='image'){
   const src=M.imageSource(model.images?.[shape.imageID]);
+  if(editable && src && !shape.videoID && !shape.locked)node.ondblclick=event=>{
+   if(event.target.closest('button,.resize-handle,.rotate-handle')||selectedShapeIDs.size!==1)return;
+   event.stopPropagation();cropSlideImage(shape);
+  };
   node.append(src?el('img',{src,alt:shape.name||'슬라이드 그림',draggable:'false'}):el('span',{class:'media-note',text:'그림'}));
  }else if(shape.kind==='table'&&shape.table){
   const table=readOnlyTable(shape.table,model.images);
@@ -187,7 +239,7 @@ function slideMenu(event,index=selected){
  menu.hidden=false;menu.style.left=Math.min(event.clientX,innerWidth-190)+'px';menu.style.top=Math.min(event.clientY,innerHeight-menu.offsetHeight)+'px';
 }
 function renderPresentation(model){const slide=model.slides[selected];syncShapeSelection(slide);if(!slide){$('workspace').append(el('div',{class:'empty-slide'},button('슬라이드 추가',()=>edit({op:'add_slide',value:{title:'제목을 입력하세요',body:['내용을 입력하세요']}}),'primary')));$('tools').append(button('붙여넣기',()=>pasteSlide()));return;}
- const stage=el('div',{class:'slide-stage',tabindex:0,'aria-label':`${selected+1}번 슬라이드`,style:{width:'720px',height:model.height*720/model.width+'px',background:M.color(slide.background),backgroundImage:M.imageSource(model.images?.[slide.backgroundImage])?`url("${M.imageSource(model.images?.[slide.backgroundImage])}")`:null,backgroundSize:'100% 100%'}});const scale=720/model.width;
+ const stage=el('div',{class:'slide-stage',tabindex:0,'aria-label':`${selected+1}번 슬라이드`,style:{width:'720px',height:model.height*720/model.width+'px',background:M.color(slide.background),backgroundImage:slideBackgroundPaint(slide,model),backgroundSize:'100% 100%'}});const scale=720/model.width;
  slide.shapes.forEach(shape=>{const frame=shape.frame;const node=el('div',{'data-shape-id':shape.id,class:'slide-shape kind-'+shape.kind+(selectedShapeIDs.has(shape.id)?' active':''),style:{left:frame.x/model.width*100+'%',top:frame.y/model.height*100+'%',width:frame.w/model.width*100+'%',height:frame.h/model.height*100+'%',transform:M.shapeTransform(shape)},onclick:e=>{e.stopPropagation();if(e.detail===0&&!selectedShapeIDs.has(shape.id))selectShape(shape,e.shiftKey||e.ctrlKey||e.metaKey);},oncontextmenu:e=>{e.preventDefault();e.stopPropagation();if(shape.locked)return;if(!selectedShapeIDs.has(shape.id))selectShape(shape);const menu=$('contextMenu');menu.replaceChildren(button('도형 복제',()=>shapeBatch('duplicate_shape')),button('도형 삭제',()=>shapeBatch('delete_shape')));menu.hidden=false;menu.style.left=Math.min(e.clientX,innerWidth-190)+'px';menu.style.top=Math.min(e.clientY,innerHeight-120)+'px';}}); slideShapeContent(node,shape,model,scale,true);
  HanXSlideMedia.attachMovie(node,shape,model,false,message=>hanx.reportError(message));
  node.addEventListener('pointerdown',event=>{if(shape.locked||event.target.closest('textarea,input,button,select,[contenteditable=true],.resize-handle,.rotate-handle'))return;if(event.shiftKey||event.ctrlKey||event.metaKey){event.preventDefault();event.stopPropagation();selectShape(shape,true);return;}if(!selectedShapeIDs.has(shape.id))selectShape(shape);beginTransform(event,node,shape,model,'move');});if(selectedShapeIDs.size===1&&shapeID===shape.id&&!shape.locked)addHandles(node,shape,model);stage.append(node);});
@@ -215,6 +267,11 @@ function preserveFocus(control){control.addEventListener('mousedown',event=>even
 function clipboardGroup(){return ribbonGroup('클립보드',...[["잘라내기","cut"],["복사","copy"],["붙여넣기","paste"]].map(([label,action])=>preserveFocus(button(label,()=>run(()=>hanx.clipboard(action))))));}
 function addSheet(){let n=1;while(state.model.sheets.some(s=>s.name===`Sheet${n}`))n++;edit({op:'add_sheet',name:`Sheet${n}`});}
 function advancedContext(model){return {model,selected,cell,cellRange,el,button,field,selectField,ribbonGroup,edit};}
+function newTemplate(template){return run(async()=>{
+ const next=await hanx.newFile('document',template);
+ if(next){selected=0;docBlock=0;imageOriginals.clear();}
+ return next;
+});}
 function documentRibbon(model){const section=model.sections[selected],paragraphs=section.blocks.map((block,index)=>[block,index]).filter(([block])=>block.paragraph);if(!section.blocks[docBlock]?.paragraph)docBlock=paragraphs[0]?.[1]??0;const p=section.blocks[docBlock]?.paragraph?._0,c=p?.markProps||{};
  const style=change=>edit({op:'style_paragraph',section:selected,block:docBlock,style:change});
  const format=([label,command])=>{const b=preserveFocus(button(label,()=>{if(document.activeElement?.isContentEditable)document.execCommand(command);else style({[command]:!c[command]||c[command]==='none'});}));b.disabled=!p;b.setAttribute('aria-pressed',String(Boolean(c[command]&&c[command]!=='none')));return b;};
@@ -231,7 +288,8 @@ function documentRibbon(model){const section=model.sections[selected],paragraphs
  return [
   ['홈',()=>[clipboardGroup(),ribbonGroup('글꼴',field('글꼴',c.fontName||'맑은 고딕',font=>style({font}),'text','font-face'),field('글자 크기 (pt)',c.size||12,size=>style({size}),'number','font-size'),...[['굵게','bold'],['기울임','italic'],['밑줄','underline']].map(format)),ribbonGroup('문단',el('label',{class:'field'},el('span',{text:'문단 선택'}),paragraphIndex),align)]],
   ['글자 모양',()=>p?[ribbonGroup('문단 글자 모양',field('글자색',M.color(c.color,'#203247'),color=>style({color:color.slice(1)}),'color'),field('형광펜',M.color(c.highlight,'#ffff00'),highlight=>style({highlight:highlight.slice(1)}),'color'),button('형광펜 없음',()=>style({highlight:null})),button('취소선',()=>style({strike:!c.strike})),selectField('첨자',[['baseline','기본'],['superscript','위 첨자'],['subscript','아래 첨자']],c.verticalAlign||'baseline',verticalAlign=>style({verticalAlign})),field('자간 (pt)',c.spacing||0,spacing=>style({spacing}),'number'))]:[]],
-  ['삽입',()=>[ribbonGroup('문서 요소',button('문단 추가',()=>edit({op:'append_paragraph',section:selected,text:''})),button('표 삽입',()=>edit({op:'append_block',section:selected,block:{type:'table',rows:[['',''],['','']]}})))]],
+  ['양식',()=>[ribbonGroup('새 문서',button('편지지',()=>newTemplate('letter')),button('라벨 2열 × 7행',()=>newTemplate('labels')))]],
+ ['삽입',()=>[ribbonGroup('문서 요소',button('쪽 나누기',()=>edit({op:'insert_page_break',section:selected,block:Math.min(docBlock+1,section.blocks.length)})),button('구분선',()=>edit({op:'insert_divider',section:selected,block:Math.min(docBlock+1,section.blocks.length)})),button('머리말',()=>editSectionText('header')),button('꼬리말',()=>editSectionText('footer')),button('문단 추가',()=>edit({op:'append_paragraph',section:selected,text:''})),button('표 삽입',()=>edit({op:'append_block',section:selected,block:{type:'table',rows:[['',''],['','']]}})))]],
   ['쪽 문단',()=>[...(p?[ribbonGroup('문단 여백',...dimensions()),ribbonGroup('줄 간격',...lineControls())]:[]),...HanXAdvanced.documentGroups(advancedContext(model)),ribbonGroup('용지',field('용지 너비 (pt)',section.page.width,width=>edit({op:'set_page',section:selected,page:{width}}),'number'),field('용지 높이 (pt)',section.page.height,height=>edit({op:'set_page',section:selected,page:{height}}),'number')),ribbonGroup('문서 구역',el('label',{class:'field'},el('span',{text:'구역'}),sectionIndex))]]
  ];
 }
@@ -250,17 +308,57 @@ function shapePicker(model){
  for(const [kind,title] of Object.entries(HanXShapes.titles))if(!['image','table','line','text'].includes(kind))select.append(el('option',{value:kind,text:title}));
  select.onchange=()=>{const kind=select.value;select.value='';if(kind)insertSlideShape(kind,model);};return select;
 }
+function slideBackgroundPaint(slide,model){
+ const picture=M.imageSource(model.images?.[slide.backgroundImage]);
+ if(picture)return `url("${picture}")`;
+ const middle=slide.backgroundMiddle?`${M.color(slide.backgroundMiddle)} ${slide.backgroundMiddlePosition??50}%,`:'';
+ return slide.backgroundEnd?`linear-gradient(${90+(slide.backgroundAngle||0)}deg,${M.color(slide.background)},${middle}${M.color(slide.backgroundEnd)})`:null;
+}
+function editGradient(slide){
+ const index=selected;
+ const first=el('input',{type:'color',value:M.color(slide.background),'aria-label':'시작 색'});
+ const last=el('input',{type:'color',value:M.color(slide.backgroundEnd),'aria-label':'끝 색'});
+ const angle=el('input',{type:'number',min:0,max:360,step:1,value:slide.backgroundAngle||0,'aria-label':'각도'});
+ const preview=el('div',{style:{width:'320px',height:'180px',borderRadius:'8px'},'aria-label':'배경 미리보기'});
+ const useMiddle=el('input',{type:'checkbox'});useMiddle.checked=Boolean(slide.backgroundEnd&&slide.backgroundMiddle);
+ const middle=el('input',{type:'color',value:M.color(slide.backgroundMiddle),'aria-label':'중간 색'});
+ const position=el('input',{type:'number',min:0.001,max:99.999,step:'any',value:slide.backgroundMiddlePosition??50,'aria-label':'중간 색 위치'});
+ const update=()=>{
+  middle.disabled=position.disabled=!useMiddle.checked;
+  const stop=useMiddle.checked?`${middle.value} ${position.value}%,`:'';
+  preview.style.background=`linear-gradient(${90+Number(angle.value)}deg,${first.value},${stop}${last.value})`;
+ };
+ for(const input of [first,last,angle,useMiddle,middle,position])input.addEventListener('input',update);
+ const dialog=el('dialog',{'aria-label':'그라데이션 배경'},
+  el('h2',{text:'그라데이션 배경'}),preview,
+  el('div',{class:'image-adjustments'},el('label',{},'시작 색',first),el('label',{},'끝 색',last),el('label',{},'각도 (°)',angle),el('label',{},useMiddle,'중간 색 사용'),el('label',{},'중간 색',middle),el('label',{},'위치 (%)',position)),
+  el('div',{class:'dialog-actions'},button('취소',()=>dialog.close()),button('적용',()=>{
+   if(!angle.checkValidity()||!angle.value.trim()){angle.reportValidity();return;}
+   if(useMiddle.checked&&(!position.checkValidity()||position.value==='')){position.reportValidity();return;}
+   const stop=useMiddle.checked?{middleColor:middle.value,middlePosition:Number(position.value)}:{};
+   dialog.close();edit({op:'set_background',slide:index,color:first.value,endColor:last.value,angle:Number(angle.value),...stop});
+  },'primary')));
+ dialog.addEventListener('close',()=>dialog.remove(),{once:true});document.body.append(dialog);update();dialog.showModal();
+}
+function backgroundTools(slide){
+ const color=el('input',{type:'color',value:M.color(slide.background)||'#ffffff','aria-label':'슬라이드 배경색'});
+ const set=(props)=>edit({op:'set_background',slide:selected,...props});
+ color.onchange=()=>set({color:color.value});
+ const designs=[['바다','204680','80D3E9'],['새벽','553F75','FFB38D'],['숲','135B54','ACE2A3']];
+ return [ribbonGroup('배경색',color,button('흰색',()=>set({color:'FFFFFF'}))),ribbonGroup('배경 디자인',button('직접 설정',()=>editGradient(slide)),...designs.map(([name,color,endColor])=>button(name,()=>set({color,endColor})))),ribbonGroup('슬라이드 배경',button('배경 그림',()=>run(()=>hanx.insertImage(selected,true))),button('모두 적용',()=>set({copyToAll:true})))];
+}
 function presentationRibbon(model){const slide=model.slides[selected],shape=slide?.shapes.find(s=>s.id===shapeID);const add=()=>edit({op:'add_slide',at:selected+1,value:{title:'제목을 입력하세요',body:['내용을 입력하세요']}});const slides=()=>ribbonGroup('슬라이드',button('슬라이드 추가',add),button('복제',()=>duplicateSlide()),button('슬라이드 삭제',()=>deleteSelectedSlide()));const shapeButton=(label,action)=>{const b=button(label,action);b.disabled=!shape;return b;};if(!slide)return [['홈',()=>[ribbonGroup('슬라이드',button('슬라이드 추가',add),button('붙여넣기',()=>pasteSlide()))]]];return [
  ['홈',()=>[ribbonGroup('클립보드',button('슬라이드 복사',()=>copySlide()),button('붙여넣기',()=>pasteSlide())),slides()]],
  ['삽입',()=>[slides(),ribbonGroup('개체',button('동영상 넣기',()=>HanXSlideMedia.pick(model,selected,run,ops=>hanx.edit(ops))),button('표 넣기',()=>HanXTables.insert({el,button,model,selected,edit})),button('그림 넣기',()=>run(()=>hanx.insertImage(selected))),button('텍스트',()=>insertSlideShape('text',model)),shapePicker(model),button('선',()=>insertSlideShape('line',model)))]],
+ ['디자인',()=>backgroundTools(slide)],
  ['배치',()=>[arrangementGroup(),ribbonGroup('크기와 회전',...(selectedShapeIDs.size===1?[shapeButton('크기 위치',()=>{$('properties').querySelector('input')?.focus();})]:[])),ribbonGroup('순서',shapeButton('맨 앞으로',()=>changeShapeOrder(true)),shapeButton('맨 뒤로',()=>changeShapeOrder(false))),ribbonGroup('개체',shapeButton('도형 복제',()=>shapeBatch('duplicate_shape')),shapeButton('도형 삭제',()=>shapeBatch('delete_shape'))) ]],
  ...(shape&&selectedShapeIDs.size===1?[['도형 서식',()=>shapeFormatGroups(model,shape)]]:[]),
- ...(shape?.kind==='image'&&!shape.videoID&&selectedShapeIDs.size===1?[['그림',()=>[ribbonGroup('그림 편집',button('배경 제거',()=>removeImageBackground(shape,true)),button('단색 배경 제거',()=>removeImageBackground(shape)),imageRestoreButton(shape)),ribbonGroup('회전과 대칭',shapeButton('왼쪽으로 90°',()=>edit({op:'update_shape',slide:selected,shapeId:shape.id,rotation:(shape.rotation||0)-90})),shapeButton('오른쪽으로 90°',()=>edit({op:'update_shape',slide:selected,shapeId:shape.id,rotation:(shape.rotation||0)+90})),shapeButton('좌우 대칭',()=>edit({op:'update_shape',slide:selected,shapeId:shape.id,flipH:!shape.flipH})),shapeButton('상하 대칭',()=>edit({op:'update_shape',slide:selected,shapeId:shape.id,flipV:!shape.flipV})))]]]:[]),
+ ...(shape?.kind==='image'&&!shape.videoID&&selectedShapeIDs.size===1?[['그림',()=>[ribbonGroup('그림 편집',button('자르기',()=>cropSlideImage(shape)),button('그림 보정',()=>adjustSlideImage(shape)),button('배경 제거',()=>removeImageBackground(shape,true)),button('단색 배경 제거',()=>removeImageBackground(shape)),imageRestoreButton(shape)),ribbonGroup('회전과 대칭',shapeButton('왼쪽으로 90°',()=>edit({op:'update_shape',slide:selected,shapeId:shape.id,rotation:(shape.rotation||0)-90})),shapeButton('오른쪽으로 90°',()=>edit({op:'update_shape',slide:selected,shapeId:shape.id,rotation:(shape.rotation||0)+90})),shapeButton('좌우 대칭',()=>edit({op:'update_shape',slide:selected,shapeId:shape.id,flipH:!shape.flipH})),shapeButton('상하 대칭',()=>edit({op:'update_shape',slide:selected,shapeId:shape.id,flipV:!shape.flipV})))]]]:[]),
  ...(window.HanXPlayback?[['애니메이션',()=>HanXPlayback.animationGroups(playbackContext(model))],['슬라이드 쇼',()=>HanXPlayback.playbackGroups(playbackContext(model))]]:[]),
  ['전환',()=>window.HanXPlayback?HanXPlayback.transitionGroups(playbackContext(model)):[ribbonGroup('화면 전환',selectField('전환 효과',[['none','없음'],['cut','바로 전환'],['fade','서서히'],['push','밀기'],['wipe','닦아내기']],slide.transition?.kind||'none',kind=>edit({op:'set_transition',slide:selected,kind})),field('전환 시간 (초)',slide.transition?.duration||.5,duration=>edit({op:'set_transition',slide:selected,duration}),'number'),button('전환 미리보기',previewTransition))]]
 ];}
 function staticSlide(slide,model,thumbnail=false){
- const stage=el('div',{class:'playback-slide',style:{position:'relative',overflow:'hidden',width:model.width+'px',height:model.height+'px',background:M.color(slide.background),backgroundImage:M.imageSource(model.images?.[slide.backgroundImage])?`url("${M.imageSource(model.images?.[slide.backgroundImage])}")`:null,backgroundSize:'100% 100%'}});
+ const stage=el('div',{class:'playback-slide',style:{position:'relative',overflow:'hidden',width:model.width+'px',height:model.height+'px',background:M.color(slide.background),backgroundImage:slideBackgroundPaint(slide,model),backgroundSize:'100% 100%'}});
  for(const shape of slide.shapes){
   const f=shape.frame,node=el('div',{'data-shape-id':shape.id,class:(thumbnail?'mini-shape':'slide-shape')+' kind-'+shape.kind,style:{left:f.x+'px',top:f.y+'px',width:f.w+'px',height:f.h+'px',transform:M.shapeTransform(shape),cursor:'default'}});
   slideShapeContent(node,shape,model,1);if(!thumbnail)HanXSlideMedia.attachMovie(node,shape,model,true,message=>hanx.reportError(message));stage.append(node);
@@ -275,11 +373,56 @@ function shapeFormatGroups(model,shape){
  return groups;
 }
 function imageRestoreButton(shape){
- const original=imageOriginals.get(shape.imageID),control=button('원본 복원',()=>edit({op:'update_shape',slide:selected,shapeId:shape.id,imageID:original}));
- control.disabled=!original||!state.model.images?.[original];control.title='이 파일을 연 뒤 배경을 제거한 그림의 원본을 복원합니다.';return control;
+ const original=imageOriginals.get(shape.imageID),control=button('원본 복원',()=>edit({op:'update_shape',slide:selected,shapeId:shape.id,imageID:original.id,...HanXCrop.restoredFrame(shape,original.region)}));
+ control.disabled=!original||!state.model.images?.[original.id];control.title='이 파일을 연 뒤 편집한 그림의 원본을 복원합니다.';return control;
 }
+function rememberImageEdit(updatedID,sourceID,cropRegion){
+ const previous=imageOriginals.get(sourceID);
+ imageOriginals.set(updatedID,{id:previous?.id||sourceID,region:HanXCrop.composeRegion(previous?.region,cropRegion)});
+}
+function cropSlideImage(shape){return run(async()=>{
+ if(shape.locked||shape.videoID||document.querySelector('dialog[open]'))return;
+ const slideIndex=selected,revision=state.model,sourceID=shape.imageID;
+ const current=()=>state.model===revision&&state.model.slides[slideIndex]?.shapes.some(s=>s.id===shape.id&&!s.locked&&s.imageID===sourceID);
+ const src=M.imageSource(revision.images?.[sourceID]);if(!src)throw Error('그림을 읽을 수 없습니다.');
+ const picture=new Image();picture.src=src;await picture.decode();if(!current())return;
+ if(!picture.naturalWidth||!picture.naturalHeight||picture.naturalWidth*picture.naturalHeight>HanXImageTools.MAX_PIXELS)throw Error('그림은 1,600만 픽셀 이하만 편집할 수 있습니다.');
+ HanXCrop.show({picture,shape,current,el,button,report:message=>hanx.reportError(message),commit:async(data,frame,region)=>{
+  if(!current())throw Error('그림이 변경되었습니다. 다시 선택해 주세요.');
+  const next=await hanx.edit([{op:'update_shape',slide:slideIndex,shapeId:shape.id,...frame,imageData:{name:'cropped.png',data}}]);
+  const updated=next.model.slides[slideIndex].shapes.find(s=>s.id===shape.id);
+  rememberImageEdit(updated.imageID,sourceID,region);
+  state=next;render();$('status').textContent='그림을 잘랐습니다.';
+ }});
+});}
+function adjustSlideImage(shape){return run(async()=>{
+ const slideIndex=selected,sourceID=shape.imageID,revision=state.model,src=M.imageSource(revision.images?.[sourceID]);if(!src)throw Error('이 그림 형식은 조정을 지원하지 않습니다. PNG 또는 JPEG 그림을 사용하세요.');
+ const picture=new Image();picture.src=src;await picture.decode();if(state.model!==revision)return;
+ const width=picture.naturalWidth,height=picture.naturalHeight;if(!width||!height||width*height>HanXImageTools.MAX_PIXELS)throw Error('그림은 1,600만 픽셀 이하만 편집할 수 있습니다.');
+ const scale=Math.min(1,600/Math.max(width,height)),pw=Math.max(1,Math.round(width*scale)),ph=Math.max(1,Math.round(height*scale));
+ const preview=el('canvas',{width:pw,height:ph,style:{width:Math.min(600,400*pw/ph)+'px',maxWidth:'100%'},'aria-label':'그림 보정 미리보기'}),context=preview.getContext('2d',{willReadFrequently:true});context.drawImage(picture,0,0,pw,ph);const pixels=context.getImageData(0,0,pw,ph);
+ const options={...HanXImageTools.adjustmentDefaults},dialog=el('dialog',{class:'image-dialog','aria-labelledby':'imageAdjustmentTitle'}),controls=el('div',{class:'image-adjustments'}),inputs=[];
+ let frame=0,applying=false;
+ const current=()=>dialog.open&&state.model===revision&&state.model.slides?.[slideIndex]?.shapes.find(item=>item.id===shape.id)?.imageID===sourceID;
+ const changed=()=>Object.keys(options).some(key=>options[key]!==HanXImageTools.adjustmentDefaults[key]);
+ const draw=()=>{frame=0;context.putImageData(new ImageData(HanXImageTools.adjustImage(pixels.data,pw,ph,options),pw,ph),0,0);apply.disabled=applying||!current()||!changed();};
+ const schedule=()=>{apply.disabled=true;if(frame)cancelAnimationFrame(frame);frame=requestAnimationFrame(draw);};
+ for(const [key,label,min,max] of [['opacity','투명도 (%)',0,100],['brightness','밝기',-100,100],['contrast','대비',-100,100],['saturation','채도 (%)',0,200],['skewX','가로 기울이기 (°)',-30,30],['skewY','세로 기울이기 (°)',-30,30],['perspectiveX','가로 원근 (%)',-75,75],['perspectiveY','세로 원근 (%)',-75,75]]){
+  const display=()=>key==='opacity'?100-options[key]:options[key];
+  const output=el('output',{text:String(display())}),input=el('input',{type:'range',min,max,step:1,value:display(),'aria-label':label});input.oninput=()=>{options[key]=key==='opacity'?100-Number(input.value):Number(input.value);output.textContent=input.value;schedule();};inputs.push(()=>{input.value=display();output.textContent=input.value;});controls.append(el('label',{},label,input,output));
+ }
+ const filter=el('select',{'aria-label':'필터'},...Object.entries({normal:'없음',grayscale:'흑백',sepia:'세피아',invert:'색 반전'}).map(([value,text])=>el('option',{value,text})));filter.onchange=()=>{options.filter=filter.value;schedule();};inputs.push(()=>{filter.value=options.filter;});controls.append(el('label',{},'필터',filter));
+ const apply=button('적용',()=>{if(applying||frame||!current())return;applying=true;apply.disabled=true;run(async()=>{
+  if(!current())throw Error('그림이 변경되었습니다. 창을 닫고 다시 선택하세요.');
+  const canvas=el('canvas',{width,height}),ctx=canvas.getContext('2d',{willReadFrequently:true});ctx.drawImage(picture,0,0);const original=ctx.getImageData(0,0,width,height);ctx.putImageData(new ImageData(HanXImageTools.adjustImage(original.data,width,height,options),width,height),0,0);
+  const data=canvas.toDataURL('image/png').split(',')[1];if(data.length>Math.ceil(16*1024*1024/3)*4)throw Error('처리한 그림이 16MB를 넘습니다. 더 작은 그림을 사용하세요.');
+  const next=await hanx.edit([{op:'update_shape',slide:slideIndex,shapeId:shape.id,imageData:{name:'adjusted.png',data}}]);const updated=next.model.slides[slideIndex].shapes.find(item=>item.id===shape.id);rememberImageEdit(updated.imageID,sourceID);dialog.close();return next;
+ },'그림을 조정했습니다.').finally(()=>{applying=false;if(dialog.open)draw();});},'primary');
+ dialog.append(button('×',()=>dialog.close(),'dialog-close'),el('h2',{id:'imageAdjustmentTitle',text:'그림 보정'}),el('div',{class:'image-comparison'},preview),controls,el('div',{class:'dialog-actions'},button('초기화',()=>{Object.assign(options,HanXImageTools.adjustmentDefaults);inputs.forEach(reset=>reset());schedule();}),button('취소',()=>dialog.close()),apply));
+ dialog.querySelector('.dialog-close').setAttribute('aria-label','닫기');dialog.addEventListener('close',()=>{if(frame)cancelAnimationFrame(frame);dialog.remove();},{once:true});document.body.append(dialog);dialog.showModal();draw();
+});}
 function removeImageBackground(shape,automatic=false){return run(async()=>{
- const slideIndex=selected,sourceID=shape.imageID,revision=state.model,src=M.imageSource(revision.images?.[imageOriginals.get(sourceID)||sourceID]);if(!src)throw Error('이 그림 형식은 배경 제거를 지원하지 않습니다. PNG 또는 JPEG 그림을 사용하세요.');
+ const slideIndex=selected,sourceID=shape.imageID,revision=state.model,src=M.imageSource(revision.images?.[sourceID]);if(!src)throw Error('이 그림 형식은 배경 제거를 지원하지 않습니다. PNG 또는 JPEG 그림을 사용하세요.');
  const picture=new Image();picture.src=src;await picture.decode();const width=picture.naturalWidth,height=picture.naturalHeight;
  if(state.model!==revision)return;
  if(!width||!height||width*height>HanXImageTools.MAX_PIXELS)throw Error('그림은 1,600만 픽셀 이하만 편집할 수 있습니다.');
@@ -287,6 +430,7 @@ function removeImageBackground(shape,automatic=false){return run(async()=>{
  sourceContext.drawImage(picture,0,0);const pixels=sourceContext.getImageData(0,0,width,height),dialog=el('dialog',{class:'image-dialog','aria-labelledby':'imageDialogTitle'}),output=el('output',{'aria-live':'polite'});
  const color=el('input',{type:'color','aria-label':'제거할 배경 색',value:'#'+HanXImageTools.edgeColor(pixels.data,width,height).map(v=>v.toString(16).padStart(2,'0')).join('')}),tolerance=el('input',{type:'range',min:0,max:100,step:1,value:12,'aria-label':'색상 허용 범위'}),amount=el('output',{text:'12'});
  const brush=el('select',{'aria-label':'보정 브러시'},el('option',{value:'none',text:'브러시 끄기'}),el('option',{value:'keep',text:'남길 부분'}),el('option',{value:'remove',text:'지울 부분'})),size=el('input',{type:'range',min:2,max:80,value:20,'aria-label':'브러시 크기'});
+ const feather=el('input',{type:'range',min:0,max:20,value:0,'aria-label':'가장자리 부드럽게 (px)'}),featherAmount=el('output',{text:'0'}),hardness=el('input',{type:'range',min:0,max:100,value:100,'aria-label':'브러시 경도 (%)'}),hardnessAmount=el('output',{text:'100'});
  let frame=0,job=null,generation=0,mask=new Float32Array(width*height).fill(1),lastPoint=null,applying=false;
  const stop=()=>{generation++;if(job){job.cancel();job=null;}if(frame){cancelAnimationFrame(frame);frame=0;}};
  const current=()=>dialog.open&&state.model===revision&&state.model.slides?.[slideIndex]?.shapes.find(item=>item.id===shape.id)?.imageID===sourceID;
@@ -294,9 +438,9 @@ function removeImageBackground(shape,automatic=false){return run(async()=>{
   if(!current())throw Error('그림이 변경되었습니다. 창을 닫고 다시 선택하세요.');
   const data=preview.toDataURL('image/png').split(',')[1];if(data.length>Math.ceil(16*1024*1024/3)*4)throw Error('처리한 그림이 16MB를 넘습니다. 더 작은 그림을 사용하세요.');
   const next=await hanx.edit([{op:'update_shape',slide:slideIndex,shapeId:shape.id,imageData:{name:'background-removed.png',data}}]);
-  const updated=next.model.slides[slideIndex].shapes.find(item=>item.id===shape.id);imageOriginals.set(updated.imageID,imageOriginals.get(sourceID)||sourceID);dialog.close();return next;
+  const updated=next.model.slides[slideIndex].shapes.find(item=>item.id===shape.id);rememberImageEdit(updated.imageID,sourceID);dialog.close();return next;
  },'배경을 제거했습니다.').finally(()=>{applying=false;if(dialog.open)draw();});},'primary');
- const draw=()=>{frame=0;if(!dialog.open)return;const result=HanXImageTools.applyMask(pixels.data,width,height,mask);context.putImageData(new ImageData(result,width,height),0,0);let removed=0;for(let i=3;i<result.length;i+=4)if(result[i]<pixels.data[i])removed++;apply.disabled=applying||Boolean(job)||!removed||!current();output.textContent=current()?(removed?`${removed.toLocaleString()}개 픽셀의 배경을 줄였습니다. 미리보기를 확인하세요.`:'남길 부분과 지울 부분을 브러시로 조절하세요.'):'그림이 변경되었습니다. 창을 닫고 다시 선택하세요.';};
+ const draw=()=>{frame=0;if(!dialog.open)return;const result=HanXImageTools.applyMask(pixels.data,width,height,HanXImageTools.featherMask(mask,width,height,Number(feather.value)));context.putImageData(new ImageData(result,width,height),0,0);let removed=0;for(let i=3;i<result.length;i+=4)if(result[i]<pixels.data[i])removed++;apply.disabled=applying||Boolean(job)||!removed||!current();output.textContent=current()?(removed?`${removed.toLocaleString()}개 픽셀의 배경을 줄였습니다. 미리보기를 확인하세요.`:'남길 부분과 지울 부분을 브러시로 조절하세요.'):'그림이 변경되었습니다. 창을 닫고 다시 선택하세요.';};
  const update=()=>{frame=0;if(!current())return;const rgb=color.value.slice(1).match(/../g).map(v=>parseInt(v,16)),result=HanXImageTools.removeBackground(pixels.data,width,height,rgb,Number(tolerance.value));mask=Float32Array.from({length:width*height},(_,i)=>pixels.data[i*4+3]?result.data[i*4+3]/pixels.data[i*4+3]:0);draw();};
  const schedule=()=>{stop();apply.disabled=true;amount.textContent=tolerance.value;frame=requestAnimationFrame(update);};
  const analyze=async()=>{
@@ -308,11 +452,11 @@ function removeImageBackground(shape,automatic=false){return run(async()=>{
   }catch(error){if(token!==generation||!dialog.open)return;job=null;draw();if(error.name!=='AbortError')output.textContent='자동 분석을 완료하지 못했습니다. 브러시 또는 단색 배경 제거를 사용하세요. '+error.message;}
  };
  color.oninput=schedule;tolerance.oninput=schedule;source.onclick=event=>{if(applying)return;const rect=source.getBoundingClientRect(),x=Math.max(0,Math.min(width-1,Math.floor((event.clientX-rect.left)/rect.width*width))),y=Math.max(0,Math.min(height-1,Math.floor((event.clientY-rect.top)/rect.height*height))),i=(y*width+x)*4;if(!pixels.data[i+3])return;color.value='#'+[...pixels.data.slice(i,i+3)].map(v=>v.toString(16).padStart(2,'0')).join('');schedule();};
- brush.onchange=()=>{stop();draw();};
+ brush.onchange=()=>{stop();draw();};feather.oninput=()=>{featherAmount.textContent=feather.value;draw();};hardness.oninput=()=>{hardnessAmount.textContent=hardness.value;};
  const point=event=>{const rect=preview.getBoundingClientRect();return {x:(event.clientX-rect.left)/rect.width*width,y:(event.clientY-rect.top)/rect.height*height};};
- const paint=event=>{if(!lastPoint||!current()||applying)return;const next=point(event);HanXImageTools.paintMask(mask,width,height,lastPoint,next,Number(size.value)/2/preview.getBoundingClientRect().width*width,brush.value==='keep'?1:0);lastPoint=next;draw();};
+ const paint=event=>{if(!lastPoint||!current()||applying)return;const next=point(event);HanXImageTools.paintMask(mask,width,height,lastPoint,next,Number(size.value)/2/preview.getBoundingClientRect().width*width,brush.value==='keep'?1:0,Number(hardness.value)/100);lastPoint=next;draw();};
  preview.onpointerdown=event=>{if(brush.value==='none'||applying||!current()||event.button!==0)return;event.preventDefault();stop();lastPoint=point(event);preview.setPointerCapture(event.pointerId);paint(event);};preview.onpointermove=paint;preview.onpointerup=preview.onpointercancel=preview.onlostpointercapture=()=>{lastPoint=null;};
- dialog.append(button('×',()=>dialog.close(),'dialog-close'),el('h2',{id:'imageDialogTitle',text:'그림 배경 제거'}),el('p',{text:'자동 분석은 이 기기에서만 실행됩니다. 복잡한 배경이나 머리카락은 결과를 확인하고 남길 부분·지울 부분 브러시로 보정하세요. 원본을 클릭하면 가장자리와 이어진 단색 배경을 선택합니다.'}),el('div',{class:'dialog-actions'},button('대상 자동 선택',analyze),button('분석 취소',()=>{stop();draw();}),button('단색으로 다시 선택',schedule),button('마스크 초기화',()=>{stop();mask.fill(1);draw();})),el('div',{class:'image-comparison'},el('figure',{},el('figcaption',{text:'원본'}),source),el('figure',{},el('figcaption',{text:'미리보기'}),preview)),el('div',{class:'image-adjustments'},el('label',{},'배경 색',color),el('label',{},'색상 허용 범위',tolerance,amount),el('label',{},'보정',brush),el('label',{},'브러시 크기',size)),output,el('div',{class:'dialog-actions'},button('취소',()=>dialog.close()),apply));
+ dialog.append(button('×',()=>dialog.close(),'dialog-close'),el('h2',{id:'imageDialogTitle',text:'그림 배경 제거'}),el('p',{text:'자동 분석은 이 기기에서만 실행됩니다. 복잡한 배경이나 머리카락은 결과를 확인하고 남길 부분·지울 부분 브러시로 보정하세요. 원본을 클릭하면 가장자리와 이어진 단색 배경을 선택합니다.'}),el('div',{class:'dialog-actions'},button('대상 자동 선택',analyze),button('분석 취소',()=>{stop();draw();}),button('단색으로 다시 선택',schedule),button('마스크 초기화',()=>{stop();mask.fill(1);draw();})),el('div',{class:'image-comparison'},el('figure',{},el('figcaption',{text:'원본'}),source),el('figure',{},el('figcaption',{text:'미리보기'}),preview)),el('div',{class:'image-adjustments'},el('label',{},'배경 색',color),el('label',{},'색상 허용 범위',tolerance,amount),el('label',{},'보정',brush),el('label',{},'브러시 크기',size),el('label',{},'브러시 경도 (%)',hardness,hardnessAmount),el('label',{},'가장자리 부드럽게 (px)',feather,featherAmount)),output,el('div',{class:'dialog-actions'},button('취소',()=>dialog.close()),apply));
  dialog.querySelector('.dialog-close').setAttribute('aria-label','닫기');dialog.addEventListener('close',()=>{stop();dialog.remove();},{once:true});document.body.append(dialog);dialog.showModal();if(automatic){draw();analyze();}else update();
 });}
 function renderRibbon(){if(!state)return;const tabs=state.kind==='document'?documentRibbon(state.model):state.kind==='spreadsheet'?spreadsheetRibbon(state.model):presentationRibbon(state.model);if(ribbonKind!==state.kind||!tabs.some(([title])=>title===ribbonTab)){ribbonKind=state.kind;ribbonTab=tabs[0][0];}
@@ -336,4 +480,5 @@ document.addEventListener('keydown',e=>{if(e.defaultPrevented||document.querySel
  if(mod&&key==='d'){e.preventDefault();shapeBatch('duplicate_shape');}
  else if(key==='delete'||key==='backspace'){e.preventDefault();shapeBatch('delete_shape');}
  else if(e.key.startsWith('Arrow')&&shapeID!==null){const shape=state.model.slides[selected]?.shapes.find(s=>s.id===shapeID);if(!shape)return;e.preventDefault();const step=e.shiftKey?10:1;edit(...selectedShapes().map(s=>({op:'update_shape',slide:selected,shapeId:s.id,x:s.frame.x+(e.key==='ArrowRight'?step:e.key==='ArrowLeft'?-step:0),y:s.frame.y+(e.key==='ArrowDown'?step:e.key==='ArrowUp'?-step:0)})));}});
+hanx.onOpened(next=>run(()=>{selected=0;shapeID=null;selectedShapeIDs.clear();docBlock=0;cell='A1';cellRange='A1';imageOriginals.clear();return next;}));
 run(()=>hanx.initial(),'준비됨');

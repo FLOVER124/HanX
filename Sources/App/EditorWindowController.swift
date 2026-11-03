@@ -247,6 +247,17 @@ final class EditorWindowController: NSWindowController, NSTextViewDelegate, NSTo
         replace(tv.selectedRange(), with: NSAttributedString(string: "\u{0C}", attributes: tv.typingAttributes), in: tv)
     }
 
+    @objc func insertDivider(_ sender: Any?) {
+        let tv = activeTextView
+        var divider = Paragraph()
+        divider.props.bottomBorder = .thin
+        let rule = AttributedBridge.paragraph(divider, outer: [], width: hwDocument.page.contentWidth,
+                      ctx: .init(images: [:], source: hwDocument.sourceFormat))
+        let insertion = NSMutableAttributedString(string: "\n", attributes: tv.typingAttributes)
+        insertion.append(rule)
+        replace(tv.selectedRange(), with: insertion, in: tv)
+    }
+
     // MARK: 문단 스타일
 
     struct DocStyle {
@@ -490,7 +501,8 @@ extension EditorWindowController {
         ribbon=R(tabs:[
             .init(title:"홈",groups:[R.clipboard,R.text,.init(title:"문단",items:[.menu("align","정렬",["왼쪽 정렬","가운데 정렬","오른쪽 정렬","양쪽 정렬"]),.menu("spacing","줄 간격",["줄 간격 1.0","줄 간격 1.15","줄 간격 1.5","줄 간격 2.0"]),.button("indent","들여쓰기","increase.indent"),.button("outdent","내어쓰기","decrease.indent")])]),
             .init(title:"글자 모양",groups:[.init(title:"강조",items:[.button("strike","취소선","strikethrough"),.button("super","위 첨자","textformat.superscript"),.button("sub","아래 첨자","textformat.subscript"),.menu("color","글자 색",R.colors),.menu("highlight","형광펜",["형광펜 없음"]+R.colors),.button("clearFormat","글자 모양 초기화","eraser")]),.init(title:"자간 장평",items:[.field("charSpacing","자간 (pt)",["0","-1","0.5","1","2","3"]),.field("widthRatio","장평 (%)",["100","80","90","110","120"])])]),
-            .init(title:"삽입",groups:[.init(title:"문서 요소",items:[.button("table","표","tablecells"),.button("image","그림","photo"),.button("pageBreak","쪽 나누기","doc.badge.plus"),.button("headerFooter","머리말 꼬리말","rectangle.topthird.inset.filled"),.menu("pageNumber","쪽 번호",["쪽 번호 없음","아래 가운데","아래 오른쪽","위 오른쪽 / 전체"])])]),
+            .init(title:"양식",groups:[.init(title:"새 문서",items:[.menu("documentTemplate","새 양식",DocumentTemplates.names)])]),
+            .init(title:"삽입",groups:[.init(title:"문서 요소",items:[.button("table","표","tablecells"),.button("image","그림","photo"),.button("pageBreak","쪽 나누기","doc.badge.plus"),.button("divider","구분선","minus"),.button("headerFooter","머리말 꼬리말","rectangle.topthird.inset.filled"),.menu("pageNumber","쪽 번호",["쪽 번호 없음","아래 가운데","아래 오른쪽","위 오른쪽 / 전체"])])]),
             .init(title:"쪽 문단",groups:[.init(title:"용지",items:[.button("pageSetup","편집 용지 여백","doc"),.menu("orientation","용지 방향",["세로","가로"]),.menu("margins","여백",["여백 선택…","보통 (25.4mm)","좁게 (12.7mm)","넓게 (38.1mm)"])]),.init(title:"문단 간격",items:[.menu("before","문단 앞",["문단 앞 0pt","문단 앞 6pt","문단 앞 12pt","문단 앞 18pt"]),.menu("after","문단 뒤",["문단 뒤 0pt","문단 뒤 6pt","문단 뒤 12pt","문단 뒤 18pt"])])]),
             .init(title:"보기",groups:[.init(title:"확대 축소",items:[.button("zoomOut","축소","minus.magnifyingglass"),.button("fit","쪽 맞춤","arrow.up.left.and.down.right.magnifyingglass"),.button("zoomIn","확대","plus.magnifyingglass"),.button("ruler","눈금자","ruler"),.button("find","찾기 바꾸기","magnifyingglass")])])
         ],width:content.bounds.width)
@@ -556,6 +568,24 @@ extension EditorWindowController {
         case "after": para("문단 뒤 간격") { $0.paragraphSpacing=CGFloat(n*6) }
         case "table": insertTable(nil)
         case "image": insertImage(nil)
+        case "documentTemplate":
+            guard (0...1).contains(n), let model = DocumentTemplates.make(n == 0 ? "letter" : "labels") else { return }
+            do {
+                let folder = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+                try FileManager.default.createDirectory(at:folder,withIntermediateDirectories:true)
+                defer { try? FileManager.default.removeItem(at:folder) }
+                let file = folder.appendingPathComponent("template.docx")
+                try DOCXWriter(model).write().write(to:file)
+                let document = HWDocument()
+                try document.read(from:file,ofType:DocType.docx)
+                document.fileURL = nil; document.fileType = HanXFile.type
+                NSDocumentController.shared.addDocument(document)
+                document.makeWindowControllers(); document.showWindows()
+            } catch {
+                let alert = NSAlert(); alert.messageText = "양식을 만들 수 없습니다"; alert.informativeText = error.localizedDescription
+                if let window { alert.beginSheetModal(for:window) }
+            }
+        case "divider": insertDivider(nil)
         case "pageBreak": insertPageBreak(nil)
         case "headerFooter": editHeaderFooter(nil)
         case "pageNumber": let item=NSMenuItem(); item.tag=n; setPageNumbering(item)

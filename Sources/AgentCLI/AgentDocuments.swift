@@ -7,8 +7,8 @@ import FoundationNetworking
 #endif
 
 enum AgentDocuments {
-    static let documentOps=["replace_text","append_paragraph","append_block","insert_block","delete_block","set_paragraph","set_paragraph_layout","style_paragraph","set_cell","set_page"]
-    static let slideOps=["replace_text","add_slide","duplicate_slide","delete_slide","move_slide","set_notes","set_transition","add_shape","update_shape","delete_shape","duplicate_shape","reorder_shape","set_animations","set_table_cell"]
+    static let documentOps=["replace_text","append_paragraph","append_block","insert_block","delete_block","set_paragraph","set_paragraph_layout","style_paragraph","set_cell","set_page","insert_page_break","insert_divider","set_section_text"]
+    static let slideOps=["replace_text","add_slide","duplicate_slide","delete_slide","move_slide","set_background","set_notes","set_transition","add_shape","update_shape","delete_shape","duplicate_shape","reorder_shape","set_animations","set_table_cell"]
 
     static func color(_ value:Any?,_ label:String)throws->RGB? {
         guard let value,!(value is NSNull) else { return nil }
@@ -243,6 +243,10 @@ enum AgentDocuments {
         let kind=try AgentIO.string(spec["kind"],"kind")
         switch kind {
         case "document":
+            if let name = spec["template"] as? String {
+                guard let document = DocumentTemplates.make(name) else { throw AgentError("invalid_argument","Unknown document template") }
+                return .document(document)
+            }
             if let model=spec["model"] { return .document(try AgentIO.decode(AgentDocumentModel.self,model).document()) }
             let d=UDocument(); d.title=spec["title"] as? String
             let sections=spec["sections"] as? [Any] ?? [spec]
@@ -350,12 +354,13 @@ enum AgentDocuments {
             let shapeKeys:Set<String>=["kind","name","x","y","width","height","rotation","fill","line","lineWidth","lockAspect","flipH","flipV","text","runs","paragraphs","style","table","imagePath","imageData","imageID","videoData"]
             let keys:[String:Set<String>]=[
                 "replace_text":["find","replace"],"append_paragraph":["section","text","runs","style","alignment","styleName"],
+                "insert_page_break":["section","block"],"insert_divider":["section","block"],"set_section_text":["section","part","text"],
                 "append_block":["section","block"],"insert_block":["section","block","value"],"delete_block":["section","block"],
                 "set_paragraph":["section","block","text","runs","style","alignment","styleName"],"style_paragraph":["section","block","style"],
                 "set_paragraph_layout":["section","block","alignment","indentLeft","indentRight","firstLine","spaceBefore","spaceAfter","lineSpacing","pageBreakBefore"],
                 "set_cell":["section","block","row","column","text"],"set_page":["section","page"],
                 "add_slide":["at","value"],"duplicate_slide":["slide"],"delete_slide":["slide"],"move_slide":["slide","to"],
-                "set_notes":["slide","text"],"set_transition":["slide","kind","duration","direction","advanceAfter","advanceOnClick","vertical","inward"],
+                "set_background":["slide","color","endColor","angle","middleColor","middlePosition","imageData","copyToAll"],"set_notes":["slide","text"],"set_transition":["slide","kind","duration","direction","advanceAfter","advanceOnClick","vertical","inward"],
                 "set_table_cell":["slide","shapeId","row","column","text"],"set_animations":["slide","animations"],"duplicate_shape":["slide","shapeId","offsetX","offsetY"],"reorder_shape":["slide","shapeId","to"],
                 "add_shape":["slide","value"],"delete_shape":["slide","shapeId"],"update_shape":shapeKeys.union(["slide","shapeId"])
             ]
@@ -391,10 +396,44 @@ enum AgentDocuments {
                 guard documentOps.contains(name) else { throw AgentError("invalid_operation","Unknown document operation: \(name)") }
                 let si=try AgentIO.index(op["section"],"section",default:0)
                 guard d.sections.indices.contains(si) else { throw AgentError("invalid_index","section out of range") }
+                if name == "set_section_text" {
+                    let part = try AgentIO.string(op["part"],"part")
+                    guard ["header","footer"].contains(part) else { throw AgentError("invalid_argument","Expected header or footer") }
+                    let text = try AgentIO.string(op["text"],"text")
+                    let prior = part == "header" ? d.sections[si].header : d.sections[si].footer
+                    // Refuse to flatten fields, tables or inline pictures through a plain text editor.
+                    for b in prior ?? [] {
+                        guard case .paragraph(let paragraph) = b, paragraph.inlines.allSatisfy({ item in
+                            if case .text = item { return true }; return false
+                        }) else { throw AgentError("unsupported_content","This section contains rich content.") }
+                    }
+                    let lines = text.components(separatedBy:"\n")
+                    let blocks: [Block]? = text.isEmpty ? nil : try lines.enumerated().map { index, line in
+                        let original = prior.flatMap { $0.indices.contains(index) ? $0[index] : nil }
+                        if case .paragraph(let p) = original, p.plainText == line { return .paragraph(p) }
+                        if case .paragraph(let p) = original { return .paragraph(try paragraph(line,base:p.markProps,original:p)) }
+                        return .paragraph(try paragraph(line))
+                    }
+                    if part == "header" { d.sections[si].header = blocks } else { d.sections[si].footer = blocks }
+                    continue
+                }
                 if name == "set_page" { d.sections[si].page=try pageSetup(AgentIO.map(op["page"],"page"),base:d.sections[si].page); continue }
                 if name == "append_paragraph" { d.sections[si].blocks.append(.paragraph(try paragraph(op))); continue }
                 if name == "append_block" { d.sections[si].blocks.append(try block(op["block"] as Any)); continue }
                 let bi=try AgentIO.index(op["block"],"block")
+                if name == "insert_divider" || name == "insert_page_break" {
+                    guard bi <= d.sections[si].blocks.count else { throw AgentError("invalid_index","block out of range") }
+                    if name == "insert_page_break", bi < d.sections[si].blocks.count,
+                       case .paragraph(var next) = d.sections[si].blocks[bi], !next.props.pageBreakBefore {
+                        next.props.pageBreakBefore = true; d.sections[si].blocks[bi] = .paragraph(next)
+                    } else {
+                        var inserted = Paragraph()
+                        if name == "insert_divider" { inserted.props.bottomBorder = .thin }
+                        else { inserted.props.pageBreakBefore = true }
+                        d.sections[si].blocks.insert(.paragraph(inserted),at:bi)
+                    }
+                    continue
+                }
                 if name == "insert_block" {
                     guard bi<=d.sections[si].blocks.count else { throw AgentError("invalid_index","block out of range") }
                     d.sections[si].blocks.insert(try block(op["value"] as Any),at:bi); continue
@@ -462,6 +501,30 @@ enum AgentDocuments {
                         guard duration >= 0, duration <= 3600, delay >= 0, delay <= 3600 else { throw AgentError("invalid_argument", "Animation timing must be between 0 and 3600 seconds") }
                         return SlideAnimation(shapeID:id,effect:effect,trigger:trigger,duration:duration,delay:delay,direction:direction)
                     }
+                case "set_background":
+                    let all = try AgentIO.bool(op["copyToAll"], "copyToAll")
+                    let angle = try AgentIO.number(op["angle"] ?? 0, "angle")
+                    guard (0...360).contains(angle), op["angle"] == nil || op["endColor"] != nil else {
+                        throw AgentError("invalid_argument","angle requires endColor and must be between 0 and 360")
+                    }
+                    let middle = try color(op["middleColor"], "middleColor")
+                    let position = try AgentIO.number(op["middlePosition"] ?? 50, "middlePosition")
+                    guard position > 0, position < 100, middle == nil || op["endColor"] != nil,
+                          op["middlePosition"] == nil || middle != nil else {
+                        throw AgentError("invalid_argument","Middle color requires a gradient and a position between 0 and 100")
+                    }
+                    var background = p.slides[i]
+                    if let data = op["imageData"] {
+                        guard op["color"] == nil, op["endColor"] == nil else { throw AgentError("invalid_argument","Choose a color or an image") }
+                        let picture = try shape(["kind":"image","imageData":data],id:1,images:&p.images,directory:directory)
+                        background.backgroundImage = picture.imageID; background.backgroundEnd = nil
+                    } else if let start = try color(op["color"],"color") {
+                        background.background = start; background.backgroundImage = nil
+                        background.backgroundEnd = try color(op["endColor"],"endColor")
+                        background.backgroundAngle = background.backgroundEnd == nil ? nil : angle
+                        background.backgroundMiddle = middle; background.backgroundMiddlePosition = middle == nil ? nil : position
+                    } else if !all || op["endColor"] != nil { throw AgentError("invalid_argument","Choose a background or copy the current background to all slides") }
+                    for index in p.slides.indices where all || index == i { p.slides[index].copyBackground(from: background) }
                 case "set_notes":p.slides[i].notes=try AgentIO.string(op["text"],"text")
                 case "set_transition":p.slides[i].transition=try transition(op,base:p.slides[i].transition)
                 case "add_shape":p.slides[i].shapes.append(try shape(AgentIO.map(op["value"],"shape"),id:p.nextID(p.slides[i]),images:&p.images,directory:directory))

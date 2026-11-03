@@ -25,7 +25,7 @@ struct AgentError: Error {
 }
 
 enum AgentIO {
-    static let version="2.12.0"
+    static let version="2.13.0"
     static func isBoolean(_ number: NSNumber) -> Bool {
         #if canImport(CoreFoundation)
         return CFGetTypeID(number) == CFBooleanGetTypeID()
@@ -145,6 +145,16 @@ enum AgentFile {
     }
     static func load(_ path:String)throws->AgentFile {
         let data=try AgentIO.read(path),url=AgentPath.inputURL(path),ext=url.pathExtension.lowercased()
+        if ext == "hanx" || data.starts(with: Data("HanX/".utf8)) {
+            let kind = try HanXFile.kind(in: data)
+            let zip = try HanXFile.payload(data, expecting: kind)
+            switch kind {
+            case .document: return .document(try DOCXReader(zip:zip).read())
+            case .presentation: return .presentation(try PPTXReader(zip:zip).read())
+            case .spreadsheet:
+                let b = try XLSXReader.read(zip); try AgentSheets.validate(b); return .spreadsheet(b)
+            }
+        }
         if PDFReader.isPDF(data) || ext == "pdf" { return .document(try DocumentIO.load(url:url)) }
         if ZipReader.isZip(data) {
             let zip=try ZipReader(data:data)
@@ -170,6 +180,14 @@ enum AgentFile {
         // Native model import and XML readers also pass this boundary before
         // numeric values enter binary format writers.
         try AgentValidation.file(self,format:ext)
+        if ext == "hanx" {
+            switch self {
+            case .document(let d): return HanXFile.encode(.document,payload:DOCXWriter(d).write())
+            case .presentation(let p): return HanXFile.encode(.presentation,payload:PPTXWriter.write(p))
+            case .spreadsheet(let b): return HanXFile.encode(.spreadsheet,payload:XLSXWriter.write(b))
+            case .xml: throw AgentError("unsupported_format","A HanX file needs a document, spreadsheet, or presentation")
+            }
+        }
         if ext == "pdf" { return try AgentPDF.data(self) }
         switch self {
         case .document(let d):

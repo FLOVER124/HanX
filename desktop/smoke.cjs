@@ -4,7 +4,10 @@ const path=require('node:path');
 const {dialog}=require('electron');
 const {runEngine}=require('./engine.cjs');
 module.exports=async function smoke(win,session){
- const js=code=>win.webContents.executeJavaScript(code);
+ const js=async code=>{
+  try { return await win.webContents.executeJavaScript(code); }
+  catch(error){throw new Error('Renderer smoke step failed: '+code.slice(0,180), {cause:error});}
+ };
  const shownNotices=[];dialog.showMessageBox=async(_parent,options)=>{shownNotices.push(options);return {response:0};};
  async function click(id){await js("(()=>{document.getElementById("+JSON.stringify(id)+").click();return new Promise(resolve=>setTimeout(()=>pending.then(resolve),0));})()");}
  async function waitFor(expression){for(let i=0;i<150;i++){if(await js(expression))return;await new Promise(r=>setTimeout(r,100));}throw Error('Timed out: '+expression+'\n'+await js("document.getElementById('status').textContent"));}
@@ -51,6 +54,72 @@ module.exports=async function smoke(win,session){
  await js("run(()=>hanx.edit([{op:'not-supported'}]))");await waitFor('!busy');assert.equal(shownNotices.length,warningCount+1);assert.equal(shownNotices.at(-1).type,'error');
  await js("run(()=>{throw Error('로컬 화면 오류 확인')})");await waitFor('!busy');assert.equal(shownNotices.length,warningCount+2);assert.ok(shownNotices.at(-1).detail.includes('로컬 화면 오류 확인'));
  await click('help');assert.equal(shownNotices.at(-1).type,'info');
+ // Apply an adjustment, then remove its background and verify the embedded PNG after reopen.
+ await newFile('presentation');
+ const sample=await js(`(()=>{const c=document.createElement('canvas');c.width=c.height=5;const ctx=c.getContext('2d');ctx.fillStyle='white';ctx.fillRect(0,0,5,5);ctx.fillStyle='red';ctx.fillRect(1,1,3,3);return c.toDataURL().split(',')[1];})()`);
+ await js(`edit({op:'add_shape',slide:0,value:{kind:'image',x:0,y:0,width:50,height:50,imageData:{name:'fixture.png',data:${JSON.stringify(sample)}}}})`);
+ const shape="state.model.slides[0].shapes.find(s=>s.kind==='image')";
+ await js(`adjustSlideImage(${shape})`);await waitFor("Boolean(document.querySelector('#imageAdjustmentTitle'))");
+ await js(`(()=>{const slider=document.querySelector('input[aria-label="투명도 (%)"]');slider.value=50;slider.dispatchEvent(new Event('input'));const filter=document.querySelector('select[aria-label="필터"]');filter.value='grayscale';filter.dispatchEvent(new Event('change'));})()`);await settle();
+ async function applyDialog(){await js("[...document.querySelectorAll('dialog[open] button')].find(b=>b.textContent==='적용').click()");await waitFor("!busy && !document.querySelector('dialog[open]')");}
+ await applyDialog();
+ await js(`removeImageBackground(${shape})`);await settle();await applyDialog();
+ const imageFile=await saveAs('adjusted.pptx');await open(imageFile);
+ const alpha=await js(`(async()=>{const img=new Image();img.src=M.imageSource(state.model.images[${shape}.imageID]);await img.decode();const c=document.createElement('canvas');c.width=c.height=5;const x=c.getContext('2d');x.drawImage(img,0,0);const data=x.getImageData(0,0,5,5).data;return [data[3],...data.slice(48,52)];})()`);
+ assert.equal(alpha[0],0);assert.equal(alpha[4],128);assert.equal(alpha[1],alpha[2]);assert.equal(alpha[2],alpha[3]);
+ // Start from an unselected image. Send actual UI pointer events so selection and crop
+ // must coexist without replacing the double-click target between presses.
+ const imageCenter=await js("(()=>{const r=document.querySelector('.slide-stage .kind-image').getBoundingClientRect();return {x:Math.round(r.left+r.width/2),y:Math.round(r.top+r.height/2)};})()");
+ win.focus();await settle();
+ for(const clickCount of [1,2]){
+  for(const type of ['mouseDown','mouseUp'])win.webContents.sendInputEvent({type,button:'left',clickCount,...imageCenter});
+ }
+ await settle();await waitFor("Boolean(document.querySelector('#crop-title'))");
+ const cropPoints=await js("(()=>{const r=document.querySelector('dialog[open] canvas').getBoundingClientRect();return [.2,.8].map(f=>({x:Math.round(r.left+r.width*f),y:Math.round(r.top+r.height*f)}));})()");
+ win.webContents.sendInputEvent({type:'mouseDown',button:'left',...cropPoints[0]});
+ win.webContents.sendInputEvent({type:'mouseMove',modifiers:['leftButtonDown'],...cropPoints[1]});
+ win.webContents.sendInputEvent({type:'mouseUp',button:'left',...cropPoints[1]});
+ await waitFor(`document.querySelector('[aria-label="너비 (px)"]')?.value==='3'`);
+ await applyDialog();
+ assert.equal(await js(shape+".frame.w"),30);
+ await click('undo');assert.equal(await js(shape+".frame.w"),50);
+ await click('redo');assert.equal(await js(shape+".frame.w"),30);
+ const croppedFile=await saveAs('cropped.pptx');await open(croppedFile);
+ const cropDims=await js(`(async()=>{const img=new Image();img.src=M.imageSource(state.model.images[${shape}.imageID]);await img.decode();return [img.naturalWidth,img.naturalHeight,${shape}.frame.x,${shape}.frame.y];})()`);
+ assert.deepEqual(cropDims,[3,3,10,10]);
+
+ await js("editGradient(state.model.slides[selected])");
+ await js(`(()=>{const angle=document.querySelector('dialog[open] input[aria-label="각도"]');const stop=document.querySelector('dialog[open] input[type="checkbox"]');stop.click();const mid=document.querySelector('dialog[open] input[aria-label="중간 색"]');mid.value='#cc3300';mid.dispatchEvent(new Event('input'));angle.value='135';angle.dispatchEvent(new Event('input'));})()`);
+ await applyDialog();
+ assert.equal(await js("state.model.slides[selected].backgroundAngle"),135);
+ assert.match(await js("document.querySelector('.slide-stage').style.backgroundImage"),/225deg/);
+ const gradientFile=await saveAs('gradient.pptx');await open(gradientFile);
+ assert.equal(await js("state.model.slides[0].backgroundAngle"),135);
+ assert.deepEqual(await js("state.model.slides[0].backgroundMiddle"),{r:204,g:51,b:0});
+ await newTemplateSmoke('letter');
+ assert.equal(await js("document.querySelectorAll('.page-decoration').length"),2);
+ await js("edit({op:'insert_page_break',section:0,block:1},{op:'insert_divider',section:0,block:2})");
+ assert.equal(await js("document.querySelectorAll('.document-page').length"),2);
+ await saveAs('letter.docx');
+ await newTemplateSmoke('labels');
+ assert.equal(await js("document.querySelectorAll('.paper table td').length"),14);
+ async function newTemplateSmoke(name){await js(`newTemplate(${JSON.stringify(name)})`);await waitFor("!busy && state.kind==='document'");}
+ for(const kind of ['document','presentation','spreadsheet']){
+  await newFile(kind);
+  const target=path.join(session.directory,'새 파일 '+kind+'.hanx');let defaults;
+  dialog.showSaveDialog=async(_window,options)=>{defaults=options;return {canceled:false,filePath:target};};
+  await click('save');await waitFor('!busy');
+  assert.equal(path.extname(defaults.defaultPath),'.hanx');assert.deepEqual(defaults.filters[0].extensions,['hanx']);
+  await open(target);assert.equal(await js('state.kind'),kind);
+ }
+ await open(slides);
+ const importedBytes=await fs.readFile(slides);
+ const nativeTarget=path.join(session.directory,'가져온 발표.hanx');
+ let suggested;
+ dialog.showSaveDialog=async(_window,options)=>{suggested=options.defaultPath;return {canceled:false,filePath:nativeTarget};};
+ await click('save');await waitFor('!busy');
+ assert.equal(path.extname(suggested),'.hanx');assert.deepEqual(await fs.readFile(slides),importedBytes);
+ await open(nativeTarget);assert.equal(await js('state.kind'),'presentation');
  const inference=await js(`(async()=>{const c=document.createElement('canvas');c.width=c.height=320;const x=c.getContext('2d');x.fillStyle='white';x.fillRect(0,0,320,320);x.fillStyle='red';x.fillRect(90,60,140,200);const mask=await HanXSubjectSegmentation.start(x.getImageData(0,0,320,320).data).promise;return {length:mask.length,finite:mask.every(Number.isFinite)};})()`);
  assert.equal(inference.length,102400);assert.equal(inference.finite,true);
  console.log('HANX_GUI_SMOKE_OK: native renderer open/edit/calculation/resize/save/docx/xlsx/pptx/pdf');

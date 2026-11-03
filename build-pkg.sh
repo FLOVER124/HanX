@@ -5,6 +5,10 @@ cd "${0:A:h}"
 APP_PATH="${HANX_APP_PATH:-$PWD/build/HanX.app}"
 [[ -d "$APP_PATH" ]] || { print -u2 'Build HanX.app first with ./build-app.sh'; exit 1; }
 VERSION=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$APP_PATH/Contents/Info.plist")
+EMBEDDED_CLI="$APP_PATH/Contents/Resources/CLI/hanx"
+[[ -x "$EMBEDDED_CLI" ]] || { print -u2 'The installer requires the bundled HanX CLI.'; exit 1; }
+CLI_VERSION=$("$EMBEDDED_CLI" --version | plutil -extract data.version raw -o - -)
+[[ "$CLI_VERSION" == "$VERSION" ]] || { print -u2 "App $VERSION and CLI $CLI_VERSION must match."; exit 1; }
 PKG_OUTPUT="${1:-$PWD/build/HanX-$VERSION.pkg}"
 mkdir -p "${PKG_OUTPUT:h}" build
 TASK_DIR=$(mktemp -d "$PWD/build/pkg-XXXXXX")
@@ -46,5 +50,6 @@ productbuild --distribution "$TASK_DIR/Distribution.xml" --resources "$PWD/Resou
 if [[ -n "${HANX_NOTARY_PROFILE:-}" ]]; then
   xcrun notarytool submit "$PKG_OUTPUT" --keychain-profile "$HANX_NOTARY_PROFILE" --wait
   xcrun stapler staple "$PKG_OUTPUT"
+  xcrun stapler validate "$PKG_OUTPUT"
 fi
 print "Created $PKG_OUTPUT"

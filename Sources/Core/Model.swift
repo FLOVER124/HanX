@@ -79,6 +79,7 @@ struct ParaProps: Equatable, Codable {
     var spaceBefore: Double = 0
     var spaceAfter: Double = 0
     var lineSpacing: LineSpacing = .percentOfSize(160)
+    var bottomBorder: BorderLine?
     var pageBreakBefore = false
     var styleName: String?
     var listLabel: String?

@@ -162,6 +162,16 @@ final class PPTXReader {
             guard let bg = p.root.first("bg") else { continue }
             if let pr = bg.child("bgPr") {
                 if let blip = pr.first("blip"), let rid = blip.relAttr("embed"), let id = image(rid, p) { out.backgroundImage = id; break }
+                if let gradient = pr.child("gradFill"), let line = gradient.child("lin"),
+                   let angle = Double(line.attr("ang") ?? "0"), angle.isFinite, let stops = gradient.child("gsLst")?.children("gs"),
+                   (2...3).contains(stops.count), stops[0].attr("pos") == "0", stops.last?.attr("pos") == "100000",
+                   let start = color(stops[0]), let end = color(stops.last) {
+                    if stops.count == 3, let middle = color(stops[1]),
+                       let position = Int(stops[1].attr("pos") ?? ""), (1..<100000).contains(position) {
+                        out.backgroundMiddle = middle; out.backgroundMiddlePosition = Double(position) / 1000
+                    }
+                    out.background = start; out.backgroundEnd = end; out.backgroundAngle = angle / 60000; break
+                }
                 let f = fill(pr); if f.set { out.background = f.color; break }
             }
             if let ref = bg.child("bgRef"), let c = color(ref) { out.background = c; break }

@@ -100,7 +100,7 @@ if let content = controller.window!.attachedSheet?.contentView,
 settle()
 if let content = controller.window!.attachedSheet?.contentView {
     let controls = descendants(content)
-    if let slider = controls.compactMap({ $0 as? NSSlider }).first(where: { $0.action != nil }) {
+    if let slider = controls.compactMap({ $0 as? NSSlider }).first(where: { $0.accessibilityLabel() == "배경색 허용 범위" }) {
         slider.doubleValue = 100; _ = slider.sendAction(slider.action, to: slider.target)
     }
     let button = controls.compactMap({ $0 as? NSButton }).first(where: { $0.title == "적용" })

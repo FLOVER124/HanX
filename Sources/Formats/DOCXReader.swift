@@ -229,6 +229,7 @@ final class DOCXReader {
                 }
             }
         }
+        if let border = Self.border(el.child("pBdr")?.child("bottom")) { p.bottomBorder = border }
         if let pb = isOn(el.child("pageBreakBefore")) { p.pageBreakBefore = pb }
     }
 

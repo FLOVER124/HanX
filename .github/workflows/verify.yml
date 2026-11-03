@@ -23,5 +23,11 @@ jobs:
         run: |
           zsh Tests/ImageBackground/run.sh
           zsh Tests/ImageBackgroundIntegration/run.sh
+      - name: Native document format and image editing
+        run: |
+          zsh Tests/HanXFile/run.sh
+          zsh Tests/ImageAdjustments/run.sh
+          zsh Tests/ImageAdjustmentsIntegration/run.sh
+          zsh Tests/ImageCrop/run.sh
       - name: Existing editing behavior
         run: Tests/run-editing.sh

@@ -12,7 +12,9 @@ enum DocumentIO {
         let data = try Data(contentsOf: url)
         let ext = url.pathExtension.lowercased()
         let doc: UDocument
-        if PDFReader.isPDF(data) || ext == "pdf" {
+        if ext == "hanx" || data.starts(with: Data("HanX/".utf8)) {
+            doc = try DOCXReader(zip: HanXFile.payload(data, expecting: .document)).read()
+        } else if PDFReader.isPDF(data) || ext == "pdf" {
             doc = try PDFReader.read(data)
         } else if CFBReader.isCFB(data) {
             doc = try HWP5Reader(data: data).read()

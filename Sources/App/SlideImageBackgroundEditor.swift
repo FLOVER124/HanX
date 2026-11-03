@@ -19,6 +19,9 @@ final class SlideImageBackgroundEditor: NSWindowController {
     private let apply = NSButton(title: "적용", target: nil, action: nil)
     private let cancel = NSButton(title: "취소", target: nil, action: nil)
     private let progress = NSProgressIndicator()
+    private let hardness = NSSlider(value: 100, minValue: 0, maxValue: 100, target: nil, action: nil)
+    private let feather = NSSlider(value: 0, minValue: 0, maxValue: 20, target: nil, action: nil)
+    private var previewRevision = 0
     private var revision = 0
     private var closed = false
     private var working = false
@@ -42,10 +45,17 @@ final class SlideImageBackgroundEditor: NSWindowController {
         brushSize.frame = NSRect(x: 390, y: 491, width: 160, height: 28)
         brushSize.setAccessibilityLabel("브러시 크기"); view.addSubview(brushSize)
         let sizeLabel = NSTextField(labelWithString: "크기"); sizeLabel.frame = NSRect(x: 560, y: 495, width: 50, height: 20); view.addSubview(sizeLabel)
+        for (label, control, x) in [("브러시 경도", hardness, 20.0), ("경계 부드럽게", feather, 330.0)] {
+            let text = NSTextField(labelWithString: label)
+            text.frame = NSRect(x: x, y: 462, width: 105, height: 20); view.addSubview(text)
+            control.frame = NSRect(x: x + 110, y: 458, width: 160, height: 26)
+            control.setAccessibilityLabel(label); control.isContinuous = false; view.addSubview(control)
+        }
+        feather.target = self; feather.action = #selector(refinementChanged)
         preview.paint = { [weak self] start, end, displayedWidth in
             guard let self, !self.working, self.apply.isEnabled, self.comparison.selectedSegment == 0, var mask = self.mask else { return }
             let w = Double(mask.width), h = Double(mask.height)
-            mask.stroke(from: CGPoint(x: start.x * w, y: start.y * h), to: CGPoint(x: end.x * w, y: end.y * h), radius: self.brushSize.doubleValue * w / displayedWidth / 2, keep: self.brush.selectedSegment == 0)
+            mask.stroke(from: CGPoint(x: start.x * w, y: start.y * h), to: CGPoint(x: end.x * w, y: end.y * h), radius: self.brushSize.doubleValue * w / displayedWidth / 2, keep: self.brush.selectedSegment == 0, hardness: self.hardness.doubleValue / 100)
             self.mask = mask; self.renderMask()
         }
         let colorLabel = NSTextField(labelWithString: "배경색")
@@ -89,13 +99,22 @@ final class SlideImageBackgroundEditor: NSWindowController {
         }
         updatePreview()
     }
+    @objc private func refinementChanged() { renderMask() }
     private func renderMask() {
-        guard let mask, let image = try? mask.preview(of: previewBitmap).cgImage() else { return }
-        output = NSImage(cgImage: image, size: NSSize(width: previewBitmap.width, height: previewBitmap.height))
-        showComparison()
+        guard let mask else { return }
+        previewRevision += 1
+        let token = previewRevision, bitmap = previewBitmap, radius = Int(feather.doubleValue.rounded())
+        worker.async { [weak self] in
+            guard let image = try? mask.feathered(radius: radius).preview(of: bitmap).cgImage() else { return }
+            DispatchQueue.main.async { [weak self] in
+                guard let self, !self.closed, token == self.previewRevision else { return }
+                self.output = NSImage(cgImage: image, size: NSSize(width: bitmap.width, height: bitmap.height))
+                self.showComparison()
+            }
+        }
     }
     private func updatePreview() {
-        revision += 1; cancelRequest?(); cancelRequest = nil; mask = nil
+        revision += 1; previewRevision += 1; cancelRequest?(); cancelRequest = nil; mask = nil
         let token = revision, bitmap = previewBitmap, color = rgb, tolerance = tolerance.doubleValue / 100 * 255, selectedMode = mode.selectedSegment
         self.tolerance.isEnabled = selectedMode == 1; self.color.isEnabled = selectedMode == 1
         apply.isEnabled = false; progress.startAnimation(nil)
@@ -132,18 +151,18 @@ final class SlideImageBackgroundEditor: NSWindowController {
     @objc private func applyResult() {
         guard !working, let mask else { return }
         working = true; revision += 1
-        let token = revision, bitmap = previewBitmap
-        apply.isEnabled = false; tolerance.isEnabled = false; color.isEnabled = false; mode.isEnabled = false
+        let token = revision, bitmap = previewBitmap, radius = Int(feather.doubleValue.rounded())
+        apply.isEnabled = false; feather.isEnabled = false; hardness.isEnabled = false; tolerance.isEnabled = false; color.isEnabled = false; mode.isEnabled = false
         progress.startAnimation(nil)
         worker.async { [weak self] in
-            let result = Result { try mask.applying(to: bitmap).png() }
+            let result = Result { try mask.feathered(radius: radius).applying(to: bitmap).png() }
             DispatchQueue.main.async { [weak self] in
                 guard let self, !self.closed, self.revision == token else { return }
                 self.working = false; self.progress.stopAnimation(nil)
                 switch result {
                 case .success(let data): self.finish(data)
                 case .failure(let error):
-                    self.apply.isEnabled = true; self.mode.isEnabled = true
+                    self.apply.isEnabled = true; self.feather.isEnabled = true; self.hardness.isEnabled = true; self.mode.isEnabled = true
                     self.tolerance.isEnabled = self.mode.selectedSegment == 1; self.color.isEnabled = self.mode.selectedSegment == 1
                     self.showError(error)
                 }
@@ -157,7 +176,7 @@ final class SlideImageBackgroundEditor: NSWindowController {
     }
     @objc private func cancelEditing() { finish(nil) }
     private func finish(_ data: Data?) {
-        guard !closed else { return }; closed = true; revision += 1; cancelRequest?(); cancelRequest = nil; color.deactivate()
+        guard !closed else { return }; closed = true; revision += 1; previewRevision += 1; cancelRequest?(); cancelRequest = nil; color.deactivate()
         if let window { window.sheetParent?.endSheet(window); window.orderOut(nil) }
         completion(data)
     }
