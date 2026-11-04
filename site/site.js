@@ -133,7 +133,7 @@ export PATH="$HOME/.npm-global/bin:$PATH"`,
  const valid=s=>/^\d{1,6}\.\d{1,6}\.\d{1,6}$/.test(s);
  const render=()=>document.querySelectorAll('[data-latest-version]').forEach(n=>n.textContent=latest);
  render();
- const refresh=fetch('https://registry.npmjs.org/@juyoungsuh%2fhanx/latest',{signal:AbortSignal.timeout(5000)}).then(r=>{if(!r.ok)throw Error();return r.json();}).then(p=>{if(!valid(p.version))throw Error();latest=p.version;render();}).catch(()=>{});
+ const refresh=fetch(`https://registry.npmjs.org/${encodeURIComponent(window.HANX_SITE.npm.package)}/latest`,{signal:AbortSignal.timeout(5000)}).then(r=>{if(!r.ok)throw Error();return r.json();}).then(p=>{if(!valid(p.version))throw Error();latest=p.version;render();}).catch(()=>{});
  document.getElementById('version-check-form')?.addEventListener('submit',async event=>{
   event.preventDefault();const result=document.getElementById('version-check-result'),input=document.getElementById('installed-version').value.trim().replace(/^v/,'');
   if(!valid(input)){result.textContent='2.11.0처럼 숫자 세 자리로 입력하세요.';return;}

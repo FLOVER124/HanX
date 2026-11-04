@@ -1,4 +1,4 @@
-# HanX CLI 2.13.1
+# HanX CLI 2.13.2
 
 새 문서, 스프레드시트, 프레젠테이션의 기본 로컬 확장자는 `.hanx`입니다. 파일에 기록한 종류에 따라 편집기가 열립니다. `hanx read "작업.hanx"`로 종류와 내용을 확인하고, `hanx convert "발표.hanx" --output "발표.pptx"`처럼 같은 종류의 다른 형식으로 내보낼 수 있습니다.
 
@@ -39,11 +39,13 @@ macOS와 Linux에서 npm을 사용자 폴더에 설치하도록 설정합니다.
 
 ```sh
 npm config set prefix "$HOME/.npm-global" &&
-npm install -g @juyoungsuh/hanx &&
+npm install -g @flover124/hanx &&
 export PATH="$HOME/.npm-global/bin:$PATH"
 ```
 
-새 터미널에도 적용하려면 마지막 줄을 `~/.zshrc` 또는 `~/.bashrc`에 추가하세요. Windows에서는 `npm install -g @juyoungsuh/hanx`를 실행하세요.
+이전 npm 설치본에서 옮기는 경우 먼저 `npm uninstall -g @juyoungsuh/hanx`를 실행하세요. 새 패키지도 같은 `hanx` 명령을 사용합니다.
+
+새 터미널에도 적용하려면 마지막 줄을 `~/.zshrc` 또는 `~/.bashrc`에 추가하세요. Windows에서는 `npm install -g @flover124/hanx`를 실행하세요.
 
 macOS와 Linux의 Homebrew에서는 다음 명령을 사용합니다. Windows에서는 npm 또는 Setup.exe를 사용하세요.
 
@@ -66,9 +68,9 @@ Linux AppImage를 GUI만 설치한 경우 AI 연결을 사용하는 동안 HanX 
 
 Windows/Linux의 PDF 출력에는 로컬 PDF renderer, PDF 읽기에는 PDF text tools가 필요합니다. 설치 화면에서 PDF 도구를 선택하거나 `--pdf-dependencies`를 명시한 경우에만 추가 도구를 설치합니다. macOS 기본 네이티브 배포판에는 PDF 처리 기능이 포함돼 있습니다. 설치 여부는 `hanx capabilities --pretty`의 pdf 항목으로 확인하세요.
 
-최신 GUI 앱은 npm 또는 Homebrew 설치 후 `hanx setup`으로 설치하거나 [HanX 릴리스](https://github.com/FLOVER124/HanX/releases)의 `HanX-2.13.1-macOS.zip`을 사용하세요. GUI와 CLI를 함께 설치하는 pkg는 `HanX-2.13.1.pkg`입니다. pkg는 앱을 `/Applications/HanX.app`에 설치하고 `/usr/local/bin`의 비어 있는 `hanx`와 `hanx-cli` 명령을 연결합니다. Homebrew와 npm은 CLI를 설치하며 해당 도구로 업데이트합니다. 다른 방식으로 설치한 기존 명령을 자동으로 덮어쓰지 않습니다.
+최신 GUI 앱은 npm 또는 Homebrew 설치 후 `hanx setup`으로 설치하거나 [HanX 릴리스](https://github.com/FLOVER124/HanX/releases)의 `HanX-2.13.2-macOS.zip`을 사용하세요. GUI와 CLI를 함께 설치하는 pkg는 `HanX-2.13.2.pkg`입니다. pkg는 앱을 `/Applications/HanX.app`에 설치하고 `/usr/local/bin`의 비어 있는 `hanx`와 `hanx-cli` 명령을 연결합니다. Homebrew와 npm은 CLI를 설치하며 해당 도구로 업데이트합니다. 다른 방식으로 설치한 기존 명령을 자동으로 덮어쓰지 않습니다.
 
-독립 CLI는 릴리스의 `HanX-CLI-2.13.1-macOS.zip`으로도 제공합니다. ZIP을 풀고 해당 폴더에서 `./install-cli.sh`를 실행하세요. 설치 없이 `./hanx --help`로 바로 실행할 수도 있습니다. 기본 설치 위치는 `~/Library/Application Support/HanX/CLI/2.13.1`이며 `~/.local/bin/hanx`와 `hanx-cli` 명령을 연결합니다.
+독립 CLI는 릴리스의 `HanX-CLI-2.13.2-macOS.zip`으로도 제공합니다. ZIP을 풀고 해당 폴더에서 `./install-cli.sh`를 실행하세요. 설치 없이 `./hanx --help`로 바로 실행할 수도 있습니다. 기본 설치 위치는 `~/Library/Application Support/HanX/CLI/2.13.2`이며 `~/.local/bin/hanx`와 `hanx-cli` 명령을 연결합니다.
 
 설치 후 터미널에서 `hanx --help` 또는 `hanx capabilities --pretty`를 실행하세요. CLI 사용에는 PATH의 `hanx`를 쓰고, MCP 설정에는 설치 시 출력한 절대 경로를 쓰세요. PATH에 사용자 bin 폴더가 없으면 현재 셸에서 `export PATH="$HOME/.local/bin:$PATH"`를 실행할 수 있습니다.
 
@@ -83,7 +85,7 @@ hanx create --spec examples/presentation.json --output 발표.pptx
 
 예제 파일: [문서 명세](examples/document.json), [문서 수정](examples/document-edits.json), [스프레드시트 명세](examples/spreadsheet.json), [스프레드시트 수정](examples/spreadsheet-edits.json), [프레젠테이션](examples/presentation.json), [XML 수정](examples/xml-edits.json). 예제를 내려받고 명령의 경로를 해당 파일 위치에 맞추세요.
 
-명세와 작업은 JSON 파일로 주거나 `--spec -`, `--ops -`로 표준 입력에서 받습니다. 보통 응답은 `{"ok":true,"version":"2.13.1","data":...}` 형식입니다. 실패는 `{"ok":false,"error":{"code":...,"message":...}}`와 0이 아닌 종료 코드로 알립니다. `read --text`는 텍스트만 출력합니다. `--no-model`은 큰 native model 및 내장 그림의 base64를 응답에서 제외합니다.
+명세와 작업은 JSON 파일로 주거나 `--spec -`, `--ops -`로 표준 입력에서 받습니다. 보통 응답은 `{"ok":true,"version":"2.13.2","data":...}` 형식입니다. 실패는 `{"ok":false,"error":{"code":...,"message":...}}`와 0이 아닌 종료 코드로 알립니다. `read --text`는 텍스트만 출력합니다. `--no-model`은 큰 native model 및 내장 그림의 base64를 응답에서 제외합니다.
 
 파일은 output에 저장합니다. 기존 출력이 있으면 기본적으로 거부하며 `--force`를 명시했을 때만 교체합니다. `--force`와 원본 경로를 함께 지정하면 원본도 교체할 수 있으니 에이전트에는 새 경로를 주는 것이 좋습니다. 한 번의 edit 작업이 실패하면 결과를 저장하지 않습니다. 숫자 인덱스는 0부터 시작하며 길이는 pt, 시간은 초, 색은 RRGGBB입니다.
 
@@ -261,7 +263,7 @@ MCP 도구는 `hanx_capabilities`, `hanx_read`, `hanx_create`, `hanx_edit`, `han
 
 ### 슬라이드 동영상과 문단, 행과 열 편집
 
-다음 편집 작업은 HanX CLI 2.13.1에서 사용할 수 있습니다.
+다음 편집 작업은 HanX CLI 2.13.2에서 사용할 수 있습니다.
 
 | 작업 | 편집 작업 JSON |
 | --- | --- |
@@ -291,7 +293,7 @@ MCP 도구는 `hanx_capabilities`, `hanx_read`, `hanx_create`, `hanx_edit`, `han
 
 `--update`는 설치한 관리자로 CLI를 갱신합니다. 기존 설정에서 GUI를 선택한 경우 앱도 갱신합니다. 권한이 부족하면 설치 관리자 오류를 표시하며 관리자 권한으로 자동 재실행하지 않습니다. ZIP이나 설치 파일로 직접 설치한 앱과 독립 CLI는 최신 다운로드로 교체하세요.
 
-이 명령이 없는 이전 배포판은 한 번만 `npm install -g @juyoungsuh/hanx@latest` 또는 `brew update && brew upgrade hanx`로 갱신하세요.
+이 명령이 없는 이전 배포판은 한 번만 `npm install -g @flover124/hanx@latest` 또는 `brew update && brew upgrade hanx`로 갱신하세요.
 
 
 ## 앱과 CLI 삭제

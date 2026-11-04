@@ -1,6 +1,6 @@
 {
-  "name": "@juyoungsuh/hanx",
-  "version": "2.13.1",
+  "name": "@flover124/hanx",
+  "version": "2.13.2",
   "description": "Local office CLI and MCP tools for spreadsheet formulas, HWP, DOCX and PPTX",
   "license": "MIT",
   "homepage": "https://hanx.io/",

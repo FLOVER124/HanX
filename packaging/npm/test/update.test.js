@@ -19,7 +19,7 @@ test('installer failures stop the update and never silently succeed',async()=>{
 });
 test('update plans never interpolate registry data into a shell',()=>{
  assert.deepEqual(U.plan('brew','2.11.0').map(x=>x[1]),[['update'],['upgrade','flover124/tap/hanx']]);
- assert.equal(U.plan('npm','2.11.0')[0][1].at(-1),'@juyoungsuh/hanx@2.11.0');
+ assert.equal(U.plan('npm','2.11.0')[0][1].at(-1),require('../package.json').name+'@2.11.0');
 });
 
 test('an up-to-date CLI still updates an explicitly selected older GUI',async()=>{

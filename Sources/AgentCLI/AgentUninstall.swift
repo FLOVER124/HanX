@@ -249,9 +249,13 @@ enum AgentUninstall {
         #endif
         #endif
         if let (file,prefix)=npm,let root=query(file,prefix+["root","--global"]) {
-            let manifest=URL(fileURLWithPath:root).appendingPathComponent("@juyoungsuh/hanx/package.json")
-            if let data=try? Data(contentsOf:manifest),let object=(try? JSONSerialization.jsonObject(with:data)) as? [String:Any],object["name"] as? String == "@juyoungsuh/hanx" {
-                result.commands.append(Command(file:file,args:prefix+["uninstall","--global","@juyoungsuh/hanx"],label:"npm: @juyoungsuh/hanx"))
+            for package in ["@flover124/hanx", "@juyoungsuh/hanx"] {
+                let manifest = URL(fileURLWithPath: root).appendingPathComponent(package + "/package.json")
+                if let data = try? Data(contentsOf: manifest),
+                   let object = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
+                   object["name"] as? String == package {
+                    result.commands.append(Command(file: file, args: prefix + ["uninstall", "--global", package], label: "npm: " + package))
+                }
             }
         }
     }

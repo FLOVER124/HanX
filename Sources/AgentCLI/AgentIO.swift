@@ -25,7 +25,7 @@ struct AgentError: Error {
 }
 
 enum AgentIO {
-    static let version="2.13.1"
+    static let version="2.13.2"
     static func isBoolean(_ number: NSNumber) -> Bool {
         #if canImport(CoreFoundation)
         return CFGetTypeID(number) == CFBooleanGetTypeID()

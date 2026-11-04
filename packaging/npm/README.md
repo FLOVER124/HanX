@@ -8,11 +8,13 @@ macOS와 Linux에서는 npm 설치 위치를 사용자 폴더로 설정합니다
 
 ```sh
 npm config set prefix "$HOME/.npm-global" &&
-npm install -g @juyoungsuh/hanx &&
+npm install -g @flover124/hanx &&
 export PATH="$HOME/.npm-global/bin:$PATH"
 ```
 
-새 터미널에서도 쓰려면 마지막 줄을 셸 시작 파일에 추가하세요. Windows에서는 `npm install -g @juyoungsuh/hanx`를 실행하세요.
+이전 npm 설치본에서 옮기는 경우 먼저 `npm uninstall -g @juyoungsuh/hanx`를 실행하세요. 새 패키지도 같은 `hanx` 명령을 사용합니다.
+
+새 터미널에서도 쓰려면 마지막 줄을 셸 시작 파일에 추가하세요. Windows에서는 `npm install -g @flover124/hanx`를 실행하세요.
 
 `hanx setup`에서 방향키와 Enter로 GUI만, CLI만, 둘 다를 선택할 수 있습니다. 아래 명령으로 항목을 지정하면 선택 화면을 건너뜁니다.
 

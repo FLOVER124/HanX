@@ -1,7 +1,7 @@
 #!/bin/sh
 # Download a verified AppImage to a per-user location. Never invokes sudo.
 set -eu
-version=2.13.1
+version=2.13.2
 prefix=${HOME}/.local
 while [ "$#" -gt 0 ]; do
   case "$1" in --prefix) prefix=$2; shift 2;; --yes) shift;; *) echo "Unknown option: $1" >&2; exit 1;; esac

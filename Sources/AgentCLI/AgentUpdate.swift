@@ -24,7 +24,7 @@ enum AgentUpdate {
     private final class ResultBox: @unchecked Sendable { var value: String? }
     static func status() -> [String:Any] {
         let box=ResultBox(),done=DispatchSemaphore(value:0)
-        var request=URLRequest(url:URL(string:"https://registry.npmjs.org/@juyoungsuh%2fhanx/latest")!)
+        var request=URLRequest(url:URL(string:"https://registry.npmjs.org/@flover124%2fhanx/latest")!)
         request.timeoutInterval=4
         let session=URLSession(configuration:.ephemeral)
         let task=session.dataTask(with:request) { data,response,_ in

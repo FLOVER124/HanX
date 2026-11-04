@@ -1,10 +1,10 @@
 'use strict';
 const https=require('node:https'),path=require('node:path'),fs=require('node:fs');
 const {spawn}=require('node:child_process');
-const PACKAGE='@juyoungsuh/hanx';
+const PACKAGE = require('../package.json').name;
 function compare(a,b){const parse=s=>{if(!/^\d{1,6}\.\d{1,6}\.\d{1,6}$/.test(s))throw Error('올바르지 않은 버전 정보입니다.');return s.split('.').map(Number);};const x=parse(a),y=parse(b);for(let i=0;i<3;i++)if(x[i]!==y[i])return Math.sign(x[i]-y[i]);return 0;}
 function latest(){return new Promise((resolve,reject)=>{
- const request=https.get('https://registry.npmjs.org/@juyoungsuh%2fhanx/latest',{headers:{Accept:'application/json','User-Agent':'HanX updater'}},response=>{
+ const request=https.get(`https://registry.npmjs.org/${encodeURIComponent(PACKAGE)}/latest`,{headers:{Accept:'application/json','User-Agent':'HanX updater'}},response=>{
   if(response.statusCode!==200){response.resume();reject(Error('최신 버전을 확인할 수 없습니다.'));return;}
   let text='';response.setEncoding('utf8');response.on('data',chunk=>{text+=chunk;if(text.length>1024*1024)request.destroy(Error('버전 응답이 너무 큽니다.'));});response.on('error',reject);response.on('end',()=>{try{const value=JSON.parse(text).version;compare(value,value);resolve(value);}catch(error){reject(error);}});
  });const timer=setTimeout(()=>request.destroy(Error('최신 버전 확인 시간이 초과됐습니다.')),5000);request.once('close',()=>clearTimeout(timer));request.on('error',reject);
@@ -28,7 +28,7 @@ function plan(kind,version,tap='flover124/tap'){
 }
 function run(file,args){return new Promise((resolve,reject)=>{
  // Windows npm is a .cmd launcher; use its JS entry with Node, without a shell.
- if(process.platform==='win32'&&file==='npm.cmd') {const npm=path.join(path.dirname(process.execPath),'node_modules','npm','bin','npm-cli.js');if(!fs.existsSync(npm)){reject(Error('npm 실행 파일을 찾을 수 없습니다. npm install -g @juyoungsuh/hanx@latest 를 실행하세요.'));return;}args=[npm,...args];file=process.execPath;}
+ if(process.platform==='win32'&&file==='npm.cmd') {const npm=path.join(path.dirname(process.execPath),'node_modules','npm','bin','npm-cli.js');if(!fs.existsSync(npm)){reject(Error(`npm 실행 파일을 찾을 수 없습니다. npm install -g ${PACKAGE}@latest 를 실행하세요.`));return;}args=[npm,...args];file=process.execPath;}
  const child=spawn(file,args,{stdio:'inherit',shell:false});child.once('error',reject);child.once('exit',code=>code===0?resolve():reject(Error('업데이트하지 못했습니다. 설치 관리자 메시지를 확인하세요.')));
 });}
 async function check({current,fetchLatest=latest}){try{const version=await fetchLatest();const order=compare(current,version);return {version:current,latestVersion:version,updateAvailable:order<0,status:order<0?'Update available':order===0?'Up to date':'Newer local version'};}catch(error){return {version:current,latestVersion:null,updateAvailable:null,status:'Version check unavailable',message:error.message};}}

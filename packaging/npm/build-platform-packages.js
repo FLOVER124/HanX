@@ -13,6 +13,6 @@ for(const platform of ['darwin','linux','win32']) for(const arch of ['arm64','x6
   fs.mkdirSync(destination);
   fs.cpSync(native,path.join(destination,'native'),{recursive:true,errorOnExist:true,force:false});
   for(const file of ['LICENSE','NOTICE']) fs.copyFileSync(path.join(root,file),path.join(destination,file),fs.constants.COPYFILE_EXCL);
-  fs.writeFileSync(path.join(destination,'package.json'),JSON.stringify({name:`@juyoungsuh/hanx-${key}`,version,description:`HanX native runtime for ${key}`,license:'MIT',os:[platform],cpu:[arch],files:['native/','LICENSE','NOTICE'],publishConfig:{access:'public'}},null,2)+'\n',{flag:'wx'});
+  fs.writeFileSync(path.join(destination,'package.json'),JSON.stringify({name:`${require('./package.json').name}-${key}`,version,description:`HanX native runtime for ${key}`,license:'MIT',os:[platform],cpu:[arch],files:['native/','LICENSE','NOTICE'],publishConfig:{access:'public'}},null,2)+'\n',{flag:'wx'});
   console.log(destination);
 }

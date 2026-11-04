@@ -9,7 +9,9 @@ import sys
 
 if os.environ.get('GITHUB_ACTIONS') != 'true':
     raise SystemExit('Run release staging in its GitHub workflow.')
-version = json.loads(Path('packaging/npm/package.json').read_text())['version']
+package = json.loads(Path('packaging/npm/package.json').read_text())
+version = package['version']
+archive = package['name'].lstrip('@').replace('/', '-') + f'-{version}.tgz'
 tag = 'v' + version
 repo = os.environ['GITHUB_REPOSITORY']
 
@@ -56,7 +58,7 @@ for platform, arches in [('darwin', ['arm64', 'x64']), ('win32', ['x64']), ('lin
                 name = f'HanX-{version}-win32-x64-Setup.exe' if platform == 'win32' else f'HanX-{version}-linux-x64.AppImage'
             assert name in digests, f'Release asset is missing: {name}'
             assets.append(dict(component=component, platform=platform, arch=arch, name=name, sha256=digests[name]))
-for required in [f'HanX-Setup-{version}.tar.gz', f'juyoungsuh-hanx-{version}.tgz']:
+for required in [f'HanX-Setup-{version}.tar.gz', archive]:
     assert required in digests, f'Release asset is missing: {required}'
 
 output = Path('build/release-metadata'); output.mkdir(parents=True, exist_ok=True)

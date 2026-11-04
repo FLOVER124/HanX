@@ -48,9 +48,11 @@ jobs:
           PACKAGE_SOURCE: ${{ inputs.source }}
         run: |
           version=$(node -p "require('./packaging/npm/package.json').version")
-          package="@juyoungsuh/hanx@$version"
+          name=$(node -p "require('./packaging/npm/package.json').name")
+          package="$name@$version"
           if [ "$PACKAGE_SOURCE" = "release" ]; then
-            package="https://github.com/FLOVER124/HanX/releases/download/v$version/juyoungsuh-hanx-$version.tgz"
+            archive=${name#@}
+            package="https://github.com/FLOVER124/HanX/releases/download/v$version/${archive/\//-}-$version.tgz"
           fi
           npm install --prefix build/published --foreground-scripts --no-audit --no-fund "$package"
       - name: Verify installed components, editing, conversion and AI tools

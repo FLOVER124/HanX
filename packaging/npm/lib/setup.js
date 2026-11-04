@@ -132,7 +132,7 @@ async function extract(archive,destination,platform=process.platform) {
   else await run('tar',['-xzf',archive,'-C',destination]);
 }
 function optionalBinary(platform=process.platform,arch=process.arch) {
-  try { const root=path.dirname(require.resolve(`@juyoungsuh/hanx-${platformKey(platform,arch)}/package.json`)); const binary=path.join(root,'native',platform==='win32'?'hanx.exe':'hanx'); return fs.existsSync(binary)?binary:null; } catch {return null;}
+  try { const root=path.dirname(require.resolve(`${require('../package.json').name}-${platformKey(platform,arch)}/package.json`)); const binary=path.join(root,'native',platform==='win32'?'hanx.exe':'hanx'); return fs.existsSync(binary)?binary:null; } catch {return null;}
 }
 async function installCLI() {
   const destination=paths().cli; const binary=path.join(destination,process.platform==='win32'?'hanx.exe':'hanx');

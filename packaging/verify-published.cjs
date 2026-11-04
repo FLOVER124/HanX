@@ -8,7 +8,7 @@ const {spawnSync}=require('node:child_process');
 const version=require('./npm/package.json').version;
 if(process.env.GITHUB_ACTIONS!=='true')throw new Error('Published installation verification requires a disposable CI user.');
 const npmRoot=path.resolve(process.argv[2]);
-const cli=path.join(npmRoot,'node_modules','@juyoungsuh','hanx','bin','hanx.js');
+const cli=path.join(npmRoot,'node_modules',...require('./npm/package.json').name.split('/'),'bin','hanx.js');
 function run(command,args,options={}){
   const result=spawnSync(command,args,{encoding:'utf8',timeout:300000,...options});
   if(result.error)throw result.error;

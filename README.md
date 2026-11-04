@@ -21,13 +21,15 @@ macOS와 Linux에서 npm을 사용자 폴더에 설치하도록 설정합니다.
 
 ```sh
 npm config set prefix "$HOME/.npm-global" &&
-npm install -g @juyoungsuh/hanx &&
+npm install -g @flover124/hanx &&
 export PATH="$HOME/.npm-global/bin:$PATH"
 ```
 
-새 터미널에도 적용하려면 마지막 줄을 `~/.zshrc` 또는 `~/.bashrc`에 추가하세요. Windows에서는 `npm install -g @juyoungsuh/hanx`를 실행하세요.
+이전 npm 설치본에서 옮기는 경우 먼저 `npm uninstall -g @juyoungsuh/hanx`를 실행하세요. 새 패키지도 같은 `hanx` 명령을 사용합니다.
 
-Node.js 18 이상이 필요합니다. 앱도 설치하려면 `hanx setup --components all --yes`를 실행하세요. [공개 npm 패키지](https://www.npmjs.com/package/@juyoungsuh/hanx)에서 버전을 확인하세요.
+새 터미널에도 적용하려면 마지막 줄을 `~/.zshrc` 또는 `~/.bashrc`에 추가하세요. Windows에서는 `npm install -g @flover124/hanx`를 실행하세요.
+
+Node.js 18 이상이 필요합니다. 앱도 설치하려면 `hanx setup --components all --yes`를 실행하세요. [공개 npm 패키지](https://www.npmjs.com/package/@flover124/hanx)에서 버전을 확인하세요.
 
 ### Homebrew
 
@@ -52,7 +54,7 @@ AI 에이전트의 MCP 연결에는 `hanx mcp`를 사용합니다. [CLI 안내](
 
 ### 업데이트
 
-npm으로 설치했다면 `npm install -g @juyoungsuh/hanx`를 다시 실행합니다. Homebrew로 설치했다면 다음 명령을 실행합니다.
+npm으로 설치했다면 `npm install -g @flover124/hanx`를 다시 실행합니다. Homebrew로 설치했다면 다음 명령을 실행합니다.
 
 ```sh
 brew update
@@ -61,11 +63,11 @@ brew upgrade hanx
 
 ### macOS 앱 설치
 
-최신 앱은 [릴리스](https://github.com/FLOVER124/HanX/releases/tag/v2.13.1)의 `HanX-2.13.1-macOS.zip` 또는 npm / Homebrew로 설치하세요. [macOS pkg](https://github.com/FLOVER124/HanX/releases/download/v2.13.1/HanX-2.13.1.pkg)는 GUI와 CLI를 함께 설치합니다. npm과 Homebrew는 `hanx setup`에서 GUI와 CLI 구성을 선택합니다.
+최신 앱은 [릴리스](https://github.com/FLOVER124/HanX/releases/tag/v2.13.2)의 `HanX-2.13.2-macOS.zip` 또는 npm / Homebrew로 설치하세요. [macOS pkg](https://github.com/FLOVER124/HanX/releases/download/v2.13.2/HanX-2.13.2.pkg)는 GUI와 CLI를 함께 설치합니다. npm과 Homebrew는 `hanx setup`에서 GUI와 CLI 구성을 선택합니다.
 
 ## Windows와 Linux 앱 설치
 
-[릴리스](https://github.com/FLOVER124/HanX/releases/tag/v2.13.1)에서 Windows Setup.exe, Linux AppImage 또는 Debian 패키지를 제공합니다. Windows 설치 마법사에서는 GUI와 CLI를 선택할 수 있습니다. Linux CLI 압축 파일의 `install-cli.sh`에서도 구성을 고릅니다.
+[릴리스](https://github.com/FLOVER124/HanX/releases/tag/v2.13.2)에서 Windows Setup.exe, Linux AppImage 또는 Debian 패키지를 제공합니다. Windows 설치 마법사에서는 GUI와 CLI를 선택할 수 있습니다. Linux CLI 압축 파일의 `install-cli.sh`에서도 구성을 고릅니다.
 
 Windows/Linux PDF 출력에는 로컬 PDF renderer, PDF 읽기에는 PDF text tools가 필요합니다. 설치 화면에서 PDF 도구를 선택한 경우에만 추가 설치합니다. macOS 기본 네이티브 배포판은 PDF 처리를 포함합니다.
 
@@ -130,4 +132,4 @@ npm 패키지는 `packaging/npm`에서 빌드된 네이티브 실행 파일을 �
 
 `--update`는 설치한 관리자로 CLI를 갱신합니다. 기존 설정에서 GUI를 선택한 경우 앱도 갱신합니다. 권한이 부족하면 설치 관리자 오류를 표시하며 관리자 권한으로 자동 재실행하지 않습니다. ZIP이나 설치 파일로 직접 설치한 앱과 독립 CLI는 최신 다운로드로 교체하세요.
 
-이 명령이 없는 이전 배포판은 한 번만 `npm install -g @juyoungsuh/hanx@latest` 또는 `brew update && brew upgrade hanx`로 갱신하세요.
+이 명령이 없는 이전 배포판은 한 번만 `npm install -g @flover124/hanx@latest` 또는 `brew update && brew upgrade hanx`로 갱신하세요.
