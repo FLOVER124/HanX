@@ -35,16 +35,20 @@ hanx convert "매출.xlsx" --output "매출.pdf"
 
 macOS 13 이상(Apple Silicon/Intel), Windows x64, Ubuntu 22.04 이상 x64를 대상으로 합니다. npm에는 Node.js 18 이상이 필요합니다.
 
+macOS와 Linux에서 npm을 사용자 폴더에 설치하도록 설정합니다.
+
 ```sh
-npm install -g @juyoungsuh/hanx
-hanx setup
+npm config set prefix "$HOME/.npm-global" &&
+npm install -g @juyoungsuh/hanx &&
+export PATH="$HOME/.npm-global/bin:$PATH"
 ```
+
+새 터미널에도 적용하려면 마지막 줄을 `~/.zshrc` 또는 `~/.bashrc`에 추가하세요. Windows에서는 `npm install -g @juyoungsuh/hanx`를 실행하세요.
 
 macOS와 Linux의 Homebrew에서는 다음 명령을 사용합니다. Windows에서는 npm 또는 Setup.exe를 사용하세요.
 
 ```sh
-brew install FLOVER124/tap/hanx
-hanx setup
+HOMEBREW_NO_ASK=1 brew install FLOVER124/tap/hanx
 ```
 
 설치 화면에서 방향키와 Enter로 GUI만, CLI만, 둘 다를 선택합니다. 패키지 관리자가 터미널 입력을 연결하지 않는 경우 CLI를 먼저 준비하며 `hanx setup`에서 선택을 이어갑니다. 자동 설치는 다음 옵션을 사용합니다.

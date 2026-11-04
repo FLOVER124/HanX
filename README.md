@@ -17,21 +17,25 @@ CLI는 npm과 Homebrew 설치를 지원합니다. macOS 13 이상(Apple Silicon/
 
 ### npm
 
+macOS와 Linux에서 npm을 사용자 폴더에 설치하도록 설정합니다.
+
 ```sh
-npm install -g @juyoungsuh/hanx
-hanx setup
+npm config set prefix "$HOME/.npm-global" &&
+npm install -g @juyoungsuh/hanx &&
+export PATH="$HOME/.npm-global/bin:$PATH"
 ```
 
-Node.js 18 이상이 필요합니다. 설치 화면에서 GUI만, CLI만, 둘 다를 선택합니다. [공개 npm 패키지](https://www.npmjs.com/package/@juyoungsuh/hanx)에서 버전을 확인하세요.
+새 터미널에도 적용하려면 마지막 줄을 `~/.zshrc` 또는 `~/.bashrc`에 추가하세요. Windows에서는 `npm install -g @juyoungsuh/hanx`를 실행하세요.
+
+Node.js 18 이상이 필요합니다. 앱도 설치하려면 `hanx setup --components all --yes`를 실행하세요. [공개 npm 패키지](https://www.npmjs.com/package/@juyoungsuh/hanx)에서 버전을 확인하세요.
 
 ### Homebrew
 
 ```sh
-brew install FLOVER124/tap/hanx
-hanx setup
+HOMEBREW_NO_ASK=1 brew install FLOVER124/tap/hanx
 ```
 
-[공개 tap](https://github.com/FLOVER124/homebrew-tap)은 macOS와 Linux를 지원하며 설정 실행기에 Node.js를 사용합니다. Windows에서는 npm 또는 Setup.exe를 사용하세요.
+[공개 tap](https://github.com/FLOVER124/homebrew-tap)은 macOS와 Linux를 지원하며 설정 실행기에 Node.js를 사용합니다. 위 명령은 설치 확인 없이 CLI를 설치합니다. 앱도 설치하려면 `hanx setup --components all --yes`를 실행하세요. Windows에서는 npm 또는 Setup.exe를 사용하세요.
 
 ### 설치 확인
 
