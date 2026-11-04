@@ -5,7 +5,7 @@ HanX 2.9 uses the same local Swift document, spreadsheet, conversion and MCP eng
 ## Install
 
 ```sh
-npm install -g @juyoungsuh/hanx
+npm install -g @flover124/hanx
 hanx setup
 ```
 
