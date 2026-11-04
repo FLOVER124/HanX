@@ -50,7 +50,7 @@ jobs:
           version=$(node -p "require('./packaging/npm/package.json').version")
           package="@juyoungsuh/hanx@$version"
           if [ "$PACKAGE_SOURCE" = "release" ]; then
-            package="https://github.com/StudentsView/HanX/releases/download/v$version/juyoungsuh-hanx-$version.tgz"
+            package="https://github.com/FLOVER124/HanX/releases/download/v$version/juyoungsuh-hanx-$version.tgz"
           fi
           npm install --prefix build/published --foreground-scripts --no-audit --no-fund "$package"
       - name: Verify installed components, editing, conversion and AI tools
@@ -60,8 +60,8 @@ jobs:
       - name: Verify the public Homebrew formula
         if: runner.os == 'Linux'
         run: |
-          brew install StudentsView/tap/hanx
-          brew test StudentsView/tap/hanx
+          brew install FLOVER124/tap/hanx
+          brew test FLOVER124/tap/hanx
           hanx setup --components cli --yes
           hanx --version
       - uses: actions/upload-artifact@v4

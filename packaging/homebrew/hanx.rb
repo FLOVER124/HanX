@@ -1,24 +1,24 @@
 class Hanx < Formula
   desc "Local office document CLI, desktop setup, and MCP tools"
-  homepage "https://studentsview.github.io/HanX/"
-  version "2.13.0"
+  homepage "https://hanx.io/"
+  version "2.13.1"
   license "MIT"
 
   on_macos do
-    url "https://github.com/StudentsView/HanX/releases/download/v2.13.0/HanX-CLI-2.13.0-macOS.zip"
+    url "https://github.com/FLOVER124/HanX/releases/download/v2.13.1/HanX-CLI-2.13.1-macOS.zip"
     sha256 "c5e2f218d27989a0cf646d4c317c449b747462c0d736dc95a2e67958a034af00"
     depends_on :macos => :ventura
   end
   on_linux do
     on_intel do
-      url "https://github.com/StudentsView/HanX/releases/download/v2.13.0/HanX-CLI-2.13.0-linux-x64.tar.gz"
+      url "https://github.com/FLOVER124/HanX/releases/download/v2.13.1/HanX-CLI-2.13.1-linux-x64.tar.gz"
       sha256 "0e3918ec73c81818cde0a6592e2057816b1e80ddc1f79cc0db8c5f9f932f16d1"
     end
   end
   depends_on "node"
 
   resource "setup" do
-    url "https://github.com/StudentsView/HanX/releases/download/v2.13.0/HanX-Setup-2.13.0.tar.gz"
+    url "https://github.com/FLOVER124/HanX/releases/download/v2.13.1/HanX-Setup-2.13.1.tar.gz"
     sha256 "1dc104602bc4e856d1ecb5f8c7608ed8659eaf584ecb5d7b87ebf545e19700f7"
   end
 

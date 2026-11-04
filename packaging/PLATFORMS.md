@@ -9,7 +9,7 @@ npm install -g @juyoungsuh/hanx
 hanx setup
 ```
 
-The setup screen offers CLI, GUI or both. Use `hanx setup --components all --yes` for unattended installation; `cli` and `gui` are also accepted. Ordinary npm lifecycle output is usually not a terminal, so it installs the CLI and prints the setup command rather than waiting for invisible input. Homebrew uses the same setup launcher after `brew install StudentsView/tap/hanx`. Homebrew is available on macOS and Linux; Windows uses npm or the native setup wizard.
+The setup screen offers CLI, GUI or both. Use `hanx setup --components all --yes` for unattended installation; `cli` and `gui` are also accepted. Ordinary npm lifecycle output is usually not a terminal, so it installs the CLI and prints the setup command rather than waiting for invisible input. Homebrew uses the same setup launcher after `brew install FLOVER124/tap/hanx`. Homebrew is available on macOS and Linux; Windows uses npm or the native setup wizard.
 
 GUI-only retains the small `hanx setup` / `hanx gui` launcher and disables terminal document commands. The GUI keeps its private native engine for editing and AI connections. Setup downloads matching versioned release files and verifies SHA256 before installation. Existing unowned files are preserved.
 
@@ -62,3 +62,5 @@ Windows/Linux PDF output uses a local LibreOffice installation. PDF text import 
 ## Verification and release
 
 `.github/workflows/platforms.yml` builds on Windows 2022 and Ubuntu 22.04. It verifies office round trips, Korean paths, PDF conversion, formulas, MCP, native GUI editing/saving, runtime staging and installation choices before producing release candidates. `verify-release.yml` checks the published npm installation and downloaded GUI on the same platforms. Public assets and `hanx-install-manifest.json` must share the exact package version and filenames; Homebrew hashes are generated from those tested assets.
+
+Existing `studentsview/tap` installs keep their installed formula identity. `hanx --update` reads the Homebrew receipt and points that legacy tap at `https://github.com/FLOVER124/homebrew-tap.git` before updating. New installations use `FLOVER124/tap/hanx`. For an older launcher, run `brew tap --custom-remote studentsview/tap https://github.com/FLOVER124/homebrew-tap.git`, then `brew update` and `brew upgrade studentsview/tap/hanx` once. App bundle IDs and the `.hanx` UTI stay unchanged so existing installations and document associations remain compatible.

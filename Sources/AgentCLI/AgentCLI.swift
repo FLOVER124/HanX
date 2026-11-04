@@ -7,7 +7,7 @@ import FoundationNetworking
 #endif
 
 enum AgentCLI {
-    static let commands:Set<String>=["--update","update","--check-update","--convert","--help","-h","help","--version","version","capabilities","schema","read","create","edit","convert","xml","package","spreadsheet","mcp","serve"]
+    static let commands:Set<String>=["--delete","--uninstall","uninstall","--update","update","--check-update","--convert","--help","-h","help","--version","version","capabilities","schema","read","create","edit","convert","xml","package","spreadsheet","mcp","serve"]
     static var help: String {
         let rows: [(String, String)] = [
             ("시작 화면", "hanx"),
@@ -15,6 +15,8 @@ enum AgentCLI {
             ("도움말", "hanx --help"),
             ("버전과 최신 여부", "hanx --version"),
             ("업데이트", "hanx --update (npm / Homebrew)"),
+            ("앱과 CLI 삭제", "hanx --delete  (Y/N 확인)"),
+            ("삭제 미리보기", "hanx --delete --dry-run"),
             ("최신 배포 확인", "hanx --check-update"),
             ("지원 기능", "hanx capabilities --pretty"),
             ("변환", "hanx convert 원본.hwp --output 결과.docx"),
@@ -42,9 +44,9 @@ enum AgentCLI {
             ("표준 입력", "--spec - / --ops -"),
             ("HWPML 출력", "--xml-format hwpml"),
             ("PDF 입력", "텍스트 추출 / 배치 복원 / OCR 미지원"),
-            ("문서 형식", "HWP / DOCX / HWPX / HWPML / PDF / TXT / MD / JSON"),
-            ("스프레드시트 형식", "XLSX / CSV / TSV / PDF / JSON"),
-            ("슬라이드", "PPTX / PDF / JSON"),
+            ("문서 형식", "HANX / HWP / DOCX / HWPX / HWPML / PDF / TXT / MD / JSON"),
+            ("스프레드시트 형식", "HANX / XLSX / CSV / TSV / PDF / JSON"),
+            ("슬라이드", "HANX / PPTX / PDF / JSON"),
             ("XML 형식", "일반 XML / HWPML / Flat OPC"),
             ("변환 범위", "같은 문서 종류의 지원 형식 간 변환"),
             ("상대 경로", "현재 터미널 폴더 기준"),
@@ -57,7 +59,7 @@ enum AgentCLI {
                 return total + (wide ? 2 : 1)
             }
         }
-        let left = 12
+        let left = (["기능", "옵션 / 형식"] + (rows + options).map { $0.0 }).map(width).max() ?? 12
         let right = (rows + options).map { width($0.1) }.max() ?? 60
         func pad(_ text: String, _ count: Int) -> String {
             text + String(repeating: " ", count: max(0, count - width(text)))
@@ -228,6 +230,7 @@ enum AgentCLI {
         }
     }
     static func run(_ argv:[String])->Int32 {
+        if let command=argv.first,["--delete","--uninstall","uninstall"].contains(command) { return AgentUninstall.run(Array(argv.dropFirst())) }
         if let command=argv.first,["--update","update","--check-update"].contains(command) {
             guard argv.count == 1 else { print("지원하지 않는 업데이트 옵션입니다.");return 2 }
             return AgentUpdate.run(command)

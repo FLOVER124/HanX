@@ -6,7 +6,7 @@ const crypto = require('node:crypto');
 const readline = require('node:readline');
 const { spawn } = require('node:child_process');
 const VERSION = require('../package.json').version;
-const RELEASE = `https://github.com/StudentsView/HanX/releases/download/v${VERSION}/`;
+const RELEASE = `https://github.com/FLOVER124/HanX/releases/download/v${VERSION}/`;
 function platformKey(platform = process.platform, arch = process.arch) {
   if (!['darwin','linux','win32'].includes(platform) || !['x64','arm64'].includes(arch)) throw new Error(`Unsupported HanX platform: ${platform}-${arch}`);
   return `${platform}-${arch}`;

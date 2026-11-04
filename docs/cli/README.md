@@ -1,4 +1,4 @@
-# HanX CLI 2.10.0
+# HanX CLI 2.13.1
 
 새 문서, 스프레드시트, 프레젠테이션의 기본 로컬 확장자는 `.hanx`입니다. 파일에 기록한 종류에 따라 편집기가 열립니다. `hanx read "작업.hanx"`로 종류와 내용을 확인하고, `hanx convert "발표.hanx" --output "발표.pptx"`처럼 같은 종류의 다른 형식으로 내보낼 수 있습니다.
 
@@ -43,7 +43,7 @@ hanx setup
 macOS와 Linux의 Homebrew에서는 다음 명령을 사용합니다. Windows에서는 npm 또는 Setup.exe를 사용하세요.
 
 ```sh
-brew install StudentsView/tap/hanx
+brew install FLOVER124/tap/hanx
 hanx setup
 ```
 
@@ -62,9 +62,9 @@ Linux AppImage를 GUI만 설치한 경우 AI 연결을 사용하는 동안 HanX 
 
 Windows/Linux의 PDF 출력에는 로컬 PDF renderer, PDF 읽기에는 PDF text tools가 필요합니다. 설치 화면에서 PDF 도구를 선택하거나 `--pdf-dependencies`를 명시한 경우에만 추가 도구를 설치합니다. macOS 기본 네이티브 배포판에는 PDF 처리 기능이 포함돼 있습니다. 설치 여부는 `hanx capabilities --pretty`의 pdf 항목으로 확인하세요.
 
-최신 GUI 앱은 npm 또는 Homebrew 설치 후 `hanx setup`으로 설치하거나 [HanX 릴리스](https://github.com/StudentsView/HanX/releases)의 `HanX-2.13.0-macOS.zip`을 사용하세요. GUI와 CLI를 함께 설치하는 pkg는 `HanX-2.13.0.pkg`입니다. pkg는 앱을 `/Applications/HanX.app`에 설치하고 `/usr/local/bin`의 비어 있는 `hanx`와 `hanx-cli` 명령을 연결합니다. Homebrew와 npm은 CLI를 설치하며 해당 도구로 업데이트합니다. 다른 방식으로 설치한 기존 명령을 자동으로 덮어쓰지 않습니다.
+최신 GUI 앱은 npm 또는 Homebrew 설치 후 `hanx setup`으로 설치하거나 [HanX 릴리스](https://github.com/FLOVER124/HanX/releases)의 `HanX-2.13.1-macOS.zip`을 사용하세요. GUI와 CLI를 함께 설치하는 pkg는 `HanX-2.13.1.pkg`입니다. pkg는 앱을 `/Applications/HanX.app`에 설치하고 `/usr/local/bin`의 비어 있는 `hanx`와 `hanx-cli` 명령을 연결합니다. Homebrew와 npm은 CLI를 설치하며 해당 도구로 업데이트합니다. 다른 방식으로 설치한 기존 명령을 자동으로 덮어쓰지 않습니다.
 
-독립 CLI는 릴리스의 `HanX-CLI-2.13.0-macOS.zip`으로도 제공합니다. ZIP을 풀고 해당 폴더에서 `./install-cli.sh`를 실행하세요. 설치 없이 `./hanx --help`로 바로 실행할 수도 있습니다. 기본 설치 위치는 `~/Library/Application Support/HanX/CLI/2.13.0`이며 `~/.local/bin/hanx`와 `hanx-cli` 명령을 연결합니다.
+독립 CLI는 릴리스의 `HanX-CLI-2.13.1-macOS.zip`으로도 제공합니다. ZIP을 풀고 해당 폴더에서 `./install-cli.sh`를 실행하세요. 설치 없이 `./hanx --help`로 바로 실행할 수도 있습니다. 기본 설치 위치는 `~/Library/Application Support/HanX/CLI/2.13.1`이며 `~/.local/bin/hanx`와 `hanx-cli` 명령을 연결합니다.
 
 설치 후 터미널에서 `hanx --help` 또는 `hanx capabilities --pretty`를 실행하세요. CLI 사용에는 PATH의 `hanx`를 쓰고, MCP 설정에는 설치 시 출력한 절대 경로를 쓰세요. PATH에 사용자 bin 폴더가 없으면 현재 셸에서 `export PATH="$HOME/.local/bin:$PATH"`를 실행할 수 있습니다.
 
@@ -79,7 +79,7 @@ hanx create --spec examples/presentation.json --output 발표.pptx
 
 예제 파일: [문서 명세](examples/document.json), [문서 수정](examples/document-edits.json), [스프레드시트 명세](examples/spreadsheet.json), [스프레드시트 수정](examples/spreadsheet-edits.json), [프레젠테이션](examples/presentation.json), [XML 수정](examples/xml-edits.json). 예제를 내려받고 명령의 경로를 해당 파일 위치에 맞추세요.
 
-명세와 작업은 JSON 파일로 주거나 `--spec -`, `--ops -`로 표준 입력에서 받습니다. 보통 응답은 `{"ok":true,"version":"2.10.0","data":...}` 형식입니다. 실패는 `{"ok":false,"error":{"code":...,"message":...}}`와 0이 아닌 종료 코드로 알립니다. `read --text`는 텍스트만 출력합니다. `--no-model`은 큰 native model 및 내장 그림의 base64를 응답에서 제외합니다.
+명세와 작업은 JSON 파일로 주거나 `--spec -`, `--ops -`로 표준 입력에서 받습니다. 보통 응답은 `{"ok":true,"version":"2.13.1","data":...}` 형식입니다. 실패는 `{"ok":false,"error":{"code":...,"message":...}}`와 0이 아닌 종료 코드로 알립니다. `read --text`는 텍스트만 출력합니다. `--no-model`은 큰 native model 및 내장 그림의 base64를 응답에서 제외합니다.
 
 파일은 output에 저장합니다. 기존 출력이 있으면 기본적으로 거부하며 `--force`를 명시했을 때만 교체합니다. `--force`와 원본 경로를 함께 지정하면 원본도 교체할 수 있으니 에이전트에는 새 경로를 주는 것이 좋습니다. 한 번의 edit 작업이 실패하면 결과를 저장하지 않습니다. 숫자 인덱스는 0부터 시작하며 길이는 pt, 시간은 초, 색은 RRGGBB입니다.
 
@@ -257,7 +257,7 @@ MCP 도구는 `hanx_capabilities`, `hanx_read`, `hanx_create`, `hanx_edit`, `han
 
 ### 슬라이드 동영상과 문단, 행과 열 편집
 
-다음 항목은 2.10.0 이후 소스에 추가됐으며 다음 빌드부터 사용할 수 있습니다.
+다음 편집 작업은 HanX CLI 2.13.1에서 사용할 수 있습니다.
 
 | 작업 | 편집 작업 JSON |
 | --- | --- |
@@ -287,4 +287,19 @@ MCP 도구는 `hanx_capabilities`, `hanx_read`, `hanx_create`, `hanx_edit`, `han
 
 `--update`는 설치한 관리자로 CLI를 갱신합니다. 기존 설정에서 GUI를 선택한 경우 앱도 갱신합니다. 권한이 부족하면 설치 관리자 오류를 표시하며 관리자 권한으로 자동 재실행하지 않습니다. ZIP이나 설치 파일로 직접 설치한 앱과 독립 CLI는 최신 다운로드로 교체하세요.
 
-이 명령이 없는 이전 배포판은 한 번만 `npm install -g @juyoungsuh/hanx@latest` 또는 `brew update && brew upgrade StudentsView/tap/hanx`로 갱신하세요.
+이 명령이 없는 이전 배포판은 한 번만 `npm install -g @juyoungsuh/hanx@latest` 또는 `brew update && brew upgrade hanx`로 갱신하세요.
+
+
+## 앱과 CLI 삭제
+
+| 작업 | 명령 |
+| --- | --- |
+| 삭제 대상 미리보기 | `hanx --delete --dry-run` |
+| 앱, CLI와 설정 삭제 | `hanx --delete` |
+| 같은 명령의 다른 표기 | `hanx --uninstall` |
+
+먼저 HanX에서 문서를 저장하고 앱을 종료하세요. 삭제 목록을 확인하고 `Y`를 입력한 뒤 Enter를 누르면 제거합니다. `N`, 빈 입력, 입력 종료는 취소입니다. 확인을 생략하는 `--yes` 옵션은 제공하지 않습니다.
+
+현재 사용자의 설치와 확인 가능한 공용 설치를 대상으로 합니다. npm, Homebrew, Windows 설치 마법사, Debian 설치는 해당 설치 관리자를 통해 제거합니다. Windows에서는 실행 파일 잠금 때문에 별도 삭제 창에서 최종 결과를 표시합니다. 공용 경로에는 운영체제의 관리자 인증이 필요할 수 있습니다. 오류가 발생하면 남은 항목을 확인하고 다시 실행하세요.
+
+작성한 문서, 소스 코드, 다른 사용자의 설치와 별도로 설치한 PDF 도구는 삭제하지 않습니다. 직접 설치한 폴더에서는 알려진 HanX 파일만 지우고 그 안의 다른 파일은 보존합니다. 설정과 앱 캐시는 삭제됩니다. 외부 AI 클라이언트의 설정 파일은 자동 수정하지 않으므로 해당 클라이언트에서 HanX 연결을 해제하세요.

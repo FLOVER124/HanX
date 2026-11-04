@@ -10,7 +10,22 @@ function latest(){return new Promise((resolve,reject)=>{
  });const timer=setTimeout(()=>request.destroy(Error('최신 버전 확인 시간이 초과됐습니다.')),5000);request.once('close',()=>clearTimeout(timer));request.on('error',reject);
 });}
 function channel(root){const real=fs.realpathSync(root).replaceAll('\\','/');return /\/(Cellar|opt)\/hanx\//.test(real)?'brew':'npm';}
-function plan(kind,version){compare(version,version);return kind==='brew'?[[process.platform==='win32'?'brew.exe':'brew',['update']],['brew',['upgrade','StudentsView/tap/hanx']]]:[[process.platform==='win32'?'npm.cmd':'npm',['install','--global',PACKAGE+'@'+version]]];}
+function brewTap(root){
+ const receipt=path.join(fs.realpathSync(root),'..','INSTALL_RECEIPT.json');
+ const tap=JSON.parse(fs.readFileSync(receipt,'utf8')).source?.tap;
+ if(typeof tap!=='string'||!/^[a-z0-9][a-z0-9_.-]*\/[a-z0-9][a-z0-9_.-]*$/i.test(tap))throw Error('Homebrew 설치 정보를 확인할 수 없습니다. brew upgrade hanx를 실행하세요.');
+ return tap.toLowerCase();
+}
+function plan(kind,version,tap='flover124/tap'){
+ compare(version,version);
+ if(kind!=='brew')return [[process.platform==='win32'?'npm.cmd':'npm',['install','--global',PACKAGE+'@'+version]]];
+ if(typeof tap!=='string'||!/^[a-z0-9][a-z0-9_.-]*\/[a-z0-9][a-z0-9_.-]*$/i.test(tap))throw Error('올바르지 않은 Homebrew tap입니다.');
+ tap=tap.toLowerCase();
+ const brew=process.platform==='win32'?'brew.exe':'brew',steps=[];
+ // Keep the installed formula's identity while moving its legacy tap remote.
+ if(tap==='studentsview/tap')steps.push([brew,['tap','--custom-remote',tap,'https://github.com/FLOVER124/homebrew-tap.git']]);
+ return [...steps,[brew,['update']],[brew,['upgrade',tap+'/hanx']]];
+}
 function run(file,args){return new Promise((resolve,reject)=>{
  // Windows npm is a .cmd launcher; use its JS entry with Node, without a shell.
  if(process.platform==='win32'&&file==='npm.cmd') {const npm=path.join(path.dirname(process.execPath),'node_modules','npm','bin','npm-cli.js');if(!fs.existsSync(npm)){reject(Error('npm 실행 파일을 찾을 수 없습니다. npm install -g @juyoungsuh/hanx@latest 를 실행하세요.'));return;}args=[npm,...args];file=process.execPath;}
@@ -29,7 +44,7 @@ async function update({root,current,fetchLatest=latest,execute=run,kind=channel(
  const stableRoot=root.replace(/([/\\])Cellar[/\\]hanx[/\\][^/\\]+/, '$1opt/hanx');
  let updatedRoot=root;
  if(info.updateAvailable){
-  for(const [file,args] of plan(kind,info.latestVersion))await execute(file,args);
+  for(const [file,args] of plan(kind,info.latestVersion,kind==='brew'?brewTap(root):undefined))await execute(file,args);
   updatedRoot=kind==='brew'?fs.realpathSync(stableRoot):path.join((await npmPrefix()),'node_modules',...PACKAGE.split('/'));
   if(JSON.parse(fs.readFileSync(path.join(updatedRoot,'package.json'),'utf8')).version!==info.latestVersion)throw Error('설치 관리자의 배포 버전이 아직 갱신되지 않았습니다. 잠시 후 다시 시도하세요.');
  }
@@ -37,4 +52,4 @@ async function update({root,current,fetchLatest=latest,execute=run,kind=channel(
  console.log(`HanX ${info.latestVersion}  Up to date`);return info;
 }
 async function npmPrefix(){const {execFile}=require('node:child_process');return new Promise((resolve,reject)=>{const file=process.platform==='win32'?process.execPath:'npm';const args=process.platform==='win32'?[path.join(path.dirname(process.execPath),'node_modules/npm/bin/npm-cli.js'),'root','--global']:['root','--global'];execFile(file,args,{timeout:10000},(error,stdout)=>error?reject(error):resolve(path.dirname(stdout.trim())));});}
-module.exports={compare,latest,channel,plan,check,update};
+module.exports={compare,latest,channel,brewTap,plan,check,update};

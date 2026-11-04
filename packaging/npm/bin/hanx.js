@@ -21,6 +21,9 @@ async function main() {
   const setup = require('../lib/setup.js');
   const command = process.argv[2];
   try {
+    if (['--delete','--uninstall','uninstall'].includes(command)) {
+      process.exitCode=await require('../lib/uninstall.js').uninstall(path.resolve(__dirname,'..'),process.argv.slice(3));return;
+    }
     if (['--update','update','--check-update','--version','version'].includes(command)) {
       const updater=require('../lib/update.js'),current=require('../package.json').version;
       const args=process.argv.slice(3);

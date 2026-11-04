@@ -55,6 +55,11 @@ jobs:
           node-version: '22'
       - name: Build native engine
         run: swift build -c release
+      - name: Uninstall ownership and confirmation tests
+        shell: bash
+        run: |
+          swiftc Sources/AgentCLI/AgentUninstall.swift Tests/Uninstall/main.swift -o uninstall-test${{ runner.os == 'Windows' && '.exe' || '' }}
+          ./uninstall-test${{ runner.os == 'Windows' && '.exe' || '' }}
       - name: Linux runtime staging
         if: runner.os == 'Linux'
         run: |

@@ -89,3 +89,5 @@ try {
   $aliasVersion = (& (Join-Path $destination 'hanx-cli.cmd') --version | ConvertFrom-Json)
   if ($LASTEXITCODE -ne 0 -or $aliasVersion.data.version -ne ((Get-Content (Join-Path $PSScriptRoot '../npm/package.json') -Raw | ConvertFrom-Json).version)) { throw 'Staged hanx-cli alias failed without developer tools' }
 } finally { $env:Path = $savedPath }
+
+@{ product = 'HanX'; runtimeFiles = @(Get-ChildItem $destination -Filter '*.dll' | ForEach-Object { $_.Name }) } | ConvertTo-Json | Set-Content -Encoding utf8 (Join-Path $destination 'HANX-INSTALL.json')

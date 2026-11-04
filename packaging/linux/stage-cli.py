@@ -60,3 +60,5 @@ for repository, filename in [('swift','LICENSE.txt'), ('swift-foundation','LICEN
 common = pathlib.Path('/usr/share/common-licenses')
 if common.is_dir():
     shutil.copytree(common, licenses / 'debian-common-licenses', dirs_exist_ok=True)
+
+(out / 'HANX-INSTALL.json').write_text('{"product":"HanX"}\n')

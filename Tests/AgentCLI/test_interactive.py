@@ -39,6 +39,14 @@ class Interactive(unittest.TestCase):
     def test_start_screen_differs_from_help(self):
         a=subprocess.run([str(BIN)],capture_output=True,text=True);b=subprocess.run([str(BIN),'--help'],capture_output=True,text=True)
         self.assertEqual(a.returncode,0);self.assertNotEqual(a.stdout,b.stdout);self.assertIn('hanx --convert',a.stdout)
+    def test_help_box_columns_align(self):
+        output=subprocess.check_output([str(BIN),'--help'],text=True)
+        width=lambda s:sum(2 if unicodedata.east_asian_width(c) in ('W','F') else 0 if unicodedata.combining(c) else 1 for c in s)
+        lines=[line for line in output.splitlines() if line.startswith(('│','┌','├','└'))]
+        self.assertEqual(len({width(line) for line in lines}),1)
+        separators=[width(line[:line.index('│',1)]) for line in lines if line.startswith('│')]
+        self.assertEqual(len(set(separators)),1)
+
     def test_non_terminal_does_not_hang(self):
         p=subprocess.run([str(BIN),'--convert'],input='',capture_output=True,text=True,timeout=3)
         self.assertNotEqual(p.returncode,0);self.assertIn('터미널',p.stdout+p.stderr)

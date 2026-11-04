@@ -74,6 +74,7 @@ fi
 if [ "$components" = cli ] || [ "$components" = all ]; then
   mkdir -p "$prefix/lib" "$prefix/bin"
   cp -R "$source_dir" "$target"
+  "$target/hanx" --version > "$target/HANX-CLI-INSTALL.json"
   ln -s "$target/hanx" "$prefix/bin/hanx"
   ln -s "$target/hanx" "$prefix/bin/hanx-cli"
   printf 'Installed terminal commands. Add %s/bin to PATH if needed.\n' "$prefix"

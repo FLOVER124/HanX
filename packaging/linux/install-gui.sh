@@ -8,7 +8,7 @@ while [ "$#" -gt 0 ]; do
 done
 case "$(uname -m)" in x86_64) arch=x64;; aarch64|arm64) arch=arm64;; *) echo 'No HanX GUI build for this architecture.' >&2; exit 1;; esac
 asset="HanX-${version}-linux-${arch}.AppImage"
-base="https://github.com/StudentsView/HanX/releases/download/v${version}"
+base="https://github.com/FLOVER124/HanX/releases/download/v${version}"
 target="$prefix/lib/hanx-gui/$version/$asset"
 desktop="$prefix/share/applications/hanx.desktop"
 for entry in "$target" "$desktop"; do [ ! -e "$entry" ] && [ ! -L "$entry" ] || { echo "Refusing to overwrite: $entry" >&2; exit 1; }; done

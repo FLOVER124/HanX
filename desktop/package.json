@@ -1,6 +1,6 @@
 {
   "name": "hanx-desktop",
-  "version": "2.13.0",
+  "version": "2.13.1",
   "description": "Local HanX document, spreadsheet and presentation editor",
   "main": "main.cjs",
   "private": true,
@@ -115,7 +115,7 @@
     },
     "publish": null
   },
-  "homepage": "https://studentsview.github.io/HanX/",
+  "homepage": "https://hanx.io/",
   "author": {
     "name": "HanX contributors",
     "email": "juyoungsuh@naver.com"

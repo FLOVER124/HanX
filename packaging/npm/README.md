@@ -32,7 +32,7 @@ hanx mcp
 
 AI 모델과 외부 API 키를 포함하거나 요구하지 않습니다. 사용 중인 로컬 AI 에이전트에서 CLI 또는 MCP를 연결하세요. GUI의 AI 연결 화면에서 내부 엔진 경로와 연결 설정을 확인할 수 있습니다.
 
-[전체 CLI 안내](https://studentsview.github.io/HanX/cli/) / [설치 파일](https://github.com/StudentsView/HanX/releases)
+[전체 CLI 안내](https://hanx.io/cli/) / [설치 파일](https://github.com/FLOVER124/HanX/releases)
 
 출력 경로를 명시하며 기본적으로 원본을 덮어쓰지 않습니다. 지원하지 않는 문서 개체와 함수가 있으므로 복사본에서 작업하고 결과를 확인하세요. PDF 입력은 텍스트 추출 방식이며 원본 배치 복원과 OCR은 지원하지 않습니다.
 

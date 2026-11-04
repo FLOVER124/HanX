@@ -36,6 +36,8 @@ if(process.platform==='linux'){
 call('setup','--components','gui','--yes');
 assert.equal(state().components,'gui');
 assert.equal(JSON.parse(call('--version')).data.version,version);
+assert.match(call('--delete','--dry-run'),/HanX 삭제/);
+assert.ok(fs.existsSync(gui),'Uninstall preview must preserve the GUI.');
 const disabled=spawnSync(process.execPath,[cli,'capabilities'],{encoding:'utf8',timeout:30000});
 assert.notEqual(disabled.status,0);
 assert.equal(JSON.parse(disabled.stderr).error.code,'cli_not_selected');

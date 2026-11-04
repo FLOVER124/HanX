@@ -1,15 +1,15 @@
 {
   "name": "@juyoungsuh/hanx",
-  "version": "2.13.0",
+  "version": "2.13.1",
   "description": "Local office CLI and MCP tools for spreadsheet formulas, HWP, DOCX and PPTX",
   "license": "MIT",
-  "homepage": "https://studentsview.github.io/HanX/",
+  "homepage": "https://hanx.io/",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/StudentsView/HanX.git"
+    "url": "git+https://github.com/FLOVER124/HanX.git"
   },
   "bugs": {
-    "url": "https://github.com/StudentsView/HanX/issues"
+    "url": "https://github.com/FLOVER124/HanX/issues"
   },
   "bin": {
     "hanx": "bin/hanx.js",

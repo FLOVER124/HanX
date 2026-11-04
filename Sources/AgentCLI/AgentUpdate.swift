@@ -48,7 +48,7 @@ enum AgentUpdate {
     static func run(_ command:String) -> Int32 {
         if command == "--update" || command == "update" {
             // Managed installations intercept this flag in their setup launcher.
-            let error:[String:Any] = ["ok":false,"error":["code":"standalone_update","message":"직접 설치한 CLI는 최신 다운로드로 교체하세요. npm 또는 Homebrew로 설치하면 hanx --update를 사용할 수 있습니다.","download":"https://github.com/StudentsView/HanX/releases/latest"]]
+            let error:[String:Any] = ["ok":false,"error":["code":"standalone_update","message":"직접 설치한 CLI는 최신 다운로드로 교체하세요. npm 또는 Homebrew로 설치하면 hanx --update를 사용할 수 있습니다.","download":"https://github.com/FLOVER124/HanX/releases/latest"]]
             if let data=try? AgentIO.json(error) { FileHandle.standardOutput.write(data);print("") }
             return 2
         }

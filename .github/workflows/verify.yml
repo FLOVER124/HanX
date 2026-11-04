@@ -13,6 +13,8 @@ jobs:
         run: ./build-cli.sh
       - name: CLI and MCP integration
         run: python3 -m unittest discover -s Tests/AgentCLI
+      - name: Uninstall ownership and confirmation tests
+        run: sh Tests/Uninstall/run.sh
       - name: Formula regression
         run: build/hanx-cli formula-suite Tests/formulas.tsv
       - name: Start screen behavior

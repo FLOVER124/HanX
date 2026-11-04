@@ -9,7 +9,7 @@ AI 에이전트 AI 클라이언트, AI 클라이언트 등을 이용해 모든 �
 GUI에서 문서, 도표와 프레젠테이션을 편집하고 CLI와 MCP로 같은 엔진을 호출합니다.
 형식별 지원 범위와 제한은 CLI 안내에서 확인할 수 있습니다.
 
-[설치와 화면 보기](https://studentsview.github.io/HanX/) | [CLI 안내](docs/cli/README.md) | [릴리스](https://github.com/StudentsView/HanX/releases)
+[설치와 화면 보기](https://hanx.io/) | [CLI 안내](docs/cli/README.md) | [릴리스](https://github.com/FLOVER124/HanX/releases)
 
 ## 설치
 
@@ -27,11 +27,11 @@ Node.js 18 이상이 필요합니다. 설치 화면에서 GUI만, CLI만, 둘 �
 ### Homebrew
 
 ```sh
-brew install StudentsView/tap/hanx
+brew install FLOVER124/tap/hanx
 hanx setup
 ```
 
-[공개 tap](https://github.com/StudentsView/homebrew-tap)은 macOS와 Linux를 지원하며 설정 실행기에 Node.js를 사용합니다. Windows에서는 npm 또는 Setup.exe를 사용하세요.
+[공개 tap](https://github.com/FLOVER124/homebrew-tap)은 macOS와 Linux를 지원하며 설정 실행기에 Node.js를 사용합니다. Windows에서는 npm 또는 Setup.exe를 사용하세요.
 
 ### 설치 확인
 
@@ -52,16 +52,16 @@ npm으로 설치했다면 `npm install -g @juyoungsuh/hanx`를 다시 실행합�
 
 ```sh
 brew update
-brew upgrade StudentsView/tap/hanx
+brew upgrade hanx
 ```
 
 ### macOS 앱 설치
 
-최신 앱은 [릴리스](https://github.com/StudentsView/HanX/releases/tag/v2.13.0)의 `HanX-2.13.0-macOS.zip` 또는 npm / Homebrew로 설치하세요. [macOS pkg](https://github.com/StudentsView/HanX/releases/download/v2.13.0/HanX-2.13.0.pkg)는 GUI와 CLI를 함께 설치합니다. npm과 Homebrew는 `hanx setup`에서 GUI와 CLI 구성을 선택합니다.
+최신 앱은 [릴리스](https://github.com/FLOVER124/HanX/releases/tag/v2.13.1)의 `HanX-2.13.1-macOS.zip` 또는 npm / Homebrew로 설치하세요. [macOS pkg](https://github.com/FLOVER124/HanX/releases/download/v2.13.1/HanX-2.13.1.pkg)는 GUI와 CLI를 함께 설치합니다. npm과 Homebrew는 `hanx setup`에서 GUI와 CLI 구성을 선택합니다.
 
 ## Windows와 Linux 앱 설치
 
-[릴리스](https://github.com/StudentsView/HanX/releases/tag/v2.13.0)에서 Windows Setup.exe, Linux AppImage 또는 Debian 패키지를 제공합니다. Windows 설치 마법사에서는 GUI와 CLI를 선택할 수 있습니다. Linux CLI 압축 파일의 `install-cli.sh`에서도 구성을 고릅니다.
+[릴리스](https://github.com/FLOVER124/HanX/releases/tag/v2.13.1)에서 Windows Setup.exe, Linux AppImage 또는 Debian 패키지를 제공합니다. Windows 설치 마법사에서는 GUI와 CLI를 선택할 수 있습니다. Linux CLI 압축 파일의 `install-cli.sh`에서도 구성을 고릅니다.
 
 Windows/Linux PDF 출력에는 로컬 PDF renderer, PDF 읽기에는 PDF text tools가 필요합니다. 설치 화면에서 PDF 도구를 선택한 경우에만 추가 설치합니다. macOS 기본 네이티브 배포판은 PDF 처리를 포함합니다.
 
@@ -126,4 +126,4 @@ npm 패키지는 `packaging/npm`에서 빌드된 네이티브 실행 파일을 �
 
 `--update`는 설치한 관리자로 CLI를 갱신합니다. 기존 설정에서 GUI를 선택한 경우 앱도 갱신합니다. 권한이 부족하면 설치 관리자 오류를 표시하며 관리자 권한으로 자동 재실행하지 않습니다. ZIP이나 설치 파일로 직접 설치한 앱과 독립 CLI는 최신 다운로드로 교체하세요.
 
-이 명령이 없는 이전 배포판은 한 번만 `npm install -g @juyoungsuh/hanx@latest` 또는 `brew update && brew upgrade StudentsView/tap/hanx`로 갱신하세요.
+이 명령이 없는 이전 배포판은 한 번만 `npm install -g @juyoungsuh/hanx@latest` 또는 `brew update && brew upgrade hanx`로 갱신하세요.
