@@ -274,6 +274,11 @@ enum AgentUninstall {
     }
     static func execute(_ command:Command) throws {
         let p=Process();p.executableURL=command.file;p.arguments=command.args
+        if command.file.lastPathComponent == "brew", command.args.first == "uninstall" {
+            var environment = ProcessInfo.processInfo.environment
+            environment["HOMEBREW_NO_AUTOREMOVE"] = "1"
+            p.environment = environment
+        }
         #if !os(Windows)
         if command.elevated,NSUserName() != "root",let sudo=find("sudo",Context()) { p.executableURL=sudo;p.arguments=[command.file.path]+command.args }
         #endif
