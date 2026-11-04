@@ -12,6 +12,16 @@
 <body><main><a class="guide-home" href="../"><img src="../images/hanx-icon.png" alt="">HanX 홈</a>
 <h1 dir="auto">HanX CLI 2.13.0</h1>
 <p dir="auto">로컬 AI 에이전트가 CLI 또는 MCP로 스프레드시트 파일의 셀과 범위를 읽고 수정하고 수식을 계산합니다. HWP, DOCX, HWPX, HWPML, PPTX와 XML도 읽고 생성하고 수정하고 변환합니다. 네이티브 엔진과 함께 제공되는 실행 라이브러리로 동작합니다. 네이티브 CLI 실행에는 Python, Node.js, AI API 키와 추가 유료 라이브러리가 필요하지 않습니다. npm으로 설치하는 경우에는 Node.js 18 이상이 필요합니다.</p>
+<h2>HanX 파일과 CLI 작업</h2>
+<p>새 문서, 프레젠테이션, 스프레드시트는 기본적으로 <code>.hanx</code>로 저장합니다. 파일에 저장된 종류를 읽어 알맞은 편집기로 엽니다. CLI와 MCP에서도 같은 파일을 읽고 수정할 수 있습니다.</p>
+<table><tr><th>작업</th><th>명령</th></tr>
+<tr><td>종류와 내용 확인</td><td><code>hanx read "작업.hanx" --no-model --pretty</code></td></tr>
+<tr><td>문서 생성</td><td><code>hanx create --spec examples/document.json --output "문서.hanx"</code></td></tr>
+<tr><td>슬라이드 배경 설정</td><td><code>hanx edit "발표.hanx" --ops examples/slide-background-edits.json --output "발표-수정.hanx"</code></td></tr>
+<tr><td>프레젠테이션 내보내기</td><td><code>hanx convert "발표.hanx" --output "발표.pptx"</code></td></tr>
+<tr><td>수식 계산</td><td><code>hanx spreadsheet eval "매출.hanx" --sheet 매출 --formula '=SUM(D2:D10)' --pretty</code></td></tr>
+</table>
+<p><a href="examples/slide-background-edits.json">배경 설정 예제</a>에서 색상, 중간 색상 위치, 각도와 전체 슬라이드 적용 여부를 지정합니다. 원본을 유지하려면 별도의 출력 경로를 사용하세요.</p>
 <h2>버전 확인과 업데이트</h2><table><tr><th>작업</th><th>명령</th></tr><tr><td>버전과 최신 여부</td><td><code>hanx --version</code></td></tr><tr><td>업데이트</td><td><code>hanx --update</code></td></tr><tr><td>최신 배포 조회</td><td><code>hanx --check-update</code></td></tr></table><p>npm과 Homebrew 설치를 지원합니다. 최신이면 Up to date를 표시합니다. 직접 설치한 앱과 CLI는 최신 다운로드로 교체하세요. 이전 버전은 설치 관리자로 한 번 갱신하세요.</p><h2>터미널에서 파일 변환</h2>
 <div class="highlight highlight-source-shell" dir="auto"><pre class="notranslate">hanx
 hanx --help
@@ -32,7 +42,7 @@ hanx setup</pre></div>
 hanx setup --components gui --yes
 hanx setup --components all --yes
 hanx gui</pre></div>
-<p dir="auto">GUI만 설치해도 작은 설정 실행기는 남습니다. 문서 처리 명령은 활성화하지 않으며 앱 내부 엔진은 GUI 및 MCP 연결에 사용합니다. GUI의 AI 연결 화면에서 설치된 엔진의 MCP 설정을 확인할 수 있습니다. 이미 사용하는 AI 클라이언트/AI 클라이언트/CLI 에이전트가 이 로컬 엔진을 호출하며 언어 모델이나 외부 AI API 키를 HanX가 요구하지 않습니다.</p>
+<p dir="auto">GUI만 설치해도 작은 설정 실행기는 남습니다. 문서 처리 명령은 활성화하지 않으며 앱 내부 엔진은 GUI 및 MCP 연결에 사용합니다. GUI의 AI 연결 화면에서 설치된 엔진의 MCP 설정을 확인할 수 있습니다. 사용 중인 AI 클라이언트나 CLI 에이전트가 이 로컬 엔진을 호출하며 언어 모델이나 외부 AI API 키를 HanX가 요구하지 않습니다.</p>
 <p dir="auto">Linux AppImage를 GUI만 설치한 경우 AI 연결을 사용하는 동안 HanX 앱을 열어 두세요. 앱을 닫고도 AI 에이전트를 사용하려면 CLI 또는 둘 다를 선택하세요.</p>
 <p dir="auto">Windows/Linux의 PDF 출력에는 로컬 PDF renderer, PDF 읽기에는 PDF text tools가 필요합니다. 설치 화면에서 PDF 도구를 선택하거나 <code class="notranslate">--pdf-dependencies</code>를 명시한 경우에만 추가 도구를 설치합니다. macOS 기본 네이티브 배포판에는 PDF 처리 기능이 포함돼 있습니다. 설치 여부는 <code class="notranslate">hanx capabilities --pretty</code>의 pdf 항목으로 확인하세요.</p>
 <p dir="auto">최신 GUI 앱은 npm 또는 Homebrew 설치 후 <code class="notranslate">hanx setup</code>으로 설치하거나 <a href="https://github.com/StudentsView/HanX/releases">HanX 릴리스</a>의 <code class="notranslate">HanX-2.13.0-macOS.zip</code>을 사용하세요. GUI와 CLI를 함께 설치하는 pkg는 <code class="notranslate">HanX-2.13.0.pkg</code>입니다. pkg는 앱을 <code class="notranslate">/Applications/HanX.app</code>에 설치하고 <code class="notranslate">/usr/local/bin</code>의 비어 있는 <code class="notranslate">hanx</code>와 <code class="notranslate">hanx-cli</code> 명령을 연결합니다. Homebrew와 npm은 CLI를 설치하며 해당 도구로 업데이트합니다. 다른 방식으로 설치한 기존 명령을 자동으로 덮어쓰지 않습니다.</p>
