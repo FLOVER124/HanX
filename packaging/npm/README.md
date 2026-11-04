@@ -4,12 +4,17 @@
 
 macOS 13 이상(Apple Silicon/Intel), Windows x64, Ubuntu 22.04 이상 x64를 대상으로 합니다. npm에는 Node.js 18 이상이 필요합니다.
 
+macOS와 Linux에서는 npm 설치 위치를 사용자 폴더로 설정합니다.
+
 ```sh
-npm install -g @juyoungsuh/hanx
-hanx setup
+npm config set prefix "$HOME/.npm-global" &&
+npm install -g @juyoungsuh/hanx &&
+export PATH="$HOME/.npm-global/bin:$PATH"
 ```
 
-방향키와 Enter로 GUI만, CLI만, 둘 다를 선택합니다. npm이 입력을 연결하지 않는 환경에서는 CLI를 먼저 준비합니다. 앱과 CLI는 각각 필요한 파일만 내려받고 SHA256을 확인합니다.
+새 터미널에서도 쓰려면 마지막 줄을 셸 시작 파일에 추가하세요. Windows에서는 `npm install -g @juyoungsuh/hanx`를 실행하세요.
+
+`hanx setup`에서 방향키와 Enter로 GUI만, CLI만, 둘 다를 선택할 수 있습니다. 아래 명령으로 항목을 지정하면 선택 화면을 건너뜁니다.
 
 ```sh
 hanx setup --components gui --yes
