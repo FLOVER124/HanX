@@ -11,7 +11,7 @@ app.on('window-all-closed',()=>{});
  try{
   await session.create('presentation');
   const preload=path.join(session.directory,'preload.cjs');
-  await fs.writeFile(preload,`const {contextBridge,ipcRenderer}=require('electron');contextBridge.exposeInMainWorld('hanx',{initial:()=>ipcRenderer.invoke('image-test-read'),edit:ops=>ipcRenderer.invoke('image-test-edit',ops),reportError:message=>ipcRenderer.invoke('image-test-error',message),undo:redo=>ipcRenderer.invoke('image-test-undo',redo),onAction:()=>{}});`);
+  await fs.writeFile(preload,`const {contextBridge,ipcRenderer}=require('electron');contextBridge.exposeInMainWorld('hanx',{initial:()=>ipcRenderer.invoke('image-test-read'),edit:ops=>ipcRenderer.invoke('image-test-edit',ops),reportError:message=>ipcRenderer.invoke('image-test-error',message),undo:redo=>ipcRenderer.invoke('image-test-undo',redo),onOpened:()=>{},onAction:()=>{}});`);
   const errors=[];ipcMain.handle('image-test-read',()=>session.read());ipcMain.handle('image-test-edit',(_e,ops)=>session.edit(ops));ipcMain.handle('image-test-undo',(_e,redo)=>session.undo(redo));ipcMain.handle('image-test-error',(_e,message)=>errors.push(message));
   win=new BrowserWindow({show:true,width:1200,height:850,webPreferences:{preload,contextIsolation:true,nodeIntegration:false,sandbox:true,backgroundThrottling:false}});
   win.webContents.on('console-message',(_event,...args)=>{const message=typeof args[0]==='object'?args[0].message:args[1];if(String(message).includes('Error'))console.error(message);});

@@ -3,7 +3,7 @@ const {app,BrowserWindow}=require('electron');
 const fs=require('node:fs/promises'),os=require('node:os'),path=require('node:path'),assert=require('node:assert/strict');
 app.on('window-all-closed',()=>{});
 (async()=>{await app.whenReady();const temp=await fs.mkdtemp(path.join(os.tmpdir(),'hanx-subject-'));let win;
-try{const preload=path.join(temp,'preload.cjs');await fs.writeFile(preload,"require('electron').contextBridge.exposeInMainWorld('hanx',{initial:async()=>null,onAction:()=>{},reportError:async()=>{}})");
+try{const preload=path.join(temp,'preload.cjs');await fs.writeFile(preload,"require('electron').contextBridge.exposeInMainWorld('hanx',{initial:async()=>null,onOpened:()=>{},onAction:()=>{},reportError:async()=>{}})");
 win=new BrowserWindow({show:false,webPreferences:{preload,sandbox:true,contextIsolation:true,backgroundThrottling:false}});
 win.webContents.on('console-message',(_e,...args)=>{const m=typeof args[0]==='object'?args[0].message:args[1];if(String(m).includes('Error')||String(m).includes('Refused'))console.error(m);});
 await win.loadFile(path.join(__dirname,'../index.html'));

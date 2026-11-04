@@ -11,7 +11,7 @@ app.on('window-all-closed',()=>{});
  await fs.writeFile(preload,`const {contextBridge}=require('electron');const operations=[],errors=[];
  const state={kind:'presentation',model:{width:960,height:540,images:{},slides:[{shapes:[],notes:''},{shapes:[],notes:''}]}};
  contextBridge.exposeInMainWorld('mediaTest',{operations:()=>operations,errors:()=>errors,movie:()=>${JSON.stringify(movie.toString('base64'))}});
- contextBridge.exposeInMainWorld('hanx',{initial:async()=>state,edit:async ops=>{operations.push(...ops);return state;},onAction(){},reportError:async message=>errors.push(message)});`);
+ contextBridge.exposeInMainWorld('hanx',{initial:async()=>state,edit:async ops=>{operations.push(...ops);return state;},onOpened(){},onAction(){},reportError:async message=>errors.push(message)});`);
  const win=new BrowserWindow({width:1280,height:900,show:false,webPreferences:{preload,sandbox:true,contextIsolation:true,backgroundThrottling:false}});
  const js=async code=>{try{return await win.webContents.executeJavaScript(code,true);}catch(error){throw Error(code.slice(0,200)+'\n'+error.message);}};
  const wait=async code=>{for(let i=0;i<150;i++){if(await js(code))return;await new Promise(r=>setTimeout(r,20));}throw Error('Timed out: '+code);};

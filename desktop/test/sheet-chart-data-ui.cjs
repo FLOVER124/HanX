@@ -15,7 +15,7 @@ async function check() {
   }}]},calculated:[{B2:{type:'number',value:18,display:'18'}}]};
   await fs.writeFile(preload,`const {contextBridge}=require('electron');const ops=[];const model=${JSON.stringify(model)};
     contextBridge.exposeInMainWorld('recorded',()=>ops);
-    contextBridge.exposeInMainWorld('hanx',{initial:async()=>model,edit:async batch=>{ops.push(...batch);return model;},onAction(){},reportError(){}});`);
+    contextBridge.exposeInMainWorld('hanx',{initial:async()=>model,edit:async batch=>{ops.push(...batch);return model;},onOpened(){},onAction(){},reportError(){}});`);
   const win = new BrowserWindow({show:false,webPreferences:{preload,sandbox:true,contextIsolation:true}});
   const js = code => win.webContents.executeJavaScript(code);
   try {
