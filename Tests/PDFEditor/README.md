@@ -30,3 +30,5 @@ for the edit before presenting the unsaved-document confirmation.
 No test installs or replaces the user's HanX app.
 
 `document-ui.cjs` uses an optional real multipage PDF supplied through the same environment variables. It checks lazy page thumbnails, T text icons, drawn shape previews, text hit testing above page backgrounds, inline Korean edits, geometry, delete/undo, save-copy integrity and the document import action. Its source fixture is never modified or committed.
+
+`node --test desktop/test/pdf-geometry.test.cjs` checks corner anchors, aspect lock, minimum sizes and all page rotations. `manipulation-ui.cjs` uses the standard three-object fixture and CLI variables to exercise real mouse resizing, Escape cancellation, undo, context-menu deletion, page-number navigation, Page Up and fit width. `HANX_PDF_TEST_SCREENSHOT` optionally captures the selection handles. Run GUI tests one at a time because they use actual window focus.

@@ -10,7 +10,7 @@ if(!fixture||!cli||!output)throw Error('Set HANX_PDF_TEST_FIXTURE, HANX_PDF_TEST
 app.whenReady().then(async()=>{let win;try{
  const hash=async()=>crypto.createHash('sha256').update(await fs.readFile(fixture)).digest('hex');const original=await hash();let imported=false;
  win=await require(root+'/desktop/pdf-window.cjs').openPDF(cli,fixture,async file=>{assert.equal((await fs.readFile(file)).subarray(0,4).toString(),'%PDF');imported=true;return true;});
- const js=s=>win.webContents.executeJavaScript(s);
+ const js=async s=>{try{return await win.webContents.executeJavaScript(s);}catch(error){throw Error(s+"\n"+error.message);}};
  const wait=async test=>{for(let n=0;n<450;n++){if(await js(test))return;await new Promise(r=>setTimeout(r,100));}throw Error('UI timed out: '+test+' '+await js('document.body.innerText.slice(-1200)'));};
  await wait('typeof state!=="undefined"&&!!state&&!busy');
  await wait('document.querySelector("#pages img")?.naturalWidth>0');
