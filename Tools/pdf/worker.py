@@ -226,7 +226,18 @@ def modify(doc, ops):
                 obj=pdf.PdfObject(raw.FPDFPageObj_CreateNewRect(number(op.get('x'),'x'),number(op.get('y'),'y'),number(op.get('width'),'width',1,30000),number(op.get('height'),'height',1,30000)),pdf=doc)
                 raw.FPDFPageObj_SetFillColor(obj,*color(op.get('color','#dbeafe')),255); raw.FPDFPath_SetDrawMode(obj,raw.FPDF_FILLMODE_WINDING,0); page.insert_obj(obj)
             else: raise PDFError('지원하지 않는 PDF 작업: '+str(action))
-        for page in pages.values(): page.gen_content()
+        for page in pages.values():
+            # PDFium can emit dirty streams without retaining inherited CMYK/ICC
+            # paint state for untouched siblings. Materialize their visible colors
+            # before regeneration; keep wrappers alive until generation completes.
+            paint_objects=list(page.get_objects(max_depth=1))
+            for item in paint_objects:
+                if item.type not in (raw.FPDF_PAGEOBJ_PATH,raw.FPDF_PAGEOBJ_TEXT): continue
+                for getter,setter in [(raw.FPDFPageObj_GetFillColor,raw.FPDFPageObj_SetFillColor),(raw.FPDFPageObj_GetStrokeColor,raw.FPDFPageObj_SetStrokeColor)]:
+                    rgba=[c.c_uint() for _ in range(4)]
+                    if getter(item,*[c.byref(v) for v in rgba]):
+                        check(setter(item,*[v.value for v in rgba]),'기존 개체의 색상을 보존하지 못했습니다.')
+            page.gen_content()
     finally:
         for page in pages.values(): page.close()
         # PDFium owns the font data after loading; keep the buffers for the batch.

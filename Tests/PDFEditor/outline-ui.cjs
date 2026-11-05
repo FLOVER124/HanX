@@ -1,0 +1,8 @@
+const {app}=require('electron');const assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path');
+app.whenReady().then(async()=>{let win;try{win=await require(path.resolve(__dirname,'../../desktop/pdf-window.cjs')).openPDF(process.env.HANX_PDF_TEST_CLI,process.env.HANX_PDF_TEST_FIXTURE);const js=s=>win.webContents.executeJavaScript(s);const wait=async s=>{for(let i=0;i<600;i++){if(await js(s))return;await new Promise(r=>setTimeout(r,100));}throw Error('Timeout '+s+' '+await js('document.body.innerText.slice(-600)'));};await wait('typeof state!=="undefined"&&state&&!busy');
+const title=await js("state.objects.find(o=>o.type==='outline'&&o.text==='수능특강')");assert.ok(title);assert.ok(title.members.length>2);await js(`select(${title.id})`);
+await js(`apply({op:'transform',object:${title.id},dx:10,dy:0})`);await wait('!busy');const after=await js('rawObjects');for(const member of title.members){const current=after.find(o=>o.id===member.id);assert.ok(Math.abs(current.bounds[0]-member.bounds[0]-10)<.1);}
+await js("$('undo').click()");await wait('!busy');assert.ok(await js("state.objects.some(o=>o.type==='outline'&&o.text==='수능특강')"));
+await js("$('showDetails').checked=true;$('showDetails').dispatchEvent(new Event('change'))");assert.equal(await js('state.objects.length'),await js('rawObjects.length'));
+await js("$('showDetails').checked=false;$('showDetails').dispatchEvent(new Event('change'))");assert.ok(await js("state.objects.some(o=>o.type==='outline')"));console.log('PASS actual textbook: whole title selection, batch move, exact undo and optional detail view');win.destroy();app.exit(0);
+}catch(e){console.error(e);win?.destroy();app.exit(1);}});

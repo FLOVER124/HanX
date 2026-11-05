@@ -157,6 +157,15 @@ final class SlideCanvasView: NSView, NSTextViewDelegate, NSMenuItemValidation {
     private var initialEditorText: NSAttributedString?
     var onCommand:((String)->Void)?
 
+    override func magnify(with event: NSEvent) {
+        endEditing()
+        let point=convert(event.locationInWindow,from:nil)
+        let current=pres.width/max(1,bounds.width)
+        let next=max(0.25,min(4,current*(1+event.magnification)))
+        let factor=next/current, old=bounds
+        bounds=NSRect(x:point.x-(point.x-old.minX)/factor,y:point.y-(point.y-old.minY)/factor,width:old.width/factor,height:old.height/factor)
+        needsDisplay=true
+    }
     override var isFlipped: Bool { true }
     override var acceptsFirstResponder: Bool { true }
 

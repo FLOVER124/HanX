@@ -127,6 +127,22 @@ class PDFEditorTests(unittest.TestCase):
         self.assertFalse(self.run_worker('edit',input=str(source),output=str(out),operations=[{'op':'set_text','page':0,'object':0,'text':'Changed'}])['ok'])
         self.assertFalse(out.exists())
 
+    def test_text_edit_preserves_cmyk_surrounding_artwork(self):
+        source=self.clipped_fixture()
+        data=source.read_bytes()
+        old=b'q 30 390 40 70 re W n BT /F1 30 Tf 1 0 0 RG 3 w 1 Tr 40 420 Td (Original) Tj ET Q'
+        stream=b'q 1 0 0 0 k 40 100 120 80 re f BT /F1 20 Tf 40 420 Td (Original) Tj ET Q'
+        # Rebuild offsets using the existing fixture builder's objects through PDFium.
+        # A compact standalone PDF needs correct xref offsets for the changed stream.
+        objects=[b'<< /Type /Catalog /Pages 2 0 R >>',b'<< /Type /Pages /Kids [3 0 R] /Count 1 >>',b'<< /Type /Page /Parent 2 0 R /MediaBox [0 0 400 500] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>',b'<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>',b'<< /Length '+str(len(stream)).encode()+b' >>\nstream\n'+stream+b'\nendstream']
+        data=b'%PDF-1.7\n';offsets=[]
+        for i,obj in enumerate(objects,1):offsets.append(len(data));data+=str(i).encode()+b' 0 obj\n'+obj+b'\nendobj\n'
+        xref=len(data);data+=b'xref\n0 6\n0000000000 65535 f \n'+b''.join(f'{offset:010d} 00000 n \n'.encode() for offset in offsets)+b'trailer << /Size 6 /Root 1 0 R >>\nstartxref\n'+str(xref).encode()+b'\n%%EOF'
+        source.write_bytes(data);out=self.dir/'color-edited.pdf'
+        self.ok('edit',input=str(source),output=str(out),operations=[{'op':'set_text','page':0,'object':1,'text':'Changed'}])
+        with pdf.PdfDocument(source) as before,pdf.PdfDocument(out) as after:
+            self.assertEqual(before[0].render().to_pil().getpixel((60,350)),after[0].render().to_pil().getpixel((60,350)))
+
     def test_search_layer_preserves_pixels_and_positions_on_rotated_scan(self):
         scan=self.dir/'scan.pdf';out=self.dir/'searchable.pdf'
         with pdf.PdfDocument(self.source) as doc:

@@ -170,6 +170,8 @@ final class SheetWindowController: NSWindowController, SheetGridDelegate, NSTool
         scroll.autoresizingMask = [.width, .height]
         scroll.hasVerticalScroller = true
         scroll.hasHorizontalScroller = true
+        scroll.allowsMagnification = true
+        scroll.minMagnification = 0.25; scroll.maxMagnification = 4
         scroll.documentView = grid
         scroll.contentView.postsBoundsChangedNotifications = true
         NotificationCenter.default.addObserver(forName: NSView.boundsDidChangeNotification, object: scroll.contentView, queue: .main) { [weak self] _ in
