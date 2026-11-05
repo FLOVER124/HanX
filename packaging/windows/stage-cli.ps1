@@ -56,6 +56,8 @@ if (-not (Test-Path (Join-Path $destination 'swiftCore.dll'))) { throw 'Swift ru
 Copy-Item LICENSE, NOTICE -Destination $destination
 Copy-Item 'docs/cli/README.md' -Destination (Join-Path $destination 'README.md')
 Copy-Item 'docs/cli/examples' -Destination (Join-Path $destination 'examples') -Recurse
+New-Item -ItemType Directory -Path (Join-Path $destination 'pdf') -Force | Out-Null
+Copy-Item 'Tools/pdf/worker.py', 'Tools/pdf/requirements.txt' -Destination (Join-Path $destination 'pdf')
 $licenses = Join-Path $destination 'third-party-licenses'
 New-Item -ItemType Directory -Path $licenses -Force | Out-Null
 Copy-Item 'Sources/CMiniz/LICENSE' -Destination (Join-Path $licenses 'miniz.txt')

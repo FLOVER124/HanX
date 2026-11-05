@@ -111,8 +111,8 @@ final class HWDocument: NSDocument {
     func presentImportWarnings(in window: NSWindow) {
         guard !importWarningsPresented, !model.warnings.isEmpty else { return }
         let notices = model.warnings.map { warning in
-            warning == "PDF import extracts selectable text and page sizes. Layout, tables, images and annotations are not reconstructed; scanned pages require OCR, which HanX does not perform."
-                ? "PDF에서 선택 가능한 텍스트와 페이지 크기를 가져왔습니다. 원본 배치, 표, 이미지, 주석은 재구성하지 않습니다. 스캔한 페이지에는 OCR이 필요하며 HanX는 OCR을 지원하지 않습니다."
+            warning == "PDF import extracts selectable text and page sizes. Layout, tables, images and annotations are not reconstructed; scanned pages require OCR; use hanx pdf ocr."
+                ? "PDF에서 선택 가능한 텍스트와 페이지 크기를 가져왔습니다. 원본 배치, 표, 이미지, 주석은 재구성하지 않습니다. 스캔한 페이지는 PDF 편집 화면의 문자 인식 또는 hanx pdf ocr로 읽을 수 있습니다."
                 : warning
         }.filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
         guard !notices.isEmpty else { return }

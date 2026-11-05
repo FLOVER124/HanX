@@ -26,7 +26,7 @@ enum PDFReader {
             throw FormatError.unsupported("PDF permissions do not allow text extraction.")
         }
         let doc = UDocument()
-        doc.warnings = ["PDF import extracts selectable text and page sizes. Layout, tables, images and annotations are not reconstructed; scanned pages require OCR, which HanX does not perform."]
+        doc.warnings = ["PDF import extracts selectable text and page sizes. Layout, tables, images and annotations are not reconstructed; scanned pages require OCR; use hanx pdf ocr."]
         var emptyPages: [Int] = []
         var hasText = false
         var char = CharProps()
@@ -56,12 +56,12 @@ enum PDFReader {
             doc.sections.append(section)
         }
         guard hasText else {
-            throw FormatError.unsupported("PDF contains no extractable text. Scanned or image-only PDFs require OCR, which HanX does not perform.")
+            throw FormatError.unsupported("PDF contains no extractable text. Scanned or image-only PDFs require OCR; use hanx pdf ocr.")
         }
         if !emptyPages.isEmpty {
             let listed = emptyPages.prefix(50).map(String.init).joined(separator: ", ")
             let more = emptyPages.count > 50 ? " (and \(emptyPages.count - 50) more)" : ""
-            doc.warnings.append("PDF pages \(listed)\(more) have no extractable text and remain empty. Scanned pages require OCR; HanX does not perform OCR.")
+            doc.warnings.append("PDF pages \(listed)\(more) have no extractable text and remain empty. Scanned pages require OCR; use hanx pdf ocr.")
         }
         return doc
     }

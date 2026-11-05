@@ -4,13 +4,16 @@ const {pathToFileURL}=require('node:url');
 const {Session,resolveEngine,formats}=require('./engine.cjs');
 const {NoticeCenter}=require('./notifications.cjs');
 let win,session,notices,queue=Promise.resolve(),quitting=false;
+
+function sendAction(action){const focused=BrowserWindow.getFocusedWindow();if(focused&&focused!==win&&focused.webContents.getURL().endsWith('/pdf/index.html')){if(['cut','copy','paste'].includes(action)){focused.webContents[action]();return;}if(action!=='open'){focused.webContents.send('hanx:pdf-action',action);return;}}win.webContents.send('hanx:action',action);}
 const smoke=process.argv.includes('--smoke-test');
 // Windows and Linux pass associated files on the command line. macOS sends open-file.
-let startupFile=process.argv.slice(1).find(arg=>!arg.startsWith('-')&&path.extname(arg).toLowerCase()==='.hanx');
+let startupFile=process.argv.slice(1).find(arg=>!arg.startsWith('-')&&['.hanx','.pdf'].includes(path.extname(arg).toLowerCase()));
 let initialized=false;
 app.on('open-file',(event,file)=>{
  event.preventDefault();
  if(!initialized){startupFile=file;return;}
+ if(path.extname(file).toLowerCase()==='.pdf'){require('./pdf-window.cjs').openPDF(session.executable,file).catch(error=>notices.error(error));return;}
  queue=queue.then(async()=>{
   if(!await confirmDiscard())return;
   const next=await session.open(file);
@@ -32,12 +35,12 @@ app.whenReady().then(async()=>{
  handle('hanx:initial',async()=>{if(engineError)throw Error(engineError);
   initialized=true;
   if(startupFile){
-   try{return await session.open(path.resolve(startupFile));}
+   try{if(path.extname(startupFile).toLowerCase()==='.pdf'){await require('./pdf-window.cjs').openPDF(session.executable,path.resolve(startupFile));return session.create('document');}return await session.open(path.resolve(startupFile));}
    catch(error){await notices.error(error);}
   }
   return session.create('document');});
  handle('hanx:new',async (kind,template)=>{if(!await confirmDiscard())return null;const next=await session.create(kind,template);notices.reset();return next;});
- handle('hanx:open',async()=>{if(!await confirmDiscard())return null;const result=await dialog.showOpenDialog(win,{properties:['openFile'],filters:[{name:'Office files',extensions:['hanx','hwp','hwpx','docx','pptx','xlsx','csv','tsv','txt','md','hml','json','pdf']}]});if(result.canceled)return null;const next=await session.open(result.filePaths[0]);notices.reset();await notices.warnings(next.warnings);return next;});
+ handle('hanx:open',async()=>{if(!await confirmDiscard())return null;const result=await dialog.showOpenDialog(win,{properties:['openFile'],filters:[{name:'Office files',extensions:['hanx','hwp','hwpx','docx','pptx','xlsx','csv','tsv','txt','md','hml','json','pdf']}]});if(result.canceled)return null;if(path.extname(result.filePaths[0]).toLowerCase()==='.pdf'){await require('./pdf-window.cjs').openPDF(session.executable,result.filePaths[0]);return null;}const next=await session.open(result.filePaths[0]);notices.reset();await notices.warnings(next.warnings);return next;});
  handle('hanx:insert-image',async (index,background)=>{const result=await dialog.showOpenDialog(win,{properties:['openFile'],filters:[{name:'그림',extensions:['png','jpg','jpeg']}]});if(result.canceled)return null;return require('./media-import.cjs').importSlideImage(session,index,result.filePaths[0],nativeImage,background===true);});
  handle('hanx:edit',ops=>session.edit(ops));
  handle('hanx:copy-slide',index=>session.copySlide(index));
@@ -60,7 +63,7 @@ app.whenReady().then(async()=>{
   }
   const next=await session.save(destination);await notices.warnings(next.saveWarnings);return next;
  });
- Menu.setApplicationMenu(Menu.buildFromTemplate([{label:'파일',submenu:[{label:'열기…',accelerator:'CmdOrCtrl+O',click:()=>win.webContents.send('hanx:action','open')},{label:'저장',accelerator:'CmdOrCtrl+S',click:()=>win.webContents.send('hanx:action','save')},{label:'다른 이름으로 저장…',accelerator:'CmdOrCtrl+Shift+S',click:()=>win.webContents.send('hanx:action','saveAs')},{type:'separator'},{role:'quit'}]},{label:'편집',submenu:[{label:'실행 취소',accelerator:'CmdOrCtrl+Z',click:()=>win.webContents.send('hanx:action','undo')},{label:'다시 실행',accelerator:'CmdOrCtrl+Shift+Z',click:()=>win.webContents.send('hanx:action','redo')},{type:'separator'},...[['잘라내기','X','cut'],['복사','C','copy'],['붙여넣기','V','paste']].map(([label,key,action])=>({label,accelerator:'CmdOrCtrl+'+key,click:()=>win.webContents.send('hanx:action',action)})),{role:'selectAll'}]},{label:'보기',submenu:[{role:'resetZoom'},{role:'zoomIn'},{role:'zoomOut'},{role:'togglefullscreen'}]}]));
+ Menu.setApplicationMenu(Menu.buildFromTemplate([{label:'파일',submenu:[{label:'열기…',accelerator:'CmdOrCtrl+O',click:()=>sendAction('open')},{label:'저장',accelerator:'CmdOrCtrl+S',click:()=>sendAction('save')},{label:'다른 이름으로 저장…',accelerator:'CmdOrCtrl+Shift+S',click:()=>sendAction('saveAs')},{type:'separator'},{role:'quit'}]},{label:'편집',submenu:[{label:'실행 취소',accelerator:'CmdOrCtrl+Z',click:()=>sendAction('undo')},{label:'다시 실행',accelerator:'CmdOrCtrl+Shift+Z',click:()=>sendAction('redo')},{type:'separator'},...[['잘라내기','X','cut'],['복사','C','copy'],['붙여넣기','V','paste']].map(([label,key,action])=>({label,accelerator:'CmdOrCtrl+'+key,click:()=>sendAction(action)})),{role:'selectAll'}]},{label:'보기',submenu:[{role:'resetZoom'},{role:'zoomIn'},{role:'zoomOut'},{role:'togglefullscreen'}]}]));
  win.on('close',e=>{if(!quitting&&session?.dirty){e.preventDefault();queue.then(async()=>{if(await confirmDiscard()){quitting=true;win.close();}});}});
  await win.loadFile(path.join(__dirname,'index.html'));
  if(smoke){try{await require('./smoke.cjs')(win,session);quitting=true;await session.close();app.exit(0);}catch(error){console.error('HANX_GUI_SMOKE_FAILED',error);quitting=true;app.exit(1);}}

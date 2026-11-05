@@ -33,7 +33,7 @@ function runEngine(executable,args,input) {
     const child=spawn(executable,args,{shell:false,windowsHide:true,stdio:['pipe','pipe','pipe']});
     child.stdout.setEncoding('utf8');child.stderr.setEncoding('utf8');
     let stdout='',stderr='',finished=false;
-    const timer=setTimeout(()=>{child.kill(); reject(Error('The HanX engine took too long.'));},120000);
+    const timer=setTimeout(()=>{child.kill(); reject(Error('The HanX engine took too long.'));},args[0]==='pdf'&&args[1]==='setup'?360000:180000);
     function finish(error,data){if(finished)return; finished=true;clearTimeout(timer);error?reject(error):resolve(data);}
     child.on('error',e=>finish(e));
     child.stdout.on('data',data=>{stdout+=data;if(stdout.length>128e6){child.kill();finish(Error('This file exceeds the editor’s size limit.'));}});

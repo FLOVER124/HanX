@@ -28,6 +28,7 @@
       "*.html",
       "*.css",
       "assets/**",
+      "pdf/**",
       "!test/**"
     ],
     "extraResources": [

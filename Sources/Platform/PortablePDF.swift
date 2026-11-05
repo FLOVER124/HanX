@@ -105,7 +105,7 @@ enum PDFReader {
             if info.contains("copy:no") || info.contains("copy: no") { throw FormatError.unsupported("PDF permissions do not allow text extraction") }
             _ = try PortableTool.run("pdftotext", ["-enc", "UTF-8", input.path, output.path], in: dir)
             let text = try String(contentsOf: output, encoding: .utf8)
-            guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { throw FormatError.unsupported("PDF contains no extractable text. Scanned PDFs require OCR, which HanX does not perform.") }
+            guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { throw FormatError.unsupported("PDF contains no extractable text. Scanned PDFs require OCR; use hanx pdf ocr.") }
             let doc = UDocument()
             doc.warnings = ["PDF import extracts selectable text and page sizes using local PDF text tools. Layout, tables, images and annotations are not reconstructed; scanned pages require OCR."]
             var pages = text.components(separatedBy: "\u{0c}")

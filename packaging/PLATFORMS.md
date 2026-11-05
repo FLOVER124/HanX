@@ -64,3 +64,25 @@ Windows/Linux PDF output uses a local LibreOffice installation. PDF text import 
 `.github/workflows/platforms.yml` builds on Windows 2022 and Ubuntu 22.04. It verifies office round trips, Korean paths, PDF conversion, formulas, MCP, native GUI editing/saving, runtime staging and installation choices before producing release candidates. `verify-release.yml` checks the published npm installation and downloaded GUI on the same platforms. Public assets and `hanx-install-manifest.json` must share the exact package version and filenames; Homebrew hashes are generated from those tested assets.
 
 Existing `studentsview/tap` installs keep their installed formula identity. `hanx --update` reads the Homebrew receipt and points that legacy tap at `https://github.com/FLOVER124/homebrew-tap.git` before updating. New installations use `FLOVER124/tap/hanx`. For an older launcher, run `brew tap --custom-remote studentsview/tap https://github.com/FLOVER124/homebrew-tap.git`, then `brew update` and `brew upgrade studentsview/tap/hanx` once. App bundle IDs and the `.hanx` UTI stay unchanged so existing installations and document associations remain compatible.
+
+## PDF editor resources
+
+Native macOS app builds copy `Tools/pdf/{worker.py,requirements.txt}` into
+`Contents/Resources/PDF` and `desktop/pdf/` into `Contents/Resources/PDFEditor`.
+The bundled CLI also needs a sibling `pdf/` folder. `build-cli.sh` stages this
+folder in `build/pdf`; preserve it beside `hanx` in **every macOS standalone CLI,
+npm native directory and CLI archive**. Do not distribute just the executable.
+Linux and Windows staging scripts include the folder automatically. Electron
+includes the shared editor through `pdf/**` and uses the staged CLI worker.
+
+This change does not bundle Python or Tesseract. `hanx pdf setup` explicitly
+creates a per-user Python environment and installs `Tools/pdf/requirements.txt`.
+The desktop editor offers this setup when the worker dependencies are missing.
+Python 3.10+ must be installed first. Native macOS OCR uses Vision; portable OCR
+uses Tesseract plus language data. No document is sent to a remote OCR service.
+
+Before release, run the PDF worker tests on each native platform and run the
+shared editor smoke scenario (`Tests/PDFEditor/gui-smoke.cjs`) using that platform's
+new CLI and Electron. The local macOS validation is not a substitute for Windows
+and Linux installer/runtime validation. Release versions have not been changed
+by this feature-only work.

@@ -17,44 +17,36 @@
   setLinks('[data-license]', repository && `${repository}/blob/main/${config.licensePath || 'LICENSE'}`);
 
 
-  const windows = /^win/i.test(navigator.userAgentData?.platform || navigator.platform);
-  const npmInstall = `npm install -g ${config.npm?.package || ''}`;
-  const brewInstall = `HOMEBREW_NO_ASK=1 brew install ${config.brew?.formula || ''}`;
   const channels = {
     npm: {
       ready: config.npm?.available && !unresolved(config.npm.package),
-      command: windows ? npmInstall : `npm config set prefix "$HOME/.npm-global" &&
-${npmInstall} &&
-export PATH="$HOME/.npm-global/bin:$PATH"`,
-      title: 'npm으로 CLI 설치',
+      command: `npm install -g ${config.npm?.package}`,
       pending: 'npm 배포 준비 중',
-      detail: windows
-        ? 'Node.js 18 이상이 필요합니다. 앱도 설치하려면 hanx setup --components all --yes를 실행하세요.'
-        : 'Node.js 18 이상이 필요합니다. npm 설치 위치를 사용자 폴더로 설정합니다. 새 터미널에서도 hanx를 쓰려면 마지막 줄을 셸 시작 파일에 추가하세요. 앱도 설치하려면 hanx setup --components all --yes를 실행하세요.'
+      detail: 'Node.js 18 이상 필요'
     },
     brew: {
       ready: config.brew?.available && !unresolved(config.brew.formula),
-      command: brewInstall,
-      title: 'Homebrew로 CLI 설치',
+      command: `brew install ${config.brew?.formula}`,
       pending: 'Homebrew 배포 준비 중',
-      detail: 'macOS와 Linux에서 설치 확인 없이 CLI를 설치합니다. 앱도 설치하려면 hanx setup --components all --yes를 실행하세요. Windows에서는 npm 또는 Setup.exe를 사용하세요.'
-    },
-    pkg: { ready: config.pkg?.available && repoReady && !unresolved(config.pkg.asset), title: '사용 중인 운영체제를 선택하세요', pending: '설치 패키지 배포 준비 중', detail: `최신 GUI 앱은 ${config.version || ''}입니다. 위의 Mac 앱 ZIP, Windows 설치 마법사, Linux AppImage 또는 Debian 패키지를 선택하세요. macOS pkg는 앱과 CLI를 함께 설치합니다.` }
+      detail: 'Windows는 지원하지 않습니다.'
+    }
   };
   Object.entries(channels).forEach(([key, channel]) => {
-    const status = document.querySelector(`[data-channel-status="${key}"]`);
-    status.textContent = channel.ready ? channel.title : channel.pending;
-    if (!channel.ready) return;
-    document.querySelector(`[data-channel-detail="${key}"]`).textContent = channel.detail;
-    if (channel.command) {
-      document.getElementById(`command-${key}`).textContent = channel.command;
-      document.querySelector(`[data-command-wrap="${key}"]`).hidden = false;
-    } else {
-      const download = document.getElementById('pkg-download');
-      download.href = `${repository}/releases/download/v${encodeURIComponent(config.pkg.version || config.version)}/${encodeURIComponent(config.pkg.asset)}`;
-      download.hidden = false;
+    if (!channel.ready) {
+      const status = document.querySelector(`[data-channel-status="${key}"]`);
+      status.textContent = channel.pending;
+      status.hidden = false;
+      return;
     }
+    document.getElementById(`command-${key}`).textContent = channel.command;
+    document.querySelector(`[data-command-wrap="${key}"]`).hidden = false;
+    document.querySelector(`[data-channel-detail="${key}"]`).textContent = channel.detail;
   });
+
+  if (repository && config.pkg?.available && !unresolved(config.pkg.asset)) {
+    const version = config.pkg.version || config.version;
+    setLinks('#pkg-download', `${repository}/releases/download/v${encodeURIComponent(version)}/${encodeURIComponent(config.pkg.asset)}`);
+  }
 
   document.querySelectorAll('[data-platform-download]').forEach(link => {
     const asset = config.downloads?.[link.dataset.platformDownload];

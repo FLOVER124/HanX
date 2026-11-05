@@ -43,6 +43,7 @@ for file in ['LICENSE','NOTICE']:
     shutil.copy2(file, out / file)
 shutil.copy2('docs/cli/README.md', out / 'README.md')
 shutil.copytree('docs/cli/examples', out / 'examples')
+shutil.copytree('Tools/pdf', out / 'pdf', ignore=shutil.ignore_patterns('__pycache__'))
 licenses = out / 'third-party-licenses'
 licenses.mkdir(exist_ok=True)
 shutil.copy2('Sources/CMiniz/LICENSE', licenses / 'miniz.txt')

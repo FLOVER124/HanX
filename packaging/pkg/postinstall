@@ -26,4 +26,19 @@ for hw_name in hanx hanx-cli; do
   fi
   ln -s "$hw_payload" "$hw_command"
 done
+# Local single-build cleanup is enabled only by this Mac's owner configuration.
+if [ "$hw_volume" = / ]; then
+  hw_user=$(/usr/bin/stat -f '%Su' /dev/console)
+  if [ "$hw_user" != root ] && [ "$hw_user" != loginwindow ]; then
+    hw_home=$(/usr/bin/dscl . -read "/Users/$hw_user" NFSHomeDirectory | /usr/bin/cut -d ' ' -f 2-)
+    hw_cleanup="$hw_home/.config/hanx/local-build-cleanup.json"
+    hw_helper=/Applications/HanX.app/Contents/Resources/Maintenance/clean-previous-builds.py
+    if [ -f "$hw_cleanup" ] && [ -f "$hw_helper" ]; then
+      /usr/bin/sudo -H -u "$hw_user" /usr/bin/env PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin" /usr/bin/python3 "$hw_helper" || {
+        printf '%s\n' 'HanX installed. Previous-build cleanup needs attention.' >&2
+        exit 1
+      }
+    fi
+  fi
+fi
 exit 0

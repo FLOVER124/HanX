@@ -80,11 +80,12 @@ if let i = args.firstIndex(of: "--export"), args.count > i + 2 {
         let dc = HWDocumentController()
         let inType = try dc.typeForContents(of: input)
         guard let cls = dc.documentClass(forType: inType) as? NSDocument.Type else { throw FormatError.unsupported(inType) }
-        let doc = cls.init()
-        try doc.read(from: input, ofType: inType)
         guard let outType = UTType(filenameExtension: output.pathExtension)?.identifier else { throw FormatError.unsupported(output.pathExtension) }
+        // PDF-to-office export uses the text importer, while opening a PDF uses the native reader.
+        let doc = inType == DocType.pdf && outType != DocType.pdf ? HWDocument() : cls.init()
+        try doc.read(from: input, ofType: inType)
         try doc.data(ofType: outType).write(to: output)
-        print("\(String(describing: cls)) \(inType) → \(outType)")
+        print("\(type(of: doc)) \(inType) → \(outType)")
         exit(0)
     } catch {
         print("error: \(error)")

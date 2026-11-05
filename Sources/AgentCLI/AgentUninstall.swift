@@ -93,7 +93,7 @@ enum AgentUninstall {
             for file in (try? fm.contentsOfDirectory(at:root,includingPropertiesForKeys:nil)) ?? [] {
                 if fixed.contains(file.lastPathComponent) || (runtime.contains(file.lastPathComponent) && file.pathExtension.lowercased() == "dll") { add(file) }
             }
-            for folder in ["lib","examples","third-party-licenses"] {
+            for folder in ["lib","examples","third-party-licenses","pdf"] {
                 let base=root.appendingPathComponent(folder)
                 if (try? fm.destinationOfSymbolicLink(atPath:base.path)) != nil { add(base);continue }
                 if let iterator=fm.enumerator(at:base,includingPropertiesForKeys:[.isDirectoryKey,.isSymbolicLinkKey]) {
@@ -105,7 +105,7 @@ enum AgentUninstall {
                         else {
                             let name=file.lastPathComponent
                             let knownExample=["document.json","document-edits.json","spreadsheet.json","spreadsheet-edits.json","presentation.json","slide-background-edits.json","xml-edits.json"].contains(name)
-                            if (folder == "lib" && name.hasPrefix("lib") && (name.contains(".so") || name.hasSuffix(".dylib"))) || (folder == "examples" && knownExample) || (folder == "third-party-licenses" && !["hanx","docx","pptx","xlsx","hwp","pdf"].contains(file.pathExtension.lowercased())) { add(file) }
+                            if (folder == "pdf" && ["worker.py","requirements.txt"].contains(name)) || (folder == "lib" && name.hasPrefix("lib") && (name.contains(".so") || name.hasSuffix(".dylib"))) || (folder == "examples" && knownExample) || (folder == "third-party-licenses" && !["hanx","docx","pptx","xlsx","hwp","pdf"].contains(file.pathExtension.lowercased())) { add(file) }
                         }
                     }
                     for directory in directories { add(directory,emptyOnly:true) }

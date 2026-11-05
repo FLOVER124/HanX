@@ -24,6 +24,7 @@ final class HWDocumentController: NSDocumentController {
     }
 
     override func makeDocument(withContentsOf url: URL, ofType typeName: String) throws -> NSDocument {
+        if typeName == DocType.pdf || url.pathExtension.lowercased() == "pdf" { return try PDFEditingDocument(contentsOf: url, ofType: DocType.pdf) }
         guard typeName == HanXFile.type || url.pathExtension.lowercased() == "hanx" else {
             return try super.makeDocument(withContentsOf: url, ofType: typeName)
         }

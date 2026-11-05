@@ -12,3 +12,6 @@ if [[ "$1" == "--universal" ]]; then
 else
   swiftc -D HANX_CLI -O -o build/hanx-cli "$SRC[@]"
 fi
+
+mkdir -p build/pdf
+cp Tools/pdf/worker.py Tools/pdf/requirements.txt build/pdf/

@@ -7,11 +7,11 @@ import FoundationNetworking
 #endif
 
 enum AgentCLI {
-    static let commands:Set<String>=["--delete","--uninstall","uninstall","--update","update","--check-update","--convert","--help","-h","help","--version","version","capabilities","schema","read","create","edit","convert","xml","package","spreadsheet","mcp","serve"]
+    static let commands:Set<String>=["pdf","--delete","--uninstall","uninstall","--update","update","--check-update","--convert","--help","-h","help","--version","version","capabilities","schema","read","create","edit","convert","xml","package","spreadsheet","mcp","serve"]
     static var help: String {
         let rows: [(String, String)] = [
             ("시작 화면", "hanx"),
-            ("파일 변환", "hanx --convert  (드롭 → ↑ ↓ 선택 → Enter)"),
+            ("파일 변환", "hanx convert  (드롭 → ↑ ↓ 선택 → Enter)"),
             ("도움말", "hanx --help"),
             ("버전과 최신 여부", "hanx --version"),
             ("업데이트", "hanx --update (npm / Homebrew)"),
@@ -33,6 +33,11 @@ enum AgentCLI {
             ("내부 조회", "hanx package read 발표.pptx --part ppt/slides/slide1.xml"),
             ("내부 수정", "hanx package patch 원본.docx --part word/document.xml"),
             ("수정 옵션", "  --ops 수정.json --output 결과.docx"),
+            ("검색 PDF", "hanx pdf searchable 스캔.pdf --all-pages --output 결과.pdf"),
+            ("PDF 준비", "hanx pdf setup"),
+            ("PDF 개체", "hanx pdf inspect 원본.pdf --page 0"),
+            ("PDF 수정", "hanx pdf edit 원본.pdf --ops 수정.json --output 결과.pdf"),
+            ("PDF OCR", "hanx pdf ocr 원본.pdf --page 0 --language kor+eng"),
             ("MCP 연결", "hanx mcp")
         ]
         let options: [(String, String)] = [
@@ -43,7 +48,7 @@ enum AgentCLI {
             ("JSON 정렬", "--pretty"),
             ("표준 입력", "--spec - / --ops -"),
             ("HWPML 출력", "--xml-format hwpml"),
-            ("PDF 입력", "텍스트 추출 / 배치 복원 / OCR 미지원"),
+            ("PDF 편집", "hanx pdf inspect / edit / render / ocr"),
             ("문서 형식", "HANX / HWP / DOCX / HWPX / HWPML / PDF / TXT / MD / JSON"),
             ("스프레드시트 형식", "HANX / XLSX / CSV / TSV / PDF / JSON"),
             ("슬라이드", "HANX / PPTX / PDF / JSON"),
@@ -79,9 +84,9 @@ enum AgentCLI {
     }
     static func pdfCapabilities() -> [String:Any] {
 #if HANX_PORTABLE || !canImport(AppKit)
-        return ["input":"Selectable text using local PDF text tools; no layout reconstruction or OCR", "output":"Local PDF renderer renderer; pagination and fonts can differ from macOS", "inputAvailable":PortableTool.find("pdfinfo") != nil && PortableTool.find("pdftotext") != nil, "outputAvailable":PortableTool.find("soffice") != nil, "dependencies":["input":["pdfinfo","pdftotext"], "output":["soffice"]]]
+        return ["input":"Selectable text using local PDF text tools; no layout reconstruction; separate pdf ocr command available", "output":"Local PDF renderer renderer; pagination and fonts can differ from macOS", "inputAvailable":PortableTool.find("pdfinfo") != nil && PortableTool.find("pdftotext") != nil, "outputAvailable":PortableTool.find("soffice") != nil, "dependencies":["input":["pdfinfo","pdftotext"], "output":["soffice"]]]
 #else
-        return ["input":"Selectable text as document; no layout reconstruction or OCR", "output":"Documents, spreadsheets, presentations using HanX renderers", "inputAvailable":true, "outputAvailable":true]
+        return ["input":"Selectable text as document; no layout reconstruction; separate pdf ocr command available", "output":"Documents, spreadsheets, presentations using HanX renderers", "inputAvailable":true, "outputAvailable":true]
 #endif
     }
     static func capabilities()->[String:Any] {
@@ -93,9 +98,10 @@ enum AgentCLI {
             "guidePath":guide?.path ?? "",
             "formats":["document":["hanx","pdf","hwp","hwpx","docx","hml","txt","md","json"],"presentation":["hanx","pptx","json","pdf"],"spreadsheet":["hanx","xlsx","csv","tsv","json","pdf"],"xml":["generic XML with XPath","HWPML 2.x","Flat OPC","DOCX/PPTX/HWPX/XLSX package XML"]],
             "pdf":pdfCapabilities(),
+            "pdfEditing":["commands":["pdf setup","pdf inspect","pdf render","pdf edit","pdf ocr","pdf searchable"],"operations":["set_text","transform","delete","set_fill","replace_image","add_text","add_image","add_rect","add_ocr_layer"],"coordinates":"unrotated PDF points, bottom-left; page/object indices zero-based; object IDs refer to input revision", "dependencies":"hanx pdf setup; OCR additionally needs Tesseract and language data"],
             "spreadsheetFunctions":FunctionLibrary.table.keys.sorted(),
             "operations":["spreadsheet":AgentSheets.operations,"document":AgentDocuments.documentOps,"presentation":AgentDocuments.slideOps,"xml":["set_text","set_attribute","append_xml","replace_xml","delete"]],
-            "commands":["read","create","edit","convert","xml read","xml edit","package list","package read","package patch","spreadsheet read","spreadsheet eval","spreadsheet recalculate","spreadsheet functions","mcp"],
+            "commands":["pdf setup","pdf inspect","pdf render","pdf edit","pdf ocr","pdf searchable","read","create","edit","convert","xml read","xml edit","package list","package read","package patch","spreadsheet read","spreadsheet eval","spreadsheet recalculate","spreadsheet functions","mcp"],
             "conventions":["indices":"zero-based","length":"points (1/72 inch)","duration":"seconds","color":"six-digit RGB hex","save":"explicit output, --force to overwrite","stdout":"JSON envelope, except --help and read --text"],
             "examples":[
                 "document":["kind":"document","blocks":[["type":"paragraph","text":"보고서","style":["bold":true,"size":20]],["type":"table","rows":[["항목","값"],["합계","100"]]]]],
@@ -110,12 +116,12 @@ enum AgentCLI {
     static func parse(_ argv:[String])throws->(String,[String:Any]) {
         guard let first=argv.first else { throw AgentError("invalid_argument","Missing command. Run hanx --help.") }
         var args=Array(argv.dropFirst()),command=first,options:[String:Any]=[:],positionals:[String]=[]
-        if ["xml","package","spreadsheet"].contains(first) {
+        if ["xml","package","spreadsheet","pdf"].contains(first) {
             guard !args.isEmpty else { throw AgentError("invalid_argument","Missing \(first) subcommand") }
             command=(first == "spreadsheet" ? "sheet" : first)+"_"+args.removeFirst()
         }
-        let valueFlags=["--spec":"specFile","--spec-file":"specFile","--ops":"opsFile","--ops-file":"opsFile","--output":"output","-o":"output","--part":"part","--xpath":"xpath","--xml-format":"xmlFormat","--sheet":"sheet","--range":"range","--formula":"formula","--cell":"cell"]
-        let boolFlags=["--force":"force","--pretty":"pretty","--text":"textOutput","--no-model":"noModel","--json":"json"]
+        let valueFlags=["--page":"page","--scale":"scale","--language":"language","--revision":"revision","--spec":"specFile","--spec-file":"specFile","--ops":"opsFile","--ops-file":"opsFile","--output":"output","-o":"output","--part":"part","--xpath":"xpath","--xml-format":"xmlFormat","--sheet":"sheet","--range":"range","--formula":"formula","--cell":"cell"]
+        let boolFlags=["--all-pages":"allPages","--force":"force","--pretty":"pretty","--text":"textOutput","--no-model":"noModel","--json":"json"]
         var i=0
         while i<args.count {
             let a=args[i]
@@ -134,6 +140,7 @@ enum AgentCLI {
         let common:Set<String>=["pretty","json"]
         let allowed:[String:Set<String>]=[
             "capabilities":[],"schema":[],"version":[],
+            "pdf_searchable":["input","page","allPages","language","output","force"],"pdf_setup":[],"pdf_inspect":["input","page"],"pdf_render":["input","page","scale"],"pdf_ocr":["input","page","language"],"pdf_edit":["input","opsFile","output","force","revision"],
             "sheet_functions":[],"sheet_read":["input","sheet","range"],"sheet_eval":["input","sheet","formula","cell"],"sheet_recalculate":["input","output","force"],
             "read":["input","textOutput","noModel"],
             "create":["specFile","output","force"],
@@ -156,6 +163,7 @@ enum AgentCLI {
         return (command,options)
     }
     static func execute(_ command:String,_ args:[String:Any])throws->[String:Any] {
+        if command.hasPrefix("pdf_") { return try AgentPDFEditing.execute(command,args) }
         if command == "capabilities" || command == "schema" { return capabilities() }
         if command == "version" { return ["version":AgentIO.version] }
         if command == "sheet_functions" { return ["functions":FunctionLibrary.table.keys.sorted(),"blockedExternalIO":["WEBSERVICE","IMPORTCSV","IMPORTTEXT"],"note":"Registered function names include offline/external stubs. No guarantee of complete spreadsheet parity."] }
@@ -246,7 +254,13 @@ enum AgentCLI {
         do {
             var normalized=argv
             if normalized[0] == "--version" { normalized[0]="version" }
-            let (command,args)=try parse(normalized),result=try execute(command,args)
+            let (command,args)=try parse(normalized)
+            if command == "convert", args.keys.allSatisfy({ $0 == "input" }),
+               AgentInteractive.hasTerminalInput, AgentUpdate.terminalOutput {
+                let paths = (args["input"] as? String).map { [$0] } ?? []
+                return AgentInteractive.run(paths)
+            }
+            let result=try execute(command,args)
             if args["textOutput"] as? Bool == true,let text=result["text"] as? String { print(text) }
             else { let data=try AgentIO.json(["ok":true,"version":AgentIO.version,"data":result],pretty:args["pretty"] as? Bool == true); FileHandle.standardOutput.write(data); print("") }
             return 0

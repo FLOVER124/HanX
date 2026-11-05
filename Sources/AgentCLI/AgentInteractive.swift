@@ -15,12 +15,21 @@ import WinSDK
 
 /// Interactive prompts stay outside the JSON/stdio agent protocol.
 enum AgentInteractive {
+    static var hasTerminalInput: Bool {
+        #if os(Windows)
+        var mode: DWORD = 0
+        guard let input = GetStdHandle(STD_INPUT_HANDLE) else { return false }
+        return GetConsoleMode(input, &mode)
+        #else
+        return isatty(STDIN_FILENO) != 0
+        #endif
+    }
     static let welcome = """
     ┌──────────────────────────────────────────────┐
     │  HanX                                        │
     │  문서 / 스프레드시트 / 슬라이드                      │
     ├──────────────────────────────────────────────┤
-    │  파일 변환     hanx --convert                │
+    │  파일 변환     hanx convert                  │
     │  명령어 표     hanx --help                   │
     │  지원 기능     hanx capabilities --pretty    │
     │  에이전트 연결 hanx mcp                      │

@@ -18,8 +18,13 @@ function resolveBinary(root, platform, arch, exists = fs.existsSync) {
   throw Object.assign(new Error(`HanX native executable is missing for ${platform}-${arch}: ${binary}. This package must include a native build for your platform; reinstall a matching package or use the standalone CLI archive.`), { code: 'native_binary_missing' });
 }
 async function main() {
+  const [command, ...args] = process.argv.slice(2);
+  const guided = ['convert', '--convert'].includes(command) &&
+    (args.length === 0 || (args.length === 1 && !args[0].startsWith('-')));
+  if (guided && process.stdin.isTTY && process.stdout.isTTY) {
+    process.stdout.write('HanX 파일 변환을 준비하고 있습니다…\n');
+  }
   const setup = require('../lib/setup.js');
-  const command = process.argv[2];
   try {
     if (['--delete','--uninstall','uninstall'].includes(command)) {
       process.exitCode=await require('../lib/uninstall.js').uninstall(path.resolve(__dirname,'..'),process.argv.slice(3));return;

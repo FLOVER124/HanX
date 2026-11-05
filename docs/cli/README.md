@@ -309,3 +309,52 @@ MCP 도구는 `hanx_capabilities`, `hanx_read`, `hanx_create`, `hanx_edit`, `han
 현재 사용자의 설치와 확인 가능한 공용 설치를 대상으로 합니다. npm, Homebrew, Windows 설치 마법사, Debian 설치는 해당 설치 관리자를 통해 제거합니다. Windows에서는 실행 파일 잠금 때문에 별도 삭제 창에서 최종 결과를 표시합니다. 공용 경로에는 운영체제의 관리자 인증이 필요할 수 있습니다. 오류가 발생하면 남은 항목을 확인하고 다시 실행하세요.
 
 작성한 문서, 소스 코드, 다른 사용자의 설치와 별도로 설치한 PDF 도구는 삭제하지 않습니다. 직접 설치한 폴더에서는 알려진 HanX 파일만 지우고 그 안의 다른 파일은 보존합니다. 설정과 앱 캐시는 삭제됩니다. 외부 AI 클라이언트의 설정 파일은 자동 수정하지 않으므로 해당 클라이언트에서 HanX 연결을 해제하세요.
+
+## PDF 편집
+
+PDF 원본의 개체를 직접 편집합니다. 일반 `read`나 `convert`의 문서 가져오기와 별도 기능입니다.
+
+| 작업 | 명령 |
+|---|---|
+| 편집 엔진 준비 | `hanx pdf setup` |
+| 개체 조회 | `hanx pdf inspect "원본 문서.pdf" --page 0 --pretty` |
+| 페이지 미리보기 | `hanx pdf render "원본 문서.pdf" --page 0 --scale 1.5` |
+| 개체 수정 | `hanx pdf edit "원본 문서.pdf" --ops edits.json --output "수정 문서.pdf"` |
+| 검색 가능한 PDF 저장 | `hanx pdf searchable "스캔 문서.pdf" --all-pages --language kor+eng --output "검색 문서.pdf"` |
+| 문자 인식 | `hanx pdf ocr "스캔 문서.pdf" --page 0 --language kor+eng --pretty` |
+
+편집 엔진은 Python 3.10 이상이 필요합니다. `setup`은 사용자 폴더의 별도 환경에 PDFium 연결 라이브러리와 이미지·글꼴 처리 라이브러리를 설치합니다. 관리자 권한은 필요하지 않습니다. 처음 GUI에서 PDF를 열 때도 준비 여부를 확인합니다. 문서는 로컬에서 처리합니다.
+
+Mac 기본 앱과 기본 CLI의 문자 인식은 운영체제의 인식 엔진을 사용합니다. Windows·Linux와 portable 엔진은 Tesseract와 언어 데이터가 필요합니다. 한국어는 `kor`, 영어는 `eng`, 일본어는 `jpn`입니다. `kor+eng`처럼 함께 지정할 수 있습니다. OCR 결과에는 `text`, 인식 영역의 `viewBounds`, `confidence`가 들어 있습니다. Mac 결과의 영역 단위는 줄, Tesseract 결과의 영역 단위는 단어입니다. `pdf ocr`는 원본을 수정하지 않습니다. `pdf searchable`은 인식한 글자를 보이지 않는 검색 텍스트로 추가한 PDF를 저장합니다. `--page 0`은 첫 페이지, `--all-pages`는 전체 페이지이며, 이미 텍스트가 있는 페이지는 건너뜁니다. 둘 다 생략하면 첫 페이지를 처리합니다. GUI에서는 **문자 인식 → 검색 텍스트 추가 → 복사본 저장** 순서입니다. 스캔 이미지 안의 글자 모양이나 문단 배치가 바뀌지는 않습니다.
+
+`inspect`의 `objects`는 페이지의 최상위 개체 목록입니다. `id`와 `page`는 0부터 시작합니다. 같은 일괄 작업 안에서 앞의 개체를 삭제해도 뒤의 ID는 바뀌지 않습니다. 저장한 파일을 다시 수정할 때는 `inspect`를 다시 실행하세요. `--revision`에 조회 결과의 `revision`을 넣으면 다른 버전의 개체를 잘못 수정하는 것을 막을 수 있습니다.
+
+좌표와 크기는 회전하기 전 PDF 좌표계의 포인트(1/72인치)이며 왼쪽 아래가 원점입니다. `viewBounds`는 화면에 표시되는 회전된 페이지의 왼쪽 위 기준 0~1 좌표입니다.
+
+```json
+[
+  {"op":"set_text","page":0,"object":0,"text":"수정한 제목","size":20},
+  {"op":"transform","page":0,"object":1,"dx":24,"dy":-12,"scaleX":1.2,"scaleY":1.2,"rotation":15},
+  {"op":"set_fill","page":0,"object":2,"color":"#246BFD","opacity":0.8},
+  {"op":"replace_image","page":0,"object":3,"image":"새 그림.png"},
+  {"op":"delete","page":0,"object":4}
+]
+```
+
+| 작업 | 추가 필드 |
+|---|---|
+| `set_text` | `text`, 선택적으로 `size`, `font`(TTF 파일 경로) |
+| `transform` | `dx`, `dy`, `scaleX`, `scaleY`, `rotation`(도, 반시계 방향). 크기·회전의 중심은 개체 중앙 |
+| `set_fill` | `color`(`#RRGGBB`), 선택적으로 `opacity`(0~1). 텍스트와 도형 |
+| `replace_image` | `image`(로컬 이미지 경로). 기존 위치와 크기 유지 |
+| `delete` | `page`, `object` |
+| `add_text` | `page`, `text`, `x`, `y`, `size`, 선택적으로 `color`, `font` |
+| `add_image` | `page`, `image`, `x`, `y`, `width`, `height` |
+| `add_ocr_layer` | `page`, `regions`: OCR 결과의 `words` 배열. 텍스트가 없는 페이지에만 추가 |
+| `add_rect` | `page`, `x`, `y`, `width`, `height`, `color` |
+
+이미지·글꼴 상대 경로는 작업 JSON이 있는 폴더 기준이며 `--ops -`는 현재 폴더 기준입니다. `set_text`는 한 줄 개체 단위입니다. 기존 글꼴에 없는 문자는 완전한 로컬 글꼴을 사용하므로 모양이 달라질 수 있습니다. 한글을 지원하는 TTF 파일을 `font`로 지정할 수 있습니다. 텍스트가 윤곽선 또는 이미지로 저장된 경우 텍스트 개체로 수정할 수 없습니다. 잘린 영역이나 외곽선이 있는 텍스트는 글꼴을 바꾸는 수정을 거절해 원래 서식 손실을 막습니다. 그룹(Form)은 전체 이동·크기 조절·회전·삭제만 지원합니다. 주석과 양식 필드 편집, 자동 문단 재배치는 포함하지 않습니다.
+
+수정은 새 PDF로 저장하며 기존 파일 덮어쓰기는 `--force`로 명시해야 합니다. 삭제는 페이지의 선택한 개체를 제거하는 기능으로, 문서 전체의 같은 내용이나 메타데이터를 제거하는 보안 가림 기능은 아닙니다. GUI는 첫 저장에서 복사본 위치를 선택하며, 현재 세션에서 실행 취소와 다시 실행을 지원합니다.
+
+MCP에서도 `hanx_pdf_inspect`, `hanx_pdf_render`, `hanx_pdf_edit`, `hanx_pdf_ocr`, `hanx_pdf_searchable`를 사용할 수 있습니다. 편집은 `operations` 배열과 `output`을 지정하세요. 의존성 설치는 로컬 CLI의 `hanx pdf setup`에서만 실행합니다.
