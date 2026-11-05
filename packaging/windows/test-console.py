@@ -68,8 +68,8 @@ with tempfile.TemporaryDirectory(prefix='HanX console 한글 ') as temp:
     created = subprocess.run([binary,'create','--spec','-','--output',str(source)], input=json.dumps({'kind':'document','text':'Console Unicode path'}),
                              capture_output=True,encoding='utf-8',check=True)
     # Explorer-style exterior quoting preserves every Windows backslash.
-    console(['"' + str(source) + '"'], [key(0x28), key(0x0D)])
-    assert source.with_suffix('.hwpx').is_file(), 'Down arrow did not select HWPX'
+    console(['"' + str(source) + '"'], [key(0x28), key(0x28), key(0x0D)])
+    assert source.with_suffix('.hwpx').is_file(), 'Two down arrows did not select HWPX'
     # A complete dropped Unicode path is read from KEY_EVENT UnicodeChar units.
     console([], text_keys('"' + str(source) + '"') + [key(0x0D), key(0x26), key(0x0D)])
     assert source.with_suffix('.xml').is_file(), 'Up arrow did not wrap to XML'

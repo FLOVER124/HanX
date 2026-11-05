@@ -1,7 +1,7 @@
 const assert=require('node:assert/strict');
 const fs=require('node:fs/promises');
 const path=require('node:path');
-const {dialog}=require('electron');
+const {dialog,BrowserWindow}=require('electron');
 const {runEngine}=require('./engine.cjs');
 module.exports=async function smoke(win,session){
  const js=async code=>{
@@ -48,7 +48,24 @@ module.exports=async function smoke(win,session){
  await js('duplicateSlide()');await waitFor('!busy && state.model.slides.length===2');
  const slides=await saveAs('gui.pptx');await open(slides);assert.equal(await js('state.model.slides[0].transition.kind'),'fade');await screenshot('presentation');
  const pdf=await saveAs('gui.pdf');assert.equal((await fs.readFile(pdf)).subarray(0,4).toString(),'%PDF');
- await open(pdf);assert.ok(shownNotices.some(n=>n.type==='warning'&&n.detail.includes('PDF')));const warningCount=shownNotices.length;
+ dialog.showOpenDialog=async()=>({canceled:false,filePaths:[pdf]});
+ await click('open');
+ const pdfWindow=BrowserWindow.getAllWindows().find(candidate=>candidate.webContents.getURL().endsWith('/pdf/index.html'));
+ assert.ok(pdfWindow,'Opening a PDF must create its editing window');
+ let pdfPage;
+ for(let attempt=0;attempt<200;attempt++){
+  pdfPage=await pdfWindow.webContents.executeJavaScript('state && !busy ? {name:state.name,pageCount:state.pageCount,image:state.image} : null');
+  if(pdfPage)break;
+  await new Promise(resolve=>setTimeout(resolve,100));
+ }
+ assert.ok(pdfPage,'The PDF editing window must render its first page');
+ assert.equal(pdfPage.name,path.basename(pdf));
+ assert.ok(pdfPage.pageCount>0);
+ assert.match(pdfPage.image,/^data:image\/png;base64,/);
+ if(screenshotDir)await fs.writeFile(path.join(screenshotDir,'pdf.png'),(await pdfWindow.webContents.capturePage()).toPNG());
+ await new Promise(resolve=>{pdfWindow.once('closed',resolve);pdfWindow.close();});
+ await newFile('document');
+ const warningCount=shownNotices.length;
  await js("edit({op:'append_paragraph',section:0,text:'알림 반복 확인'})");await waitFor('!busy');assert.equal(shownNotices.length,warningCount);
  assert.equal(await js("Boolean(document.getElementById('error')||document.getElementById('notices')||document.querySelector('.local-note'))"),false);
  await js("run(()=>hanx.edit([{op:'not-supported'}]))");await waitFor('!busy');assert.equal(shownNotices.length,warningCount+1);assert.equal(shownNotices.at(-1).type,'error');

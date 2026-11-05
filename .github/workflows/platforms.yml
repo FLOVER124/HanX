@@ -25,9 +25,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Linux build and Electron dependencies
+        timeout-minutes: 12
         if: runner.os == 'Linux'
         run: |
-          sudo apt-get update
+          sudo sed -i 's|azure.archive.ubuntu.com|archive.ubuntu.com|g' /etc/apt/sources.list
+          sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 update
           sudo apt-get install -y libicu-dev libcurl4-openssl-dev libxml2-dev libsqlite3-dev libssl-dev libasound2 libnss3 libgtk-3-0 libgbm1 libfuse2 rpm xvfb libreoffice poppler-utils fonts-noto-cjk
       - name: Windows PDF renderer and text extraction
         if: runner.os == 'Windows'
@@ -87,7 +89,9 @@ jobs:
           ./packaging/windows/stage-cli.ps1
           ./packaging/windows/test-path.ps1
           python packaging/windows/test-console.py build/platform/cli/hanx.exe
+          if ($LASTEXITCODE -ne 0) { throw 'Native console input test failed' }
           python packaging/smoke-cli.py build/platform/cli/hanx.exe --pdf
+          if ($LASTEXITCODE -ne 0) { throw 'Native CLI conversion test failed' }
           New-Item -ItemType Directory -Path build/distribution -Force
           $version = (Get-Content packaging/npm/package.json | ConvertFrom-Json).version
           Compress-Archive -Path build/platform/cli/* -DestinationPath "build/distribution/HanX-CLI-$version-win32-x64.zip"
