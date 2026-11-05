@@ -17,6 +17,8 @@ import re
 import shutil
 import subprocess
 import sys
+# Bundled workers live inside signed app resources. Never mutate them on import.
+sys.dont_write_bytecode = True
 import tempfile
 
 class PDFError(Exception):

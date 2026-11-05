@@ -95,6 +95,15 @@ class PDFEditorTests(unittest.TestCase):
         self.assertEqual(result['objects'][0]['text'],'한글 수정 테스트')
         self.assertEqual([o['type'] for o in result['objects']],['text','path','image'])
         self.ok('render',input=str(out),page=0)
+    def test_bundled_font_import_does_not_modify_signed_resources(self):
+        import shutil
+        bundle=self.dir/'signed-resources';bundle.mkdir()
+        shutil.copy2(WORKER,bundle/'worker.py');shutil.copy2(WORKER.parent/'fonts.py',bundle/'fonts.py')
+        output=self.dir/'no-cache.pdf'
+        result=subprocess.run([sys.executable,str(bundle/'worker.py')],input=json.dumps({'action':'edit','input':str(self.source),'output':str(output),'operations':[{'op':'set_text','page':0,'object':0,'text':'Changed'}]}),text=True,capture_output=True)
+        self.assertTrue(json.loads(result.stdout)['ok'],result.stdout)
+        self.assertFalse((bundle/'__pycache__').exists())
+
     def test_embedded_font_and_compatible_new_glyphs_keep_family(self):
         font=Path('/System/Library/Fonts/Supplemental/Arial Unicode.ttf')
         if not font.exists():self.skipTest('Korean TTF fixture unavailable')
