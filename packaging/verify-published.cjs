@@ -24,6 +24,7 @@ function state(){
 assert.equal(JSON.parse(call('--version')).data.version,version);
 call('setup','--components','cli','--yes');
 assert.equal(state().components,'cli');
+call('pdf','setup');
 call('setup','--components','all','--yes');
 assert.equal(state().components,'all');
 const gui=state().gui;
