@@ -8,6 +8,7 @@ class Install(unittest.TestCase):
             self.assertEqual(p.returncode,0,(p.stdout,p.stderr))
             result=subprocess.check_output([str(commands/'hanx'),'--version'],text=True); self.assertEqual(json.loads(result)['data']['version'],json.loads((pathlib.Path(__file__).resolve().parents[2]/'packaging/npm/package.json').read_text())['version'])
             cap=json.loads(subprocess.check_output([str(commands/'hanx'),'capabilities'],text=True))['data']; self.assertIn('guidePath',cap); self.assertTrue(pathlib.Path(cap['guidePath']).is_file()); self.assertTrue((prefix/'README.md').exists()); self.assertTrue((prefix/'examples'/'document.json').exists())
+            self.assertTrue((prefix/'pdf'/'worker.py').is_file()); self.assertTrue((prefix/'pdf'/'requirements.txt').is_file())
             commands.joinpath('hanx').unlink(); commands.joinpath('hanx').write_text('user command')
             p=subprocess.run(['/bin/sh',str(ROOT/'install-cli.sh'),'--prefix',str(root/'other'),'--bin-dir',str(commands)],capture_output=True,text=True)
             self.assertNotEqual(p.returncode,0); self.assertEqual(commands.joinpath('hanx').read_text(),'user command'); self.assertFalse((root/'other').exists())

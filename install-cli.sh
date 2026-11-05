@@ -48,6 +48,14 @@ else
   cp "$hw_root/README.md" "$hw_stage/README.md"
   cp -R "$hw_root/examples" "$hw_stage/examples"
 fi
+hw_pdf="$hw_root/pdf"
+[ -f "$hw_pdf/worker.py" ] || hw_pdf="$hw_root/Tools/pdf"
+[ -f "$hw_pdf/worker.py" ] && [ -f "$hw_pdf/requirements.txt" ] || {
+  printf '%s\n' 'The PDF editing engine is missing from this CLI package.' >&2
+  exit 1
+}
+mkdir -p "$hw_stage/pdf"
+cp "$hw_pdf/worker.py" "$hw_pdf/requirements.txt" "$hw_stage/pdf/"
 printf '%s\n' '2.13.3' > "$hw_stage/HANX-CLI-VERSION"
 "$hw_stage/hanx" --version >/dev/null
 if [ -e "$hw_prefix" ]; then
