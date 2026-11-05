@@ -5,6 +5,11 @@ const {Session,resolveEngine,formats}=require('./engine.cjs');
 const {NoticeCenter}=require('./notifications.cjs');
 let win,session,notices,queue=Promise.resolve(),quitting=false;
 
+async function openPDF(file){return require('./pdf-window.cjs').openPDF(session.executable,file,async current=>{
+ if(!await confirmDiscard())return false;
+ const next=await session.open(current);session.source=path.join(path.dirname(file),path.parse(file).name+'.hanx');session.imported=true;session.dirty=true;
+ win.webContents.send('hanx:opened',{...next,path:session.source,dirty:true});win.show();win.focus();return true;
+});}
 function sendAction(action){const focused=BrowserWindow.getFocusedWindow();if(focused&&focused!==win&&focused.webContents.getURL().endsWith('/pdf/index.html')){if(['cut','copy','paste'].includes(action)){focused.webContents[action]();return;}if(action!=='open'){focused.webContents.send('hanx:pdf-action',action);return;}}win.webContents.send('hanx:action',action);}
 const smoke=process.argv.includes('--smoke-test');
 // Windows and Linux pass associated files on the command line. macOS sends open-file.
@@ -13,7 +18,7 @@ let initialized=false;
 app.on('open-file',(event,file)=>{
  event.preventDefault();
  if(!initialized){startupFile=file;return;}
- if(path.extname(file).toLowerCase()==='.pdf'){require('./pdf-window.cjs').openPDF(session.executable,file).catch(error=>notices.error(error));return;}
+ if(path.extname(file).toLowerCase()==='.pdf'){openPDF(file).catch(error=>notices.error(error));return;}
  queue=queue.then(async()=>{
   if(!await confirmDiscard())return;
   const next=await session.open(file);
@@ -35,12 +40,12 @@ app.whenReady().then(async()=>{
  handle('hanx:initial',async()=>{if(engineError)throw Error(engineError);
   initialized=true;
   if(startupFile){
-   try{if(path.extname(startupFile).toLowerCase()==='.pdf'){await require('./pdf-window.cjs').openPDF(session.executable,path.resolve(startupFile));return session.create('document');}return await session.open(path.resolve(startupFile));}
+   try{if(path.extname(startupFile).toLowerCase()==='.pdf'){await openPDF(path.resolve(startupFile));return session.create('document');}return await session.open(path.resolve(startupFile));}
    catch(error){await notices.error(error);}
   }
   return session.create('document');});
  handle('hanx:new',async (kind,template)=>{if(!await confirmDiscard())return null;const next=await session.create(kind,template);notices.reset();return next;});
- handle('hanx:open',async()=>{if(!await confirmDiscard())return null;const result=await dialog.showOpenDialog(win,{properties:['openFile'],filters:[{name:'Office files',extensions:['hanx','hwp','hwpx','docx','pptx','xlsx','csv','tsv','txt','md','hml','json','pdf']}]});if(result.canceled)return null;if(path.extname(result.filePaths[0]).toLowerCase()==='.pdf'){await require('./pdf-window.cjs').openPDF(session.executable,result.filePaths[0]);return null;}const next=await session.open(result.filePaths[0]);notices.reset();await notices.warnings(next.warnings);return next;});
+ handle('hanx:open',async()=>{if(!await confirmDiscard())return null;const result=await dialog.showOpenDialog(win,{properties:['openFile'],filters:[{name:'Office files',extensions:['hanx','hwp','hwpx','docx','pptx','xlsx','csv','tsv','txt','md','hml','json','pdf']}]});if(result.canceled)return null;if(path.extname(result.filePaths[0]).toLowerCase()==='.pdf'){await openPDF(result.filePaths[0]);return null;}const next=await session.open(result.filePaths[0]);notices.reset();await notices.warnings(next.warnings);return next;});
  handle('hanx:insert-image',async (index,background)=>{const result=await dialog.showOpenDialog(win,{properties:['openFile'],filters:[{name:'그림',extensions:['png','jpg','jpeg']}]});if(result.canceled)return null;return require('./media-import.cjs').importSlideImage(session,index,result.filePaths[0],nativeImage,background===true);});
  handle('hanx:edit',ops=>session.edit(ops));
  handle('hanx:copy-slide',index=>session.copySlide(index));

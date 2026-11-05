@@ -13,29 +13,26 @@ application.setActivationPolicy(.accessory)
 let doc = try PDFEditingDocument(contentsOf:URL(fileURLWithPath:ProcessInfo.processInfo.environment["HANX_PDF_TEST_FIXTURE"]!),ofType:DocType.pdf)
 doc.makeWindowControllers();doc.showWindows()
 let window = doc.windowControllers[0].window!
-guard let reader = window.contentView as? PDFView,
-      let pdf = reader.document, pdf.pageCount > 0, reader.currentPage != nil else {
-    print("FAIL opening a PDF must display its original pages in the native reader")
-    exit(1)
-}
 if (try? doc.data(ofType: "public.plain-text")) != nil {
     print("FAIL PDF bytes reported as plain text")
     exit(1)
 }
-if ProcessInfo.processInfo.environment["HANX_PDF_TEST_READ_ONLY"] == "1" {
-    guard let page = pdf.page(at: 0), page.numberOfCharacters == 0,
-          page.thumbnail(of: NSSize(width: 160, height: 160), for: .cropBox).isValid else {
-        print("FAIL expected a readable image-only PDF")
-        exit(1)
-    }
-    print("PASS native image-only PDF reader, \(pdf.pageCount) page(s)")
-    exit(0)
-}
 guard let modes = window.titlebarAccessoryViewControllers.compactMap({ $0.view as? NSSegmentedControl }).first else {
     print("FAIL missing edit mode switch"); exit(1)
 }
-modes.selectedSegment = 1
-_ = NSApp.sendAction(modes.action!, to: modes.target, from: modes)
+guard modes.selectedSegment == 1, window.contentView is WKWebView else {
+    print("FAIL PDF must open directly in the editor"); exit(1)
+}
+if ProcessInfo.processInfo.environment["HANX_PDF_TEST_READ_ONLY"] == "1" {
+    modes.selectedSegment = 0
+    _ = NSApp.sendAction(modes.action!, to: modes.target, from: modes)
+    guard let reader=window.contentView as? PDFView, let pdf=reader.document,
+          let page=pdf.page(at:0), page.numberOfCharacters == 0,
+          page.thumbnail(of:NSSize(width:160,height:160),for:.cropBox).isValid else {
+        print("FAIL expected a readable image-only PDF"); exit(1)
+    }
+    print("PASS native image-only PDF reading mode");exit(0)
+}
 let web = window.contentView as! WKWebView
 let deadline = Date().addingTimeInterval(40)
 var done = false

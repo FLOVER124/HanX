@@ -70,12 +70,13 @@ final class PDFEditingWindowController: NSWindowController, WKNavigationDelegate
         reader.document = document.originalPDF
         modes.target = self
         modes.action = #selector(changeMode(_:))
-        modes.selectedSegment = 0
+        modes.selectedSegment = 1
         modes.sizeToFit()
         let accessory = NSTitlebarAccessoryViewController()
         accessory.view = modes
         accessory.layoutAttribute = .right
         window.addTitlebarAccessoryViewController(accessory)
+        changeMode(modes)
     }
     @objc private func changeMode(_ sender: NSSegmentedControl) {
         if sender.selectedSegment == 0 {
@@ -185,6 +186,23 @@ final class PDFEditingWindowController: NSWindowController, WKNavigationDelegate
             do {
                 let result: Any
                 switch action {
+                case "document":
+                    DispatchQueue.main.async {
+                        self.pendingWork -= 1
+                        do {
+                            guard let kind = NSClassFromString("HWDocument") as? NSDocument.Type else { throw PDFEditingBridge.Failure(message:"문서 편집기를 찾지 못했습니다.") }
+                            let imported = try kind.init(contentsOf:session.current, ofType:DocType.pdf)
+                            imported.fileURL = nil
+                            imported.fileType = kind.readableTypes.first
+                            imported.displayName = session.source.deletingPathExtension().lastPathComponent
+                            NSDocumentController.shared.addDocument(imported)
+                            imported.makeWindowControllers(); imported.showWindows()
+                            imported.updateChangeCount(.changeDone)
+                            self.reply(id,true)
+                        } catch { self.reply(id,nil,error) }
+                    }
+                    return
+                case "thumbnail": result = try PDFEditingBridge.call(["action":"render","input":session.current.path,"page":args["page"] as? Int ?? 0,"scale":0.2])
                 case "page": result = try session.page(args["page"] as? Int ?? 0)
                 case "edit": result = try session.edit(args)
                 case "undo", "redo": session.undo(redo: action == "redo"); result = true

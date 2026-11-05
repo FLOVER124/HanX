@@ -24,7 +24,9 @@ For the native reader check, use an image-only PDF as the fixture, set
 `HANX_PDF_TEST_READ_ONLY=1` and `HANX_PDF_PYTHON=/usr/bin/false`. The reader
 opens and renders the page without the editing runtime.
 
-The editing test switches from the reader to the WKWebView editor and verifies that closing during a first edit waits
+The native test requires the WKWebView editor on opening, then verifies that closing during a first edit waits
 for the edit before presenting the unsaved-document confirmation.
 
 No test installs or replaces the user's HanX app.
+
+`document-ui.cjs` uses an optional real multipage PDF supplied through the same environment variables. It checks lazy page thumbnails, T text icons, drawn shape previews, text hit testing above page backgrounds, inline Korean edits, geometry, delete/undo, save-copy integrity and the document import action. Its source fixture is never modified or committed.
