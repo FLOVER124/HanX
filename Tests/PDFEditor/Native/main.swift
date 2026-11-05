@@ -13,6 +13,8 @@ application.setActivationPolicy(.accessory)
 let doc = try PDFEditingDocument(contentsOf:URL(fileURLWithPath:ProcessInfo.processInfo.environment["HANX_PDF_TEST_FIXTURE"]!),ofType:DocType.pdf)
 doc.makeWindowControllers();doc.showWindows()
 let window = doc.windowControllers[0].window!
+let printOperation=try doc.printOperation(withSettings:[:])
+guard printOperation.showsPrintPanel else { print("FAIL missing system print panel");exit(1) }
 if (try? doc.data(ofType: "public.plain-text")) != nil {
     print("FAIL PDF bytes reported as plain text")
     exit(1)
@@ -47,6 +49,14 @@ while Date()<deadline {
     if evaluate("typeof state !== 'undefined' && !!state && !busy") as? Bool == true { done=true; break }
 }
 guard done else { print("FAIL native PDF UI",evaluate("document.body.innerText") ?? "");exit(1) }
+if ProcessInfo.processInfo.environment["HANX_PDF_TEST_PRINT_PANEL"] == "1" {
+    _ = evaluate("window.hanxPDFAction('print');true")
+    while window.sheets.isEmpty && Date()<deadline { RunLoop.main.run(until:Date().addingTimeInterval(0.1)) }
+    guard let panel=window.sheets.first else { print("FAIL print action did not open a system sheet");exit(1) }
+    print("PASS print action opened system sheet",panel.className)
+    NSApp.endSheet(panel,returnCode:NSApplication.ModalResponse.cancel.rawValue)
+    exit(0)
+}
 guard evaluate("state.objects.length") as? Int == 3 else { print("FAIL object count");exit(1) }
 _ = evaluate("select(0);inlineText(selected());$('inlineText').value='Unsaved draft';$('inlineText').dispatchEvent(new Event('input'));true")
 while !doc.isDocumentEdited && Date()<deadline { RunLoop.main.run(until:Date().addingTimeInterval(0.05)) }

@@ -72,6 +72,10 @@ final class SlideDocument: NSDocument {
         }
     }
 
+    override func printOperation(withSettings settings: [NSPrintInfo.AttributeKey:Any]) throws -> NSPrintOperation {
+        try HanXPrinting.operation(data(ofType:DocType.pdf),info:printInfo,settings:settings)
+    }
+
     override func data(ofType typeName: String) throws -> Data {
         windowControllers.compactMap { $0 as? SlideWindowController }.forEach { $0.commitTextEditing() }
         if typeName == HanXFile.type { return HanXFile.encode(.presentation, payload: PPTXWriter.write(pres)) }

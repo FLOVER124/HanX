@@ -3,6 +3,18 @@ import WebKit
 import PDFKit
 import UniformTypeIdentifiers
 
+enum HanXPrinting {
+    static func operation(_ data: Data, info: NSPrintInfo, settings: [NSPrintInfo.AttributeKey:Any]) throws -> NSPrintOperation {
+        let copy=info.copy() as! NSPrintInfo
+        copy.dictionary().addEntries(from:settings)
+        guard let pdf=PDFDocument(data:data), let operation=pdf.printOperation(for:copy,scalingMode:.pageScaleToFit,autoRotate:true) else {
+            throw PDFEditingBridge.Failure(message:"인쇄할 문서를 준비하지 못했습니다.")
+        }
+        operation.showsPrintPanel=true;operation.showsProgressPanel=true
+        return operation
+    }
+}
+
 @objc(PDFEditingDocument)
 final class PDFEditingDocument: NSDocument {
     var session: PDFEditingSession!
@@ -30,6 +42,10 @@ final class PDFEditingDocument: NSDocument {
         return try Data(contentsOf: session.current)
     }
     override func makeWindowControllers() { addWindowController(PDFEditingWindowController(document: self)) }
+    override func printOperation(withSettings settings: [NSPrintInfo.AttributeKey:Any]) throws -> NSPrintOperation {
+        try HanXPrinting.operation(Data(contentsOf:session.current),info:printInfo,settings:settings)
+    }
+    override func printDocument(_ sender: Any?) { (windowControllers.first as? PDFEditingWindowController)?.action("print") }
     override func save(_ sender: Any?) { (windowControllers.first as? PDFEditingWindowController)?.action("save") }
     override func saveAs(_ sender: Any?) { (windowControllers.first as? PDFEditingWindowController)?.action("saveAs") }
     override func saveTo(_ sender: Any?) { saveAs(sender) }
@@ -110,6 +126,10 @@ final class PDFEditingWindowController: NSWindowController, WKNavigationDelegate
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
     private func presentMissingEditor() { let alert = NSAlert(); alert.messageText = "PDF 편집 화면 파일을 찾지 못했습니다."; alert.runModal() }
     func action(_ name: String) {
+        if name == "print", window?.contentView === reader {
+            do { try pdfDocument?.printOperation(withSettings:[:]).runModal(for:window!,delegate:nil,didRun:nil,contextInfo:nil) } catch { presentError(error) }
+            return
+        }
         if window?.contentView === reader {
             savePDF(asCopy: name == "saveAs") { [weak self] _, error in
                 if let error { self?.presentError(error) }
@@ -190,6 +210,16 @@ final class PDFEditingWindowController: NSWindowController, WKNavigationDelegate
             do {
                 let result: Any
                 switch action {
+                case "print":
+                    DispatchQueue.main.async {
+                        self.pendingWork -= 1
+                        do {
+                            let operation=try doc.printOperation(withSettings:[:])
+                            operation.runModal(for:self.window!,delegate:nil,didRun:nil,contextInfo:nil)
+                            self.reply(id,true)
+                        } catch { self.reply(id,nil,error) }
+                    }
+                    return
                 case "document":
                     DispatchQueue.main.async {
                         self.pendingWork -= 1

@@ -5,6 +5,7 @@ const {Session,resolveEngine,formats}=require('./engine.cjs');
 const {NoticeCenter}=require('./notifications.cjs');
 let win,session,notices,queue=Promise.resolve(),quitting=false;
 
+async function runEngineForPrint(destination){await require('./engine.cjs').runEngine(session.executable,['convert',session.file,'--output',destination,'--force']);}
 async function openPDF(file){return require('./pdf-window.cjs').openPDF(session.executable,file,async current=>{
  if(!await confirmDiscard())return false;
  const next=await session.open(current);session.source=path.join(path.dirname(file),path.parse(file).name+'.hanx');session.imported=true;session.dirty=true;
@@ -54,6 +55,7 @@ app.whenReady().then(async()=>{
  handle('hanx:help',topic=>notices.help(topic));
  handle('hanx:report-error',message=>{if(typeof message!=='string')throw Error('Invalid error report.');return notices.error(new Error(message));});
  handle('hanx:clipboard',action=>{if(!['cut','copy','paste','selectAll'].includes(action))throw Error('지원하지 않는 클립보드 명령입니다.');win.webContents[action]();return true;});
+ handle('hanx:print',async()=>{const destination=path.join(session.directory,'print.pdf');await runEngineForPrint(destination);return require('./printing.cjs').printPDF(destination);});
  handle('hanx:undo',redo=>session.undo(redo===true));
  handle('hanx:save',async as=>{
   if(typeof as!=='boolean')throw Error('Invalid save request.');
@@ -68,7 +70,7 @@ app.whenReady().then(async()=>{
   }
   const next=await session.save(destination);await notices.warnings(next.saveWarnings);return next;
  });
- Menu.setApplicationMenu(Menu.buildFromTemplate([{label:'파일',submenu:[{label:'열기…',accelerator:'CmdOrCtrl+O',click:()=>sendAction('open')},{label:'저장',accelerator:'CmdOrCtrl+S',click:()=>sendAction('save')},{label:'다른 이름으로 저장…',accelerator:'CmdOrCtrl+Shift+S',click:()=>sendAction('saveAs')},{type:'separator'},{role:'quit'}]},{label:'편집',submenu:[{label:'실행 취소',accelerator:'CmdOrCtrl+Z',click:()=>sendAction('undo')},{label:'다시 실행',accelerator:'CmdOrCtrl+Shift+Z',click:()=>sendAction('redo')},{type:'separator'},...[['잘라내기','X','cut'],['복사','C','copy'],['붙여넣기','V','paste']].map(([label,key,action])=>({label,accelerator:'CmdOrCtrl+'+key,click:()=>sendAction(action)})),{role:'selectAll'}]},{label:'보기',submenu:[{role:'resetZoom'},{role:'zoomIn'},{role:'zoomOut'},{role:'togglefullscreen'}]}]));
+ Menu.setApplicationMenu(Menu.buildFromTemplate([{label:'파일',submenu:[{label:'열기…',accelerator:'CmdOrCtrl+O',click:()=>sendAction('open')},{label:'인쇄…',accelerator:'CmdOrCtrl+P',click:()=>sendAction('print')},{label:'저장',accelerator:'CmdOrCtrl+S',click:()=>sendAction('save')},{label:'다른 이름으로 저장…',accelerator:'CmdOrCtrl+Shift+S',click:()=>sendAction('saveAs')},{type:'separator'},{role:'quit'}]},{label:'편집',submenu:[{label:'실행 취소',accelerator:'CmdOrCtrl+Z',click:()=>sendAction('undo')},{label:'다시 실행',accelerator:'CmdOrCtrl+Shift+Z',click:()=>sendAction('redo')},{type:'separator'},...[['잘라내기','X','cut'],['복사','C','copy'],['붙여넣기','V','paste']].map(([label,key,action])=>({label,accelerator:'CmdOrCtrl+'+key,click:()=>sendAction(action)})),{role:'selectAll'}]},{label:'보기',submenu:[{role:'resetZoom'},{role:'zoomIn'},{role:'zoomOut'},{role:'togglefullscreen'}]}]));
  win.on('close',e=>{if(!quitting&&session?.dirty){e.preventDefault();queue.then(async()=>{if(await confirmDiscard()){quitting=true;win.close();}});}});
  await win.loadFile(path.join(__dirname,'index.html'));
  if(smoke){try{await require('./smoke.cjs')(win,session);quitting=true;await session.close();app.exit(0);}catch(error){console.error('HANX_GUI_SMOKE_FAILED',error);quitting=true;app.exit(1);}}

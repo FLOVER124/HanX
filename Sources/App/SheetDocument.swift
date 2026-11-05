@@ -31,6 +31,10 @@ final class SheetDocument: NSDocument {
 
     var currentSheetIndex = 0
 
+    override func printOperation(withSettings settings: [NSPrintInfo.AttributeKey:Any]) throws -> NSPrintOperation {
+        try HanXPrinting.operation(data(ofType:DocType.pdf),info:printInfo,settings:settings)
+    }
+
     override func data(ofType typeName: String) throws -> Data {
         windowControllers.compactMap { $0 as? SheetWindowController }.forEach { $0.commitPendingEditing() }
         switch typeName {

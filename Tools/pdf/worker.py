@@ -49,33 +49,87 @@ def set_text(obj, text):
     buffer=c.create_string_buffer(text.encode('utf-16-le')+b'\0\0')
     check(raw.FPDFText_SetText(obj,c.cast(buffer,c.POINTER(c.c_ushort))), '텍스트를 수정하지 못했습니다.')
 
-def font_for(doc, text, explicit=None):
+def font_info(obj):
+    font=raw.FPDFTextObj_GetFont(obj)
+    def name(getter):
+        size=getter(font,None,0)
+        if not 0<size<4096:return ''
+        buffer=c.create_string_buffer(size);getter(font,buffer,size);return buffer.value.decode('utf-8','replace')
+    flags=raw.FPDFFont_GetFlags(font)
+    base=name(raw.FPDFFont_GetBaseFontName);family=name(raw.FPDFFont_GetFamilyName);weight=raw.FPDFFont_GetWeight(font) or 400
+    if not family or base=='Untitled':
+        try:
+            from fontTools.ttLib import TTFont
+            size=c.c_size_t();raw.FPDFFont_GetFontData(font,None,0,c.byref(size))
+            if 0<size.value<2*1024*1024:
+                data=(c.c_ubyte*size.value)();raw.FPDFFont_GetFontData(font,data,size.value,c.byref(size))
+                with TTFont(io.BytesIO(bytes(data))) as embedded:
+                    base=embedded['name'].getDebugName(6) or base;family=embedded['name'].getDebugName(1) or family
+                    weight=getattr(embedded.get('OS/2'),'usWeightClass',weight)
+        except Exception:pass
+    if weight in (350,400) and re.search(r'(bold|black|heavy|demi|semibold|PB$)',base,re.I):weight=700
+    return {'name':base,'family':family,'weight':weight,'italic':bool(flags&64),'serif':bool(flags&2)}
+
+def font_for(doc, text, explicit=None, original=None):
     # Newly inserted text uses a complete local font; subset fonts are not assumed
     # to contain characters absent from the source. Never silently drop glyphs.
-    if not explicit and all(32<=ord(ch)<127 for ch in text):
+    if not explicit and original is None and all(32<=ord(ch)<127 for ch in text):
         font=raw.FPDFText_LoadStandardFont(doc,b'Helvetica'); check(font,'글꼴을 열지 못했습니다.'); return font, None
     from fontTools.ttLib import TTFont
-    candidates=[explicit] if explicit else [
+    preferred=font_info(original) if original is not None else {}
+    if original is not None and not explicit:
+        handle=raw.FPDFTextObj_GetFont(original);size=c.c_size_t()
+        if raw.FPDFFont_GetFontData(handle,None,0,c.byref(size)) and 0<size.value<50*1024*1024:
+            data=(c.c_ubyte*size.value)()
+            if raw.FPDFFont_GetFontData(handle,data,size.value,c.byref(size)):
+                try:
+                    with TTFont(io.BytesIO(bytes(data))) as parsed:
+                        preferred['width']=getattr(parsed.get('OS/2'),'usWidthClass',5)
+                        embedded_type=raw.FPDF_FONT_TRUETYPE if 'glyf' in parsed else raw.FPDF_FONT_TYPE1
+                        valid=('glyf' in parsed or 'CFF ' in parsed) and set(map(ord,text)).issubset(parsed.getBestCmap() or {})
+                    if valid:
+                        with TTFont(io.BytesIO(bytes(data))) as embedded:
+                            for table in embedded['cmap'].tables:
+                                if table.isUnicode():table.cmap={code:glyph for code,glyph in table.cmap.items() if code in set(map(ord,text))}
+                            stream=io.BytesIO();embedded.save(stream);binary=stream.getvalue()
+                        data=(c.c_ubyte*len(binary)).from_buffer_copy(binary)
+                        font=raw.FPDFText_LoadFont(doc,data,len(binary),embedded_type,1)
+                        if font:return font,data
+                except Exception:pass
+    from fonts import candidates as matched_fonts
+    candidates=[explicit] if explicit else matched_fonts(preferred)+[
         '/System/Library/Fonts/Supplemental/Arial Unicode.ttf',
         '/System/Library/Fonts/Supplemental/AppleGothic.ttf',
         str(Path(os.environ.get('WINDIR','C:/Windows'))/'Fonts/malgun.ttf'),
         '/usr/share/fonts/truetype/nanum/NanumGothic.ttf',
         '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf']
     for candidate in candidates:
+        face=0
+        if isinstance(candidate,tuple):candidate,face=candidate
         if not candidate or not Path(candidate).is_file(): continue
         try:
-            require(Path(candidate).stat().st_size<=50*1024*1024,'글꼴 파일이 너무 큽니다.')
-            with TTFont(candidate) as parsed:
+            if Path(candidate).stat().st_size>200*1024*1024:
+                if explicit:raise PDFError('글꼴 파일이 너무 큽니다.')
+                continue
+            with TTFont(candidate,fontNumber=face) as parsed:
                 if not set(map(ord,text)).issubset(parsed.getBestCmap() or {}): continue
-                require('glyf' in parsed,'TrueType 윤곽선 글꼴(.ttf)을 선택하세요.')
+                require('glyf' in parsed or 'CFF ' in parsed,'TrueType 또는 OpenType 글꼴을 선택하세요.')
+                font_type=raw.FPDF_FONT_TRUETYPE if 'glyf' in parsed else raw.FPDF_FONT_TYPE1
+                if 'CFF ' in parsed:
+                    names=parsed['name'];ps=names.getDebugName(6) or names.getDebugName(4) or 'HanXReplacement'
+                    cff=parsed['CFF '].cff;cff.fontNames=[re.sub(r'[^A-Za-z0-9_-]','',ps)]
+                    top=cff.topDictIndex[0];top.FamilyName=names.getDebugName(1) or ps;top.FullName=names.getDebugName(4) or ps
+                    top.Weight='Bold' if getattr(parsed.get('OS/2'),'usWeightClass',400)>=600 else 'Regular'
+                for table in parsed['cmap'].tables:
+                    if table.isUnicode():table.cmap={code:glyph for code,glyph in table.cmap.items() if code in set(map(ord,text))}
                 if getattr(parsed.get('OS/2'),'fsType',0) & 0x100:
-                    data=Path(candidate).read_bytes()
+                    output=io.BytesIO(); parsed.save(output); data=output.getvalue()
                 else:
                     from fontTools.subset import Subsetter
-                    subset=Subsetter(); subset.populate(text=text); subset.subset(parsed)
+                    subset=Subsetter();subset.options.name_IDs=[1,2,4,6,16,17];subset.options.name_legacy=True;subset.options.name_languages=['*']; subset.populate(text=text); subset.subset(parsed)
                     output=io.BytesIO(); parsed.save(output); data=output.getvalue()
             buffer=(c.c_ubyte*len(data)).from_buffer_copy(data)
-            font=raw.FPDFText_LoadFont(doc,buffer,len(data),raw.FPDF_FONT_TRUETYPE,1)
+            font=raw.FPDFText_LoadFont(doc,buffer,len(data),font_type,1)
             if font: return font,buffer
         except PDFError: raise
         except Exception: continue
@@ -104,7 +158,7 @@ def inspect_page(doc, index, revision):
                 item={'id':i,'type':{1:'text',2:'path',3:'image',4:'shading',5:'form'}.get(obj.type,'unknown'), 'bounds':bounds,
                       'viewBounds':[min(p[0] for p in points),min(p[1] for p in points),max(p[0] for p in points),max(p[1] for p in points)],'fill':fill(obj)}
                 if obj.type==raw.FPDF_PAGEOBJ_TEXT:
-                    item['text']=obj.extract(); item['searchText']=raw.FPDFTextObj_GetTextRenderMode(obj)==3; size=c.c_float()
+                    item['font']=font_info(obj); item['text']=obj.extract(); item['searchText']=raw.FPDFTextObj_GetTextRenderMode(obj)==3; size=c.c_float()
                     if raw.FPDFTextObj_GetFontSize(obj,c.byref(size)): item['size']=size.value
                 entries.append(item)
         return {'kind':'pdf','page':index,'pageCount':len(doc),'width':width,'height':height,'rotation':page.get_rotation(),'objects':entries,'revision':revision}
@@ -183,7 +237,7 @@ def modify(doc, ops):
                     require(not clip or raw.FPDFClipPath_CountPaths(clip)<=0,'잘린 영역이 있는 텍스트는 글꼴을 교체할 수 없습니다.')
                     require(raw.FPDFTextObj_GetTextRenderMode(obj) in (0,3),'외곽선 또는 클리핑 텍스트는 글꼴을 교체할 수 없습니다.')
                     size=c.c_float(); check(raw.FPDFTextObj_GetFontSize(obj,c.byref(size)),'텍스트 크기를 읽지 못했습니다.')
-                    font,buffer=font_for(doc,text,op.get('font')); fonts.append((font,buffer))
+                    font,buffer=font_for(doc,text,op.get('font'),original=obj); fonts.append((font,buffer))
                     replacement=pdf.PdfObject(raw.FPDFPageObj_CreateTextObj(doc,font,number(op.get('size',size.value),'size',1,1000)),pdf=doc)
                     set_text(replacement,text); replacement.set_matrix(obj.get_matrix())
                     rgba=[c.c_uint() for _ in range(4)]

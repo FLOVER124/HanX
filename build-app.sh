@@ -14,7 +14,7 @@ lipo -create build/HanX-arm64 build/HanX-x86_64 -output "$APP/Contents/MacOS/Han
 rm build/HanX-arm64 build/HanX-x86_64
 cp Resources/Info.plist "$APP/Contents/Info.plist"
 mkdir -p "$APP/Contents/Resources/PDF" "$APP/Contents/Resources/PDFEditor"
-cp Tools/pdf/worker.py Tools/pdf/requirements.txt "$APP/Contents/Resources/PDF/"
+cp Tools/pdf/worker.py Tools/pdf/fonts.py Tools/pdf/requirements.txt "$APP/Contents/Resources/PDF/"
 cp desktop/pdf/* "$APP/Contents/Resources/PDFEditor/"
 [ -f Resources/AppIcon.icns ] && cp Resources/AppIcon.icns "$APP/Contents/Resources/"
 cp Resources/Credits.rtf LICENSE NOTICE "$APP/Contents/Resources/"
@@ -28,7 +28,7 @@ CLI_VERSION=$("$CLI_PATH" --version | /usr/bin/plutil -extract data.version raw 
 mkdir -p "$APP/Contents/Resources/CLI"
 cp -p "$CLI_PATH" "$APP/Contents/Resources/CLI/hanx"
 mkdir -p "$APP/Contents/Resources/CLI/pdf"
-cp Tools/pdf/worker.py Tools/pdf/requirements.txt "$APP/Contents/Resources/CLI/pdf/"
+cp Tools/pdf/worker.py Tools/pdf/fonts.py Tools/pdf/requirements.txt "$APP/Contents/Resources/CLI/pdf/"
 cp docs/cli/README.md "$APP/Contents/Resources/CLI/README.md"
 cp -R docs/cli/examples "$APP/Contents/Resources/CLI/examples"
 cp LICENSE NOTICE "$APP/Contents/Resources/CLI/"

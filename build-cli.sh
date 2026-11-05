@@ -14,4 +14,4 @@ else
 fi
 
 mkdir -p build/pdf
-cp Tools/pdf/worker.py Tools/pdf/requirements.txt build/pdf/
+cp Tools/pdf/worker.py Tools/pdf/fonts.py Tools/pdf/requirements.txt build/pdf/

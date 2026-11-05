@@ -95,6 +95,16 @@ class PDFEditorTests(unittest.TestCase):
         self.assertEqual(result['objects'][0]['text'],'한글 수정 테스트')
         self.assertEqual([o['type'] for o in result['objects']],['text','path','image'])
         self.ok('render',input=str(out),page=0)
+    def test_embedded_font_and_compatible_new_glyphs_keep_family(self):
+        font=Path('/System/Library/Fonts/Supplemental/Arial Unicode.ttf')
+        if not font.exists():self.skipTest('Korean TTF fixture unavailable')
+        before=self.dir/'embedded.pdf';after=self.dir/'matched.pdf'
+        self.ok('edit',output=str(before),operations=[{'op':'set_text','page':0,'object':0,'text':'물리학 화학','font':str(font)}])
+        original=self.ok('inspect',input=str(before),page=0)['objects'][0]['font']
+        self.ok('edit',input=str(before),output=str(after),operations=[{'op':'set_text','page':0,'object':0,'text':'화학 물리'}])
+        edited=self.ok('inspect',input=str(after),page=0)['objects'][0]
+        self.assertEqual(edited['font']['family'],original['family']);self.assertIn('화학',edited['text'])
+
     def test_deleted_object_ids_do_not_shift_in_batch(self):
         out=self.dir/'batch.pdf'
         self.ok('edit',output=str(out),operations=[{'op':'delete','page':0,'object':0},{'op':'delete','page':0,'object':2}])
