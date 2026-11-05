@@ -41,7 +41,7 @@ let window = editor.window!
 check(window.attachedSheet != nil, "PDF import warning opens as an alert sheet")
 if let content = window.attachedSheet?.contentView {
     let text = descendants(content).compactMap { $0 as? NSTextField }.map(\.stringValue).joined(separator: "\n")
-    check(text.contains("OCR") && text.contains("Fixture compatibility detail"), "alert preserves extraction limits and other import warnings")
+    check(text.contains("선택 가능한 텍스트") && text.contains("hanx pdf ocr") && text.contains("Fixture compatibility detail"), "alert preserves extraction limits and other import warnings")
 }
 dismiss(window)
 editor.pages.firstTextView.insertText(" Edited", replacementRange: NSRange(location: imported.textStorage.length, length: 0))
@@ -55,7 +55,7 @@ secondEditor.showWindow(nil); settle()
 check(secondEditor.window!.attachedSheet == nil, "another window for the same document does not repeat the alert")
 secondEditor.close()
 let labels = descendants(window.contentView!).compactMap { $0 as? NSTextField }
-check(!labels.contains { $0.stringValue.contains("OCR") || ($0.toolTip?.contains("OCR") ?? false) }, "import warning does not persist in editor status or tooltips")
+check(!labels.contains { $0.stringValue.contains("hanx pdf ocr") || ($0.toolTip?.contains("hanx pdf ocr") ?? false) }, "import warning does not persist in editor status or tooltips")
 editor.close()
 
 let reopened = HWDocument()
