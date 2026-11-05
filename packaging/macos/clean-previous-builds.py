@@ -7,6 +7,7 @@ import plistlib
 import re
 import shutil
 import subprocess
+import time
 
 HOME = Path.home()
 APP = Path("/Applications/HanX.app")
@@ -115,10 +116,16 @@ def close_previous_apps(apps):
         if any(process.startswith(str(app) + "/Contents/MacOS/") for process in processes):
             script = 'on run argv\ntell application (item 1 of argv) to quit\nend run'
             subprocess.run(["/usr/bin/osascript", "-e", script, str(app)], check=True)
-    processes = subprocess.check_output(["/bin/ps", "-axo", "comm="], text=True).splitlines()
-    for app in apps:
-        if any(process.startswith(str(app) + "/Contents/MacOS/") for process in processes):
-            raise ValueError(f"문서를 저장하고 이전 앱을 종료하세요: {app}")
+    deadline = time.monotonic() + 5
+    while True:
+        processes = subprocess.check_output(["/bin/ps", "-axo", "comm="], text=True).splitlines()
+        pending = [app for app in apps if any(
+            process.startswith(str(app) + "/Contents/MacOS/") for process in processes)]
+        if not pending:
+            return
+        if time.monotonic() >= deadline:
+            raise ValueError(f"문서를 저장하고 이전 앱을 종료하세요: {pending[0]}")
+        time.sleep(0.1)
 
 
 def main():

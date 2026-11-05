@@ -14,15 +14,19 @@ ditto "$SOURCE" "$STAGE/HanX.app"
 codesign --verify --deep --strict "$STAGE/HanX.app"
 if [[ -e "$DEST" ]]; then
   /usr/bin/python3 - "$DEST" <<'PY'
-import plistlib, pathlib, subprocess, sys
+import plistlib, pathlib, subprocess, sys, time
 app=pathlib.Path(sys.argv[1])
 info=plistlib.loads((app/'Contents/Info.plist').read_bytes())
 assert info['CFBundleIdentifier'] in ('com.hanword.editor','org.studentsview.hanx','io.hanx.app')
 running=subprocess.check_output(['/bin/ps','-axo','comm='],text=True)
 if any(p.startswith(str(app)+'/Contents/MacOS/') for p in running.splitlines()):
     subprocess.run(['/usr/bin/osascript','-e','on run argv\ntell application (item 1 of argv) to quit\nend run',str(app)],check=True)
-    running=subprocess.check_output(['/bin/ps','-axo','comm='],text=True)
-    assert not any(p.startswith(str(app)+'/Contents/MacOS/') for p in running.splitlines()), 'Save documents and quit HanX.'
+    deadline=time.monotonic()+5
+    while True:
+        running=subprocess.check_output(['/bin/ps','-axo','comm='],text=True)
+        if not any(p.startswith(str(app)+'/Contents/MacOS/') for p in running.splitlines()):break
+        if time.monotonic()>=deadline:raise RuntimeError('Save documents and quit HanX.')
+        time.sleep(0.1)
 PY
   mv "$DEST" "$STAGE/previous.app"
 fi
