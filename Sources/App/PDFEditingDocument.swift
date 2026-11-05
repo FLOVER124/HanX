@@ -165,6 +165,10 @@ final class PDFEditingWindowController: NSWindowController, WKNavigationDelegate
               let request = message.body as? [String:Any], let id = request["id"] as? Int, let action = request["action"] as? String,
               let doc = pdfDocument, let session = doc.session else { return }
         let args = request["args"] as? [String:Any] ?? [:]
+        if action == "draft" {
+            doc.updateChangeCount((args["active"] as? Bool == true || session.dirty) ? .changeDone : .changeCleared)
+            reply(id,true);return
+        }
         if action == "copyText" {
             guard let text = args["text"] as? String, text.utf8.count <= 8_000_000 else { reply(id,nil,PDFEditingBridge.Failure(message:"복사할 텍스트가 너무 큽니다."));return }
             NSPasteboard.general.clearContents(); reply(id,NSPasteboard.general.setString(text,forType:.string));return

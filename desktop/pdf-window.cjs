@@ -14,6 +14,7 @@ function register(){if(initialized)return;initialized=true;ipcMain.handle('hanx:
  const {win,session}=context;
  const result=context.queue.then(async()=>{
   switch(action){
+   case 'draft':context.draft=args.active===true;return true;
    case 'thumbnail':return session.thumbnail(args.page);
    case 'document':if(!context.openDocument)throw Error('문서 편집기를 찾지 못했습니다.');return context.openDocument(session.current);
    case 'page':return session.page(args.page);
@@ -34,7 +35,7 @@ async function openPDF(executable,source,openDocument){register();const session=
  const context={win,session,openDocument,queue:Promise.resolve(),closing:false};const id=win.webContents.id;windows.set(id,context);
  win.webContents.setWindowOpenHandler(()=>({action:'deny'}));win.webContents.on('will-navigate',event=>event.preventDefault());
  win.webContents.on('before-input-event',(event,input)=>{if(input.type!=='keyDown'||!(input.control||input.meta))return;const key=input.key.toLowerCase();const action=key==='s'?(input.shift?'saveAs':'save'):key==='z'?(input.shift?'redo':'undo'):null;if(action){event.preventDefault();win.webContents.send('hanx:pdf-action',action);}});
- win.on('close',event=>{if(context.closing)return;event.preventDefault();context.queue=context.queue.then(async()=>{if(session.dirty){const {response}=await dialog.showMessageBox(win,{type:'question',message:'저장하지 않은 PDF 변경 사항을 버릴까요?',buttons:['계속 편집','변경 사항 버리기'],defaultId:0,cancelId:0});if(response!==1)return;}context.closing=true;win.close();});});
+ win.on('close',event=>{if(context.closing)return;event.preventDefault();context.queue=context.queue.then(async()=>{if(session.dirty||context.draft){const {response}=await dialog.showMessageBox(win,{type:'question',message:'저장하지 않은 PDF 변경 사항을 버릴까요?',buttons:['계속 편집','변경 사항 버리기'],defaultId:0,cancelId:0});if(response!==1)return;}context.closing=true;win.close();});});
  win.on('closed',()=>{windows.delete(id);context.queue.finally(()=>session.close()).catch(()=>{});});
  await win.loadFile(path.join(__dirname,'pdf/index.html'));return win;
 }

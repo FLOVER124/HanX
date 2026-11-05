@@ -10,3 +10,5 @@ aside.pages{width:150px}.pages button{height:auto;padding:9px;min-height:105px}.
 
 .resize-handle[data-handle=nw],.resize-handle[data-handle=w],.resize-handle[data-handle=sw]{left:-6px}.resize-handle[data-handle=ne],.resize-handle[data-handle=e],.resize-handle[data-handle=se]{left:calc(100% + 6px)}.resize-handle[data-handle=nw],.resize-handle[data-handle=n],.resize-handle[data-handle=ne]{top:-6px}.resize-handle[data-handle=sw],.resize-handle[data-handle=s],.resize-handle[data-handle=se]{top:calc(100% + 6px)}
 #paper{overflow:visible}#objects{overflow:hidden}.pdf-object{scroll-margin:20px}
+
+#findBar{display:flex;align-items:center;gap:8px;padding:8px 16px;background:#fff;border-bottom:1px solid #dfe5ed}#findQuery{width:270px;padding:8px;border:1px solid #d5dce7;border-radius:7px}#findCount{min-width:65px;color:#64748b}#findBar button{padding:5px 12px}.pdf-object.find-match{background:#ffd74f45;border-color:#dbad19}#objectType{width:100%;margin-bottom:10px}

@@ -48,6 +48,12 @@ while Date()<deadline {
 }
 guard done else { print("FAIL native PDF UI",evaluate("document.body.innerText") ?? "");exit(1) }
 guard evaluate("state.objects.length") as? Int == 3 else { print("FAIL object count");exit(1) }
+_ = evaluate("select(0);inlineText(selected());$('inlineText').value='Unsaved draft';$('inlineText').dispatchEvent(new Event('input'));true")
+while !doc.isDocumentEdited && Date()<deadline { RunLoop.main.run(until:Date().addingTimeInterval(0.05)) }
+guard doc.isDocumentEdited else { print("FAIL inline draft missing native dirty state");exit(1) }
+_ = evaluate("$('inlineText').dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}));true")
+while doc.isDocumentEdited && Date()<deadline { RunLoop.main.run(until:Date().addingTimeInterval(0.05)) }
+guard !doc.isDocumentEdited else { print("FAIL canceled inline draft stays dirty");exit(1) }
 _ = evaluate("select(1); $('delete').click(); true")
 let controller = doc.windowControllers[0] as! PDFEditingWindowController
 while !controller.hasPendingWork && Date()<deadline { RunLoop.main.run(until:Date().addingTimeInterval(0.01)) }
