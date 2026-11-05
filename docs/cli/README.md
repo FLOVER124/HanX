@@ -29,7 +29,7 @@ hanx convert "원본 문서.hwp" --output "변환 문서.docx"
 hanx convert "매출.xlsx" --output "매출.pdf"
 ```
 
-문서, 스프레드시트, 슬라이드의 PDF 출력은 HanX 앱의 렌더러를 사용합니다. 슬라이드는 장당 한 페이지로 저장하고 전환과 애니메이션은 정지된 상태로 저장합니다. PDF 입력은 선택 가능한 텍스트를 문서로 가져옵니다. 표, 그림, 주석과 원본 배치는 재구성하지 않으며 스캔 PDF의 OCR은 지원하지 않습니다. 일반 XML은 의미를 추정해 문서로 변환하지 않고 HWPML 또는 Flat OPC의 실제 형식에 맞는 변환만 제공합니다.
+문서, 스프레드시트, 슬라이드의 PDF 출력은 HanX 앱의 렌더러를 사용합니다. 슬라이드는 장당 한 페이지로 저장하고 전환과 애니메이션은 정지된 상태로 저장합니다. PDF를 DOCX·HWP·HWPX로 변환할 때 페이지 크기, 본문 줄과 구분선으로 나뉜 단 배치를 복원합니다. 일반 본문은 편집 가능한 텍스트로, 수식·도표·복잡한 표는 모양을 보존하는 이미지로 가져옵니다. 스캔 페이지도 이미지로 보존하며 본문 편집에는 별도 OCR이 필요합니다. 모든 PDF의 원본 배치나 주석, 수식 구조를 완전히 복원하지는 않습니다. `hanx read 원본.pdf --text`는 그림으로 보존한 영역에서도 원본에 기록된 텍스트를 읽습니다. 일반 XML은 의미를 추정해 문서로 변환하지 않고 HWPML 또는 Flat OPC의 실제 형식에 맞는 변환만 제공합니다.
 
 ## 설치와 시작
 
@@ -66,7 +66,7 @@ GUI만 설치해도 작은 설정 실행기는 남습니다. 문서 처리 명�
 
 Linux AppImage를 GUI만 설치한 경우 AI 연결을 사용하는 동안 HanX 앱을 열어 두세요. 앱을 닫고도 AI 에이전트를 사용하려면 CLI 또는 둘 다를 선택하세요.
 
-Windows/Linux의 PDF 출력에는 로컬 PDF renderer, PDF 읽기에는 PDF text tools가 필요합니다. 설치 화면에서 PDF 도구를 선택하거나 `--pdf-dependencies`를 명시한 경우에만 추가 도구를 설치합니다. macOS 기본 네이티브 배포판에는 PDF 처리 기능이 포함돼 있습니다. 설치 여부는 `hanx capabilities --pretty`의 pdf 항목으로 확인하세요.
+PDF 읽기·변환에는 모든 플랫폼에서 로컬 PDF 엔진이 필요합니다. Python 3.10 이상을 설치한 뒤 `hanx pdf setup`으로 준비하세요. Windows/Linux의 PDF 출력에는 별도 로컬 PDF renderer가 필요합니다. 설치 화면에서 PDF 도구를 선택하거나 `--pdf-dependencies`를 명시한 경우에만 출력 도구 설치를 진행합니다. macOS 네이티브 배포판은 PDF 출력 렌더러를 포함합니다. 설치 여부는 `hanx capabilities --pretty`의 pdf 항목으로 확인하세요.
 
 최신 GUI 앱은 npm 또는 Homebrew 설치 후 `hanx setup`으로 설치하거나 [HanX 릴리스](https://github.com/FLOVER124/HanX/releases)의 `HanX-2.13.3-macOS.zip`을 사용하세요. GUI와 CLI를 함께 설치하는 pkg는 `HanX-2.13.3.pkg`입니다. pkg는 앱을 `/Applications/HanX.app`에 설치하고 `/usr/local/bin`의 비어 있는 `hanx`와 `hanx-cli` 명령을 연결합니다. Homebrew와 npm은 CLI를 설치하며 해당 도구로 업데이트합니다. 다른 방식으로 설치한 기존 명령을 자동으로 덮어쓰지 않습니다.
 

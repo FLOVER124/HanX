@@ -42,6 +42,96 @@ class PDFEditorTests(unittest.TestCase):
         result = self.run_worker(action, **args)
         self.assertTrue(result['ok'], result)
         return result['data']
+    def test_layout_retains_editable_text_and_visuals(self):
+        result=self.ok('layout')
+        self.assertEqual(len(result['pages']),2)
+        self.assertGreaterEqual(result['preservedVisuals'],2)
+        self.assertIn('Original text',str(result['pages']))
+        self.assertGreater(result['editableCharacters'],0)
+        self.assertTrue(any('image' in run for page in result['pages'] for column in page['columns'] for block in column['blocks'] for run in block['runs']))
+
+    def test_source_text_remains_available_inside_visual_bands(self):
+        with pdf.PdfDocument(self.source) as doc:
+            page=doc[0]
+            obj=pdf.PdfObject(raw.FPDFPageObj_NewTextObj(doc,b'Helvetica',20),pdf=doc)
+            value='42 inside table'.encode('utf-16-le')+b'\0\0'
+            self.assertTrue(raw.FPDFText_SetText(obj,c.cast(c.create_string_buffer(value),c.POINTER(c.c_ushort))))
+            obj.transform(pdf.PdfMatrix(1,0,0,1,80,140));page.insert_obj(obj);page.gen_content()
+            source=self.dir/'table.pdf';doc.save(source)
+        layout=self.ok('layout',input=str(source))
+        self.assertGreater(layout['preservedVisuals'],0)
+        self.assertIn('42 inside table',self.ok('text',input=str(source))['text'])
+
+    def test_coloured_page_background_is_preserved(self):
+        with pdf.PdfDocument.new() as doc:
+            page=doc.new_page(200,300)
+            shape=pdf.PdfObject(raw.FPDFPageObj_CreateNewRect(0,0,200,300),pdf=doc)
+            raw.FPDFPageObj_SetFillColor(shape,20,120,200,255)
+            raw.FPDFPath_SetDrawMode(shape,raw.FPDF_FILLMODE_WINDING,0);page.insert_obj(shape)
+            obj=pdf.PdfObject(raw.FPDFPageObj_NewTextObj(doc,b'Helvetica',12),pdf=doc)
+            value='Editable ordinary body'.encode('utf-16-le')+b'\0\0'
+            raw.FPDFText_SetText(obj,c.cast(c.create_string_buffer(value),c.POINTER(c.c_ushort)))
+            obj.transform(pdf.PdfMatrix(1,0,0,1,20,250));page.insert_obj(obj);page.gen_content()
+            source=self.dir/'background.pdf';doc.save(source)
+        result=self.ok('layout',input=str(source))
+        self.assertEqual(result['pages'][0]['background'],'#1478c8')
+        self.assertIn('Editable ordinary body',str(result['pages']))
+        self.assertGreater(result['editableCharacters'],0)
+
+    def divided_fixture(self, diagram=True, text=True):
+        source=self.dir/'divider.pdf'
+        with pdf.PdfDocument.new() as doc:
+            page=doc.new_page(400,500)
+            def rect(x,y,w,h,color):
+                shape=pdf.PdfObject(raw.FPDFPageObj_CreateNewRect(x,y,w,h),pdf=doc)
+                raw.FPDFPageObj_SetFillColor(shape,*color,255)
+                raw.FPDFPath_SetDrawMode(shape,raw.FPDF_FILLMODE_WINDING,0);page.insert_obj(shape)
+            rect(199.5,30,1,440,(0,0,0))
+            if diagram:rect(150,200,100,60,(255,0,0))
+            if text:
+                for x,value in [(40,'Left body'),(240,'Right body')]:
+                    obj=pdf.PdfObject(raw.FPDFPageObj_NewTextObj(doc,b'Helvetica',18),pdf=doc)
+                    encoded=value.encode('utf-16-le')+b'\0\0'
+                    raw.FPDFText_SetText(obj,c.cast(c.create_string_buffer(encoded),c.POINTER(c.c_ushort)))
+                    obj.transform(pdf.PdfMatrix(1,0,0,1,x,350));page.insert_obj(obj)
+            page.gen_content();doc.save(source)
+        return source
+
+    def test_diagram_crossing_divider_preserves_both_halves(self):
+        result=self.ok('layout',input=str(self.divided_fixture()))
+        self.assertEqual(len(result['pages'][0]['columns']),2)
+        self.assertGreater(result['editableCharacters'],0)
+        import base64
+        for column in result['pages'][0]['columns']:
+            images=[run for block in column['blocks'] for run in block['runs'] if 'image' in run]
+            self.assertTrue(images)
+            with Image.open(io.BytesIO(base64.b64decode(images[0]['image']))) as image:
+                self.assertEqual(image.convert('RGB').getpixel((image.width//2,image.height//2)),(255,0,0))
+
+    def test_divider_only_page_preserves_artwork(self):
+        result=self.ok('layout',input=str(self.divided_fixture(diagram=False,text=False)))
+        self.assertEqual(len(result['pages']),1)
+        self.assertGreater(result['preservedVisuals'],0)
+
+    def test_stacked_equation_stays_in_one_visual_region(self):
+        source=self.dir/'stacked fraction.pdf'
+        with pdf.PdfDocument.new() as doc:
+            page=doc.new_page(400,500)
+            for face,size,x,y,value in [(b'Helvetica',14,40,400,'Editable body'),
+                                        (b'Symbol',10,130,336,'1'),
+                                        (b'Symbol',10,130,327,'2')]:
+                obj=pdf.PdfObject(raw.FPDFPageObj_NewTextObj(doc,face,size),pdf=doc)
+                encoded=value.encode('utf-16-le')+b'\0\0'
+                self.assertTrue(raw.FPDFText_SetText(obj,c.cast(c.create_string_buffer(encoded),c.POINTER(c.c_ushort))))
+                obj.transform(pdf.PdfMatrix(1,0,0,1,x,y));page.insert_obj(obj)
+            page.gen_content();doc.save(source)
+        result=self.ok('layout',input=str(source))
+        runs=[run for block in result['pages'][0]['columns'][0]['blocks'] for run in block['runs']]
+        self.assertIn('Editable body',[run.get('text') for run in runs])
+        images=[run for run in runs if 'image' in run]
+        self.assertEqual(len(images),1)
+        self.assertGreater(images[0]['height'],12)
+
     def test_inspect_render(self):
         result = self.ok('inspect', page=0)
         self.assertEqual(result['pageCount'], 2)

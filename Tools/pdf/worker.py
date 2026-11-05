@@ -329,7 +329,7 @@ def run(request):
     with pdf.PdfDocument(data) as doc:
         require(0<len(doc)<=10000,'페이지 수가 지원 범위를 벗어났습니다.')
         permissions=raw.FPDF_GetDocPermissions(doc)
-        if action in ('inspect','ocr','ocr_plan'): require(permissions & 16,'이 PDF는 내용 추출이 허용되지 않습니다.')
+        if action in ('inspect','ocr','ocr_plan','layout','text'): require(permissions & 16,'이 PDF는 내용 추출이 허용되지 않습니다.')
         if action=='ocr_plan':
             indices=range(len(doc)) if request.get('allPages') is True else [integer(request.get('page',0),'page',len(doc))]
             require(len(indices)<=1000,'한 번에 최대 1000페이지까지 처리할 수 있습니다.')
@@ -338,6 +338,15 @@ def run(request):
                 with closing(doc[index]) as page, closing(page.get_textpage()) as tp:
                     (skipped if tp.get_text_bounded().strip() else eligible).append(index)
             return {'pages':eligible,'skippedPages':skipped,'revision':revision}
+        if action=='layout':
+            from layout import read_layout
+            return read_layout(doc,render_page)
+        if action=='text':
+            pages=[]
+            for index in range(len(doc)):
+                with closing(doc[index]) as page, closing(page.get_textpage()) as tp:
+                    pages.append(tp.get_text_range().replace('\r\n','\n').replace('\t',' '))
+            return {'text':'\n'.join(pages)}
         if action=='inspect': return inspect_page(doc,request.get('page',0),revision)
         if action in ('render','ocr'):
             with closing(doc[integer(request.get('page',0),'page',len(doc))]) as page:

@@ -55,7 +55,7 @@ hw_pdf="$hw_root/pdf"
   exit 1
 }
 mkdir -p "$hw_stage/pdf"
-cp "$hw_pdf/worker.py" "$hw_pdf/fonts.py" "$hw_pdf/requirements.txt" "$hw_stage/pdf/"
+cp "$hw_pdf/worker.py" "$hw_pdf/fonts.py" "$hw_pdf/layout.py" "$hw_pdf/requirements.txt" "$hw_stage/pdf/"
 printf '%s\n' '2.13.3' > "$hw_stage/HANX-CLI-VERSION"
 "$hw_stage/hanx" --version >/dev/null
 if [ -e "$hw_prefix" ]; then

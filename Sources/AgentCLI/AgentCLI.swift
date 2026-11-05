@@ -83,10 +83,15 @@ enum AgentCLI {
         return lines.joined(separator: "\n")
     }
     static func pdfCapabilities() -> [String:Any] {
+        let inputReady: Bool
+        if PDFEditingBridge.worker != nil,let python=PDFEditingBridge.python {
+            inputReady=(try? PDFEditingBridge.process(python,["-I","-c","import pypdfium2,PIL,fontTools"],timeout:10).0)==0
+        } else { inputReady=false }
+        let inputDescription="Page layout and editable text recovery; equations and artwork preserved as images; separate pdf ocr command available"
 #if HANX_PORTABLE || !canImport(AppKit)
-        return ["input":"Selectable text using local PDF text tools; no layout reconstruction; separate pdf ocr command available", "output":"Local PDF renderer renderer; pagination and fonts can differ from macOS", "inputAvailable":PortableTool.find("pdfinfo") != nil && PortableTool.find("pdftotext") != nil, "outputAvailable":PortableTool.find("soffice") != nil, "dependencies":["input":["pdfinfo","pdftotext"], "output":["soffice"]]]
+        return ["input":inputDescription, "output":"Local PDF renderer; pagination and fonts can differ from macOS", "inputAvailable":inputReady, "outputAvailable":PortableTool.find("soffice") != nil, "setup":"hanx pdf setup", "dependencies":["input":["python3","pypdfium2","Pillow","fonttools"], "output":["soffice"]]]
 #else
-        return ["input":"Selectable text as document; no layout reconstruction; separate pdf ocr command available", "output":"Documents, spreadsheets, presentations using HanX renderers", "inputAvailable":true, "outputAvailable":true]
+        return ["input":inputDescription, "output":"Documents, spreadsheets, presentations using HanX renderers", "inputAvailable":inputReady, "outputAvailable":true, "setup":"hanx pdf setup"]
 #endif
     }
     static func capabilities()->[String:Any] {
@@ -195,6 +200,10 @@ enum AgentCLI {
             var result=try save(AgentFile.spreadsheet(b).data(for:ext),kind:"spreadsheet",warnings:[AgentSheets.warning]); result["formulaErrors"]=AgentSheets.errors(b); return result
         case "read":
             let file=try AgentFile.load(input()); var value=try file.result(); value["path"]=AgentIO.url(try input()).path
+            let sourceURL=AgentPath.inputURL(try input())
+            if PDFReader.isPDF(try Data(contentsOf:sourceURL)) {
+                value["text"]=try PDFLayoutReader.text(at:sourceURL)
+            }
             if try AgentIO.bool(args["noModel"],"noModel") { value.removeValue(forKey:"model") }
             return value
         case "create":

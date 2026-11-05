@@ -187,7 +187,7 @@ async function installGUI(components='gui', yes=false) {
   saveState({...readState(),gui:installed,guiVersion:VERSION,guiComponents:components}); return installed;
 }
 function pdfGuide() {
-  console.log('PDF rendering uses optional local rendering (soffice) and text tools (pdfinfo/pdftotext). HanX does not install them automatically.');
+  console.log('PDF 읽기·변환에는 Python 3.10 이상이 필요합니다. hanx pdf setup으로 로컬 엔진을 준비하세요. PDF 출력 도구는 선택한 경우에만 설치합니다.');
   console.log(process.platform==='darwin'?'Optional install: brew install --cask libreoffice; brew install poppler':process.platform==='linux'?'Optional Debian/Ubuntu install: sudo apt-get install libreoffice poppler-utils':'Optional install: winget install --id TheDocumentFoundation.LibreOffice; install Poppler from a trusted distribution and add its bin directory to your user PATH.');
   console.log('Run hanx capabilities --pretty to check availability, then retry PDF export.');
 }

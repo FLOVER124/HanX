@@ -28,7 +28,7 @@ hanx --convert
 
 GUI만 설치해도 작은 설정 실행기는 남습니다. 문서 처리 CLI는 활성화하지 않으며 앱 안의 엔진은 편집과 MCP 연결에 사용합니다.
 
-Windows/Linux의 PDF 출력에는 PDF renderer, 읽기에는 PDF text tools가 필요합니다. 설치 화면에서 PDF 도구를 선택하거나 `--pdf-dependencies`를 명시하면 설치를 진행합니다. macOS 기본 네이티브 배포판은 PDF 처리를 포함합니다.
+PDF 읽기·변환에는 Python 3.10 이상과 `hanx pdf setup`으로 준비하는 로컬 엔진이 필요합니다. 본문은 편집 가능한 텍스트로, 수식·도표는 이미지로 보존합니다. Windows/Linux의 PDF 출력에는 별도 PDF renderer가 필요하며 설치 화면에서 PDF 도구를 선택하거나 `--pdf-dependencies`를 명시하면 설치를 진행합니다. macOS 네이티브 배포판은 PDF 출력 렌더러를 포함합니다.
 
 ```sh
 hanx spreadsheet read 매출.xlsx --sheet 매출 --range A1:D5 --pretty

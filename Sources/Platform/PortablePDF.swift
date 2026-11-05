@@ -98,36 +98,7 @@ enum PDFReader {
     static func isPDF(_ data: Data) -> Bool { data.prefix(1024).range(of: Data("%PDF-".utf8)) != nil }
     static func read(_ data: Data) throws -> UDocument {
         guard isPDF(data) else { throw FormatError.invalid("Cannot read PDF document") }
-        return try PortableTool.temporary { dir in
-            let input = dir.appendingPathComponent("input.pdf"), output = dir.appendingPathComponent("text.txt")
-            try data.write(to: input)
-            let info = try PortableTool.run("pdfinfo", [input.path], in: dir)
-            if info.contains("copy:no") || info.contains("copy: no") { throw FormatError.unsupported("PDF permissions do not allow text extraction") }
-            _ = try PortableTool.run("pdftotext", ["-enc", "UTF-8", input.path, output.path], in: dir)
-            let text = try String(contentsOf: output, encoding: .utf8)
-            guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { throw FormatError.unsupported("PDF contains no extractable text. Scanned PDFs require OCR; use hanx pdf ocr.") }
-            let doc = UDocument()
-            doc.warnings = ["PDF import extracts selectable text and page sizes using local PDF text tools. Layout, tables, images and annotations are not reconstructed; scanned pages require OCR."]
-            var pages = text.components(separatedBy: "\u{0c}")
-            if pages.last?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == true { pages.removeLast() }
-            guard pages.count <= 5000 else { throw FormatError.unsupported("PDF exceeds 5000 pages") }
-            for (index, page) in pages.enumerated() {
-                var section = UDocument.plain(page, char: CharProps()).sections[0]
-                let pageInfo = try PortableTool.run("pdfinfo", ["-f", String(index + 1), "-l", String(index + 1), input.path], in: dir)
-                if let line = pageInfo.components(separatedBy: "\n").first(where: { $0.contains(" size:") || $0.hasPrefix("Page size:") }),
-                   let colon = line.firstIndex(of: ":") {
-                    let parts = line[line.index(after: colon)...].split(whereSeparator: { $0.isWhitespace })
-                    if parts.count >= 3, let w = Double(parts[0]), let h = Double(parts[2]), w > 0, h > 0, w <= 100000, h <= 100000 {
-                        section.page = PageSetup(width: w, height: h, marginTop: min(36,h/8), marginBottom: min(36,h/8), marginLeft: min(36,w/8), marginRight: min(36,w/8), header: 18, footer: 18)
-                    }
-                }
-                if page.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                    doc.warnings.append("PDF page \(index + 1) contains no extractable text; OCR may be required.")
-                }
-                doc.sections.append(section)
-            }
-            return doc
-        }
+        return try PDFLayoutReader.read(data)
     }
 }
 #endif

@@ -10,7 +10,7 @@ import unittest
 BIN = pathlib.Path(os.environ.get('HANX_BIN', 'build/hanx-cli')).resolve()
 
 
-def pdf_fixture(pages):
+def pdf_fixture(pages, artwork=False, background=False, columns=False):
     """Small independent fixture: (width, height, text or None) per page."""
     objects = [b'<< /Type /Catalog /Pages 2 0 R >>', b'',
                b'<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>']
@@ -20,6 +20,13 @@ def pdf_fixture(pages):
         kids.append(f'{page_id} 0 R')
         content = (f'BT /F1 18 Tf 36 {height - 50} Td ({text}) Tj ET'.encode()
                    if text is not None else b'0.8 g 36 36 120 120 re f')
+        if artwork:
+            content += b'\n0 0 1 rg 72 72 120 120 re f'
+        if background:
+            content = f'0.08 0.47 0.78 rg 0 0 {width} {height} re f\n0 g\n'.encode() + content
+        if columns:
+            content += (f'\n0 g {width / 2} 24 1 {height - 48} re f\n'
+                        f'BT /F1 18 Tf {width / 2 + 36} {height - 50} Td (Right body) Tj ET').encode()
         objects.extend([
             (f'<< /Type /Page /Parent 2 0 R /MediaBox [0 0 {width} {height}] '
              f'/Resources << /Font << /F1 3 0 R >> >> /Contents {page_id + 1} 0 R >>').encode(),
@@ -83,13 +90,62 @@ class PDF(unittest.TestCase):
         source.write_bytes(pdf_fixture([(612, 792, 'Signature detection')]))
         self.assertIn('Signature detection', self.cli('read', source)['text'])
 
-    def test_image_only_pdf_rejected_with_ocr_explanation_without_output(self):
+    def test_image_only_pdf_preserved_with_ocr_explanation(self):
         source = self.root / 'scan.pdf'
         source.write_bytes(pdf_fixture([(612, 792, None)]))
         output = self.root / 'scan.docx'
-        result = self.cli('convert', source, '--output', output, ok=False)
-        self.assertIn('OCR', result['message'])
-        self.assertFalse(output.exists())
+        result = self.cli('convert', source, '--output', output)
+        self.assertTrue(any('OCR' in warning for warning in result['warnings']))
+        self.assertTrue(output.exists())
+        self.assertTrue(self.cli('read', output)['model']['images'])
+
+    def test_editable_body_and_artwork_survive_docx_and_hwp_roundtrip(self):
+        source = self.root / '한글 원본 문서.pdf'
+        original = pdf_fixture([(612, 792, 'Editable body')], artwork=True)
+        source.write_bytes(original)
+        for ext in ('docx', 'hwp'):
+            with self.subTest(format=ext):
+                output = self.root / ('변환 결과.' + ext)
+                self.cli('convert', source, '--output', output)
+                result = self.cli('read', output)
+                self.assertIn('Editable body', result['text'])
+                self.assertTrue(result['model']['images'])
+                self.assertEqual(len(result['model']['sections']), 1)
+                self.assertEqual(result['model']['sections'][0]['page']['width'], 612)
+                operations = self.root / 'edit.json'
+                operations.write_text(json.dumps([{'op':'replace_text','find':'Editable body','replace':'Updated body'}]))
+                edited = self.root / ('수정 결과.' + ext)
+                self.cli('edit', output, '--ops', operations, '--output', edited)
+                saved = self.cli('read', edited)
+                self.assertIn('Updated body', saved['text'])
+                self.assertEqual(len(saved['model']['images']), len(result['model']['images']))
+        self.assertEqual(source.read_bytes(), original)
+
+    def test_solid_background_keeps_editable_body_in_both_formats(self):
+        source = self.root / '배경 있는 문서.pdf'
+        source.write_bytes(pdf_fixture([(400, 500, 'Editable body')], background=True))
+        for ext in ('docx', 'hwp'):
+            with self.subTest(format=ext):
+                output = self.root / ('배경 보존.' + ext)
+                self.cli('convert', source, '--output', output)
+                result = self.cli('read', output)
+                self.assertIn('Editable body', result['text'])
+                cell = result['model']['sections'][0]['blocks'][0]['table']['_0']['rows'][0][0]
+                self.assertGreater(cell['background']['b'], cell['background']['r'])
+
+    def test_two_column_conversion_keeps_editable_text_in_both_columns(self):
+        source = self.root / '두 단 문서.pdf'
+        source.write_bytes(pdf_fixture([(612, 792, 'Left body')], columns=True))
+        for ext in ('docx', 'hwp'):
+            with self.subTest(format=ext):
+                output = self.root / ('두 단 결과.' + ext)
+                self.cli('convert', source, '--output', output)
+                result = self.cli('read', output)
+                self.assertIn('Left body', result['text'])
+                self.assertIn('Right body', result['text'])
+                table = result['model']['sections'][0]['blocks'][0]['table']['_0']
+                self.assertEqual(len(table['rows'][0]), 2)
+                self.assertTrue(all(width > 0 for width in table['columnWidths']))
 
     def test_mixed_pdf_keeps_empty_page_and_identifies_missing_text(self):
         source = self.root / 'mixed.pdf'
