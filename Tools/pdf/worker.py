@@ -202,6 +202,157 @@ def fill(obj):
         return '#'+''.join(f'{v.value:02x}' for v in values[:3])
     return None
 
+def view_bounds(page, bounds):
+    points=[]
+    for x,y in [(bounds[0],bounds[1]),(bounds[0],bounds[3]),(bounds[2],bounds[1]),(bounds[2],bounds[3])]:
+        dx,dy=c.c_int(),c.c_int()
+        check(raw.FPDF_PageToDevice(page,0,0,1000000,1000000,0,x,y,c.byref(dx),c.byref(dy)),'페이지 좌표 변환에 실패했습니다.')
+        points.append((dx.value/1000000,dy.value/1000000))
+    return [min(p[0] for p in points),min(p[1] for p in points),max(p[0] for p in points),max(p[1] for p in points)]
+
+ANNOT_TYPES={1:'note',2:'link',3:'freetext',4:'line',5:'square',6:'circle',7:'polygon',8:'polyline',9:'highlight',10:'underline',11:'squiggly',12:'strikeout',13:'stamp',14:'caret',15:'ink',16:'popup',17:'attachment',18:'sound',19:'movie',20:'widget',21:'screen',22:'printermark',23:'trapnet',24:'watermark',25:'3d',26:'richmedia',27:'xfawidget',28:'redact'}
+# Subtypes PDFium can draw (and regenerate) without an existing appearance stream.
+CREATABLE={'note':1,'square':5,'circle':6,'highlight':9,'underline':10,'squiggly':11,'strikeout':12}
+MARKUP=('highlight','underline','squiggly','strikeout')
+DEFAULT_COLOR={'highlight':'#ffe14d','note':'#ffd54f'}
+FIELD_TYPES={1:'button',2:'checkbox',3:'radio',4:'combobox',5:'listbox',6:'text',7:'signature'}
+ANNOT_OPS=('add_annotation','set_annotation','delete_annotation'); FIELD_OPS=('set_field',)
+
+def wide(getter, *args):
+    size=getter(*args,None,0)
+    if not 2<size<=4000000: return ''
+    buffer=(c.c_ushort*(size//2))(); getter(*args,buffer,size)
+    return bytes(buffer)[:size-2].decode('utf-16-le','replace')
+
+def widestring(text):
+    buffer=c.create_string_buffer(text.encode('utf-16-le')+b'\0\0'); return buffer,c.cast(buffer,c.POINTER(c.c_ushort))
+
+def field_info(form, annot):
+    kind=FIELD_TYPES.get(raw.FPDFAnnot_GetFormFieldType(form,annot),'unknown'); flags=raw.FPDFAnnot_GetFormFieldFlags(form,annot)
+    info={'type':kind,'name':wide(raw.FPDFAnnot_GetFormFieldName,form,annot),'value':wide(raw.FPDFAnnot_GetFormFieldValue,form,annot),'readOnly':bool(flags&1),'required':bool(flags&2)}
+    label=wide(raw.FPDFAnnot_GetFormFieldAlternateName,form,annot)
+    if label: info['label']=label
+    if kind in ('checkbox','radio'):
+        info['checked']=bool(raw.FPDFAnnot_IsChecked(form,annot)); info['exportValue']=wide(raw.FPDFAnnot_GetFormFieldExportValue,form,annot)
+    elif kind in ('combobox','listbox'):
+        count=max(0,min(raw.FPDFAnnot_GetOptionCount(form,annot),1000))
+        info['options']=[{'label':wide(raw.FPDFAnnot_GetOptionLabel,form,annot,k),'selected':bool(raw.FPDFAnnot_IsOptionSelected(form,annot,k))} for k in range(count)]
+        info['editable']=kind=='combobox' and bool(flags&(1<<18)); info['multiple']=kind=='listbox' and bool(flags&(1<<21))
+    elif kind=='text':
+        info['multiline']=bool(flags&(1<<12)); info['password']=bool(flags&(1<<13))
+    return info
+
+def annot_color(annot):
+    # PDFium only reports /C for annotations without an appearance stream. Callers
+    # pass annotations whose appearance is discarded (inspect never saves).
+    values=[c.c_uint() for _ in range(4)]
+    raw.FPDFAnnot_SetAP(annot,raw.FPDF_ANNOT_APPEARANCEMODE_NORMAL,None)
+    if raw.FPDFAnnot_GetColor(annot,raw.FPDFANNOT_COLORTYPE_Color,*[c.byref(v) for v in values]):
+        return '#'+''.join(f'{v.value:02x}' for v in values[:3]),round(values[3].value/255,3)
+    return None,None
+
+def read_annotations(doc, page):
+    form=doc.formenv.raw if doc.formenv else None; entries=[]
+    for i in range(min(raw.FPDFPage_GetAnnotCount(page),5000)):
+        annot=raw.FPDFPage_GetAnnot(page,i)
+        if not annot: continue
+        try:
+            kind=ANNOT_TYPES.get(raw.FPDFAnnot_GetSubtype(annot),'unknown'); rect=raw.FS_RECTF()
+            # Popups belong to their parent note; they keep their index but are not listed.
+            if kind=='popup' or not raw.FPDFAnnot_GetRect(annot,rect): continue
+            bounds=[min(rect.left,rect.right),min(rect.bottom,rect.top),max(rect.left,rect.right),max(rect.bottom,rect.top)]
+            item={'id':i,'type':kind,'bounds':bounds,'viewBounds':view_bounds(page,bounds),'hidden':bool(raw.FPDFAnnot_GetFlags(annot)&2)}
+            if kind=='widget':
+                if form: item['field']=field_info(form,annot)
+            else:
+                item['contents']=wide(raw.FPDFAnnot_GetStringValue,annot,b'Contents'); item['author']=wide(raw.FPDFAnnot_GetStringValue,annot,b'T')
+                item['color'],opacity=annot_color(annot)
+                if opacity is not None: item['opacity']=opacity
+                item['editable']=kind in CREATABLE
+            if kind=='link':
+                link=raw.FPDFAnnot_GetLink(annot); action=raw.FPDFLink_GetAction(link) if link else None
+                if action and raw.FPDFAction_GetType(action)==raw.PDFACTION_URI:
+                    size=raw.FPDFAction_GetURIPath(doc,action,None,0)
+                    if 0<size<=65536:
+                        buffer=c.create_string_buffer(size); raw.FPDFAction_GetURIPath(doc,action,buffer,size); item['uri']=buffer.value.decode('utf-8','replace')
+            entries.append(item)
+        finally: raw.FPDFPage_CloseAnnot(annot)
+    return entries
+
+def rect_value(value, name='rect'):
+    require(isinstance(value,list) and len(value)==4,f'{name}: [왼쪽, 아래, 오른쪽, 위] 좌표를 지정하세요.')
+    l,b,r,t=[number(v,name) for v in value]; require(r>l and t>b,f'{name}: 크기가 잘못됐습니다.')
+    return l,b,r,t
+
+def annotation_text(value, name):
+    require(isinstance(value,str) and len(value)<=20000 and not any(ord(ch)<32 and ch not in '\n\t' for ch in value),f'{name}: 최대 20,000자의 텍스트를 입력하세요.')
+    return value
+
+def style_annotation(annot, kind, op, creating):
+    # Drop the old appearance first: PDFium will not restyle an annotation that has
+    # one, and regenerates it from the new colour and geometry before saving.
+    raw.FPDFAnnot_SetAP(annot,raw.FPDF_ANNOT_APPEARANCEMODE_NORMAL,None)
+    if creating or 'color' in op or 'opacity' in op:
+        # A new annotation may already carry PDFium's default colour; use ours instead.
+        current,alpha=(None,None) if creating else annot_color(annot)
+        rgb=color(op.get('color',current or DEFAULT_COLOR.get(kind,'#e53935')))
+        opacity=number(op.get('opacity',alpha if alpha is not None else 1),'opacity',0,1)
+        check(raw.FPDFAnnot_SetColor(annot,raw.FPDFANNOT_COLORTYPE_Color,*rgb,round(opacity*255)),'주석 색상을 바꾸지 못했습니다.')
+    for key,field in (('contents',b'Contents'),('author',b'T')):
+        if key in op:
+            text_buffer,value=widestring(annotation_text(op[key],key)); check(raw.FPDFAnnot_SetStringValue(annot,field,value),'주석 내용을 바꾸지 못했습니다.')
+    if 'rect' in op:
+        require(kind not in MARKUP,'형광펜·밑줄·취소선 주석은 위치를 바꿀 수 없습니다. 삭제 후 다시 추가하세요.')
+        l,b,r,t=rect_value(op['rect']); check(raw.FPDFAnnot_SetRect(annot,raw.FS_RECTF(l,t,r,b)),'주석 위치를 바꾸지 못했습니다.')
+    from datetime import datetime,timezone
+    keep,stamp=widestring(datetime.now(timezone.utc).strftime("D:%Y%m%d%H%M%SZ")); raw.FPDFAnnot_SetStringValue(annot,b'M',stamp)
+
+def add_annotation(page, op):
+    kind=op.get('type'); require(kind in CREATABLE,'type: '+', '.join(CREATABLE)+' 중 하나를 지정하세요.')
+    annot=raw.FPDFPage_CreateAnnot(page,CREATABLE[kind]); check(annot,'주석을 만들지 못했습니다.')
+    try:
+        if kind in MARKUP:
+            rects=op.get('rects'); require(isinstance(rects,list) and 0<len(rects)<=500,'rects: 표시할 영역 배열을 지정하세요.')
+            boxes=[rect_value(r,'rects') for r in rects]
+            for l,b,r,t in boxes: check(raw.FPDFAnnot_AppendAttachmentPoints(annot,raw.FS_QUADPOINTSF(l,t,r,t,l,b,r,b)),'주석 영역을 추가하지 못했습니다.')
+            l,b,r,t=min(x[0] for x in boxes),min(x[1] for x in boxes),max(x[2] for x in boxes),max(x[3] for x in boxes)
+            check(raw.FPDFAnnot_SetRect(annot,raw.FS_RECTF(l,t,r,b)),'주석 위치를 지정하지 못했습니다.')
+        else:
+            l,b,r,t=rect_value(op.get('rect')); check(raw.FPDFAnnot_SetRect(annot,raw.FS_RECTF(l,t,r,b)),'주석 위치를 지정하지 못했습니다.')
+        raw.FPDFAnnot_SetFlags(annot,raw.FPDF_ANNOT_FLAG_PRINT)
+        style_annotation(annot,kind,{k:v for k,v in op.items() if k!='rect'},True)
+    finally: raw.FPDFPage_CloseAnnot(annot)
+
+def set_field(form, page, annot, op):
+    require(raw.FPDFAnnot_GetSubtype(annot)==raw.FPDF_ANNOT_WIDGET,'양식 필드를 선택하세요.')
+    info=field_info(form,annot); kind=info['type']
+    require(not info['readOnly'],'읽기 전용 양식 필드입니다.')
+    labels=[o['label'] for o in info.get('options',[])]
+    check(raw.FORM_SetFocusedAnnot(form,annot),'양식 필드를 선택하지 못했습니다.')
+    try:
+        if kind=='text' or kind=='combobox' and info['editable'] and op.get('value') not in labels:
+            value=op.get('value'); require(isinstance(value,str) and len(value)<=20000 and not any(ord(ch)<32 and not (ch=='\n' and info.get('multiline')) for ch in value),'value: 입력할 텍스트를 지정하세요.')
+            raw.FORM_SelectAllText(form,page); keep,buffer=widestring(value); raw.FORM_ReplaceSelection(form,page,buffer); expected=('value',value)
+        elif kind in ('checkbox','radio'):
+            want=op.get('checked'); require(type(want) is bool,'checked: true 또는 false를 지정하세요.')
+            require(want or kind=='checkbox','라디오 버튼은 같은 그룹의 다른 항목을 선택해 해제합니다.')
+            if info['checked']!=want: raw.FORM_OnChar(form,page,0x20,0)
+            expected=('checked',want)
+        elif kind=='combobox':
+            value=op.get('value'); require(value in labels,'value: 목록에 있는 항목을 지정하세요.')
+            check(raw.FORM_SetIndexSelected(form,page,labels.index(value),1),'항목을 선택하지 못했습니다.'); expected=('value',value)
+        elif kind=='listbox':
+            values=op.get('values'); require(isinstance(values,list) and all(v in labels for v in values) and (info['multiple'] or len(values)==1),'values: 목록에 있는 항목 배열을 지정하세요.')
+            for k,label in enumerate(labels):
+                if (label in values)!=info['options'][k]['selected']: check(raw.FORM_SetIndexSelected(form,page,k,label in values),'항목을 선택하지 못했습니다.')
+            expected=('values',values)
+        else: raise PDFError('이 양식 필드는 값을 바꿀 수 없습니다: '+kind)
+    finally: raw.FORM_ForceToKillFocus(form)
+    after=field_info(form,annot); key,value=expected
+    actual=[o['label'] for o in after.get('options',[]) if o['selected']] if key=='values' else after.get(key)
+    if key=='values': value=[label for label in labels if label in value]
+    require(actual==value,'양식 필드에 값을 넣지 못했습니다. 길이 제한이나 입력 형식을 확인하세요.')
+
 def inspect_page(doc, index, revision):
     index=integer(index,'page',len(doc))
     with closing(doc[index]) as page:
@@ -211,18 +362,13 @@ def inspect_page(doc, index, revision):
         with closing(page.get_textpage()) as textpage:
             for i,obj in enumerate(page.get_objects(max_depth=1,textpage=textpage)):
                 require(i<50000,'페이지 개체가 너무 많습니다.')
-                bounds=list(obj.get_bounds()); points=[]
-                for x,y in [(bounds[0],bounds[1]),(bounds[0],bounds[3]),(bounds[2],bounds[1]),(bounds[2],bounds[3])]:
-                    dx,dy=c.c_int(),c.c_int()
-                    check(raw.FPDF_PageToDevice(page,0,0,1000000,1000000,0,x,y,c.byref(dx),c.byref(dy)),'페이지 좌표 변환에 실패했습니다.')
-                    points.append((dx.value/1000000,dy.value/1000000))
-                item={'id':i,'type':{1:'text',2:'path',3:'image',4:'shading',5:'form'}.get(obj.type,'unknown'), 'bounds':bounds,
-                      'viewBounds':[min(p[0] for p in points),min(p[1] for p in points),max(p[0] for p in points),max(p[1] for p in points)],'fill':fill(obj)}
+                bounds=list(obj.get_bounds())
+                item={'id':i,'type':{1:'text',2:'path',3:'image',4:'shading',5:'form'}.get(obj.type,'unknown'), 'bounds':bounds,'viewBounds':view_bounds(page,bounds),'fill':fill(obj)}
                 if obj.type==raw.FPDF_PAGEOBJ_TEXT:
                     item['font']=font_info(obj); item['text']=obj.extract(); item['matrix']=list(obj.get_matrix().get()); item['searchText']=raw.FPDFTextObj_GetTextRenderMode(obj)==3; size=c.c_float()
                     if raw.FPDFTextObj_GetFontSize(obj,c.byref(size)): item['size']=size.value
                 entries.append(item)
-        return {'kind':'pdf','page':index,'pageCount':len(doc),'width':width,'height':height,'rotation':page.get_rotation(),'objects':entries,'revision':revision}
+        return {'kind':'pdf','page':index,'pageCount':len(doc),'width':width,'height':height,'rotation':page.get_rotation(),'objects':entries,'annotations':read_annotations(doc,page),'revision':revision}
 
 def render_page(page, scale):
     width,height=page.get_size(); require(width>0 and height>0,'잘못된 페이지 크기입니다.')
@@ -345,13 +491,14 @@ def modify(doc, ops):
     if any(op.get('op') in PAGE_OPS for op in ops):
         require(all(op.get('op') in PAGE_OPS for op in ops),'페이지 작업과 개체 작업은 별도 요청으로 실행하세요.')
         return modify_pages(doc,ops)
-    pages={}; objects={}; removed=set(); fonts=[]
+    pages={}; objects={}; removed=set(); fonts=[]; annot_counts={}; doomed=set(); annotated=set()
+    form=doc.formenv.raw if doc.formenv else None
     try:
         for op in ops:
             require(isinstance(op,dict),'잘못된 PDF 작업입니다.')
             pi=integer(op.get('page'),'page',len(doc))
             if pi not in pages:
-                pages[pi]=doc[pi]; objects[pi]=list(pages[pi].get_objects(max_depth=1))
+                pages[pi]=doc[pi]; objects[pi]=list(pages[pi].get_objects(max_depth=1)); annot_counts[pi]=raw.FPDFPage_GetAnnotCount(pages[pi])
             page=pages[pi]; action=op.get('op'); obj=None
             if action in ('delete','transform','set_text','set_fill','replace_image'):
                 oi=integer(op.get('object'),'object',len(objects[pi])); require((pi,oi) not in removed,'이미 삭제된 개체입니다.'); obj=objects[pi][oi]
@@ -397,6 +544,23 @@ def modify(doc, ops):
                     check(raw.FPDFPage_InsertObjectAtIndex(page,replacement,current_index),'텍스트 삽입에 실패했습니다.')
                     replacement._detach_finalizer(); replacement.page=page
                     objects[pi][oi]=replacement
+            elif action in ANNOT_OPS+FIELD_OPS:
+                annotated.add(pi)
+                if action=='add_annotation': add_annotation(page,op); continue
+                ai=integer(op.get('annotation'),'annotation',annot_counts[pi]); require((pi,ai) not in doomed,'이미 삭제된 주석입니다.')
+                annot=raw.FPDFPage_GetAnnot(page,ai); check(annot,'주석을 읽지 못했습니다.')
+                try:
+                    kind=ANNOT_TYPES.get(raw.FPDFAnnot_GetSubtype(annot),'unknown')
+                    if action=='set_field': require(form,'양식 기능을 준비하지 못했습니다.'); set_field(form,page,annot,op)
+                    elif action=='set_annotation':
+                        require(kind in CREATABLE,'이 종류의 주석은 내용과 모양을 바꿀 수 없습니다: '+kind); style_annotation(annot,kind,op,False)
+                    else:
+                        require(kind not in ('widget','popup'),'양식 필드는 삭제할 수 없습니다.'); doomed.add((pi,ai))
+                        popup=raw.FPDFAnnot_GetLinkedAnnot(annot,b'Popup')
+                        if popup:
+                            index=raw.FPDFPage_GetAnnotIndex(page,popup); raw.FPDFPage_CloseAnnot(popup)
+                            if index>=0: doomed.add((pi,index))
+                finally: raw.FPDFPage_CloseAnnot(annot)
             elif action=='set_paragraph':
                 set_paragraph(doc,page,pi,op,objects,removed,fonts)
             elif action=='set_fill':
@@ -429,6 +593,12 @@ def modify(doc, ops):
                 obj=pdf.PdfObject(raw.FPDFPageObj_CreateNewRect(number(op.get('x'),'x'),number(op.get('y'),'y'),number(op.get('width'),'width',1,30000),number(op.get('height'),'height',1,30000)),pdf=doc)
                 raw.FPDFPageObj_SetFillColor(obj,*color(op.get('color','#dbeafe')),255); raw.FPDFPath_SetDrawMode(obj,raw.FPDF_FILLMODE_WINDING,0); page.insert_obj(obj)
             else: raise PDFError('지원하지 않는 PDF 작업: '+str(action))
+        # Annotation indices refer to the input; remove from the end so earlier indices stay valid.
+        for pi,ai in sorted(doomed,reverse=True): check(raw.FPDFPage_RemoveAnnot(pages[pi],ai),'주석을 삭제하지 못했습니다.')
+        for pi in annotated:
+            # Rendering builds missing appearance streams for new or restyled annotations,
+            # so other viewers show them without regenerating.
+            pages[pi].render(scale=0.05,may_draw_forms=False).close()
         for page in pages.values():
             # PDFium can emit dirty streams without retaining inherited CMYK/ICC
             # paint state for untouched siblings. Materialize their visible colors
@@ -476,6 +646,10 @@ def run(request):
     with pdf.PdfDocument(data) as doc:
         require(0<len(doc)<=10000,'페이지 수가 지원 범위를 벗어났습니다.')
         permissions=raw.FPDF_GetDocPermissions(doc)
+        kinds={op.get('op') for op in request.get('operations') or [] if isinstance(op,dict)} if action=='edit' and isinstance(request.get('operations'),list) else set()
+        # Form filling needs the form environment before any page is loaded.
+        # Rendering also draws form fields with their current values.
+        if action=='inspect' or kinds & set(FIELD_OPS) or action in ('render','ocr') and doc.get_formtype()!=raw.FORMTYPE_NONE: doc.init_forms()
         if action in ('inspect','ocr','ocr_plan','layout','text'): require(permissions & 16,'이 PDF는 내용 추출이 허용되지 않습니다.')
         if action=='ocr_plan':
             indices=range(len(doc)) if request.get('allPages') is True else [integer(request.get('page',0),'page',len(doc))]
@@ -501,7 +675,9 @@ def run(request):
                 image=render_page(page,number(request.get('scale',1.5),'scale',0.1,4)); buffer=io.BytesIO(); image.save(buffer,format='PNG')
                 return {'image':'data:image/png;base64,'+base64.b64encode(buffer.getvalue()).decode(),'width':image.width,'height':image.height,'revision':revision}
         if action=='edit':
-            require(permissions & 8,'이 PDF는 편집이 허용되지 않습니다.')
+            require(permissions & 8 or not kinds-set(ANNOT_OPS+FIELD_OPS),'이 PDF는 편집이 허용되지 않습니다.')
+            if kinds & set(ANNOT_OPS): require(permissions & 32,'이 PDF는 주석 추가·수정이 허용되지 않습니다.')
+            if kinds & set(FIELD_OPS): require(permissions & (32|256),'이 PDF는 양식 입력이 허용되지 않습니다.')
             require(isinstance(request.get('output'),str),'저장 경로를 지정하세요.')
             output=Path(request['output']); require(output.suffix.lower()=='.pdf','저장 파일 확장자는 .pdf여야 합니다.')
             require(not output.exists() or request.get('force') is True,'저장 파일이 이미 있습니다. 덮어쓰려면 force를 지정하세요.')
