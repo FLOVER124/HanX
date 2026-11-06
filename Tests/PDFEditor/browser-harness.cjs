@@ -15,6 +15,7 @@ async function openEditor({make,files,choose={},viewport={width:1250,height:1000
   thumbnail:a=>call({action:'render',input:current,page:a.page,scale:.2}),
   edit:a=>{requests.push(a.operations);const out=path.join(revisions,`rev-${++serial}.pdf`);call({action:'edit',input:current,output:out,revision:a.revision,operations:a.operations});history.push(current);future=[];current=out;return true;},
   undo:()=>{if(history.length){future.push(current);current=history.pop();}return true;},redo:()=>{if(future.length){history.push(current);current=future.pop();}return true;},
+  extract:a=>{const operations=require('../../desktop/pdf/pages.js').extractOperations(a.pages,a.count);const out=path.join(dir,'extracted.pdf');if(operations.length)call({action:'edit',input:current,output:out,force:true,operations});else fs.copyFileSync(current,out);return out;},
   ocr:()=>({words:[]}),draft:()=>true,...Object.fromEntries(Object.entries(choose).map(([k,v])=>[k,()=>path.join(dir,v)]))};
  const browser=await chromium.launch();const ui=await browser.newPage({viewport});const errors=[];ui.on('pageerror',e=>errors.push(e.message));
  await ui.exposeFunction('hostCall',(action,args)=>{try{if(!host[action])throw Error('unsupported '+action);return {ok:true,data:host[action](args)};}catch(e){return {ok:false,error:e.message};}});

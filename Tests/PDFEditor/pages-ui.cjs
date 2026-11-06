@@ -27,5 +27,16 @@ const MAKE="import sys, pypdfium2 as pdf, pypdfium2.raw as raw, ctypes as c\ndef
  await pageUI.click('#pages button[data-page="5"]',{button:'right'});assert.equal(await pageUI.locator('#contextMenu [data-action="movePageDown"]').count(),0);await pageUI.keyboard.press('Escape');
  await pageUI.focus('#pages button[data-page="2"]');await pageUI.keyboard.press('Shift+F10');assert.equal(await pageUI.isVisible('#contextMenu'),true);
  assert.equal(await pageUI.getAttribute('#contextMenu','aria-label'),'3페이지 메뉴');await pageUI.keyboard.press('Escape');
+ // Several pages: Ctrl/Shift selection, rotation, extraction and deletion.
+ await pageUI.click('#pages button[data-page="0"]');await ready();
+ await pageUI.click('#pages button[data-page="2"]',{modifiers:['Shift']});await pageUI.click('#pages button[data-page="4"]',{modifiers:['Control']});
+ assert.equal(await pageUI.locator('#pages button.page-selected').count(),4);
+ await menu(2,'rotateSelectionRight');assert.deepEqual(sizes().map(s=>s.split('/')[1]),['90','90','180','0','90','0']);assert.equal(await pageUI.locator('#pages button.page-selected').count(),4);
+ await pageUI.click('#pages button[data-page="4"]',{button:'right'});await pageUI.click('#contextMenu [data-action="extractPages"]');await pageUI.waitForFunction(()=>document.querySelector('#status').textContent==='추출했습니다: extracted.pdf');
+ {const out=require('node:path').join(h.dir,'extracted.pdf');const pages=[0,1,2,3].map(i=>h.call({action:'inspect',input:out,page:i}));assert.equal(pages[0].pageCount,4);assert.deepEqual(pages.map(p=>p.objects.map(o=>o.text).join('')),['Page 1','Page 1','Page 2','Extra 1']);}
+ await pageUI.focus('#pages button[data-page="1"]');await pageUI.keyboard.press('Delete');await ready();
+ assert.deepEqual(sizes().map(s=>s.split('/')[2]),['Page 3','']);assert.equal(await pageUI.locator('#pages button.page-selected').count(),0);
+ await pageUI.click('#pages button[data-page="0"]');await ready();await pageUI.click('#pages button[data-page="1"]',{modifiers:['Shift']});
+ await pageUI.click('#pages button[data-page="0"]',{button:'right'});assert.equal(await pageUI.locator('#contextMenu [data-action="deletePages"]').count(),0);await pageUI.keyboard.press('Escape');
  assert.ok(h.unchanged());assert.deepEqual(h.errors,[]);await h.close();console.log('page UI ok');
 })().catch(e=>{console.error(e);process.exit(1);});

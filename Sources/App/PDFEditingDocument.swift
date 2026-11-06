@@ -202,6 +202,35 @@ final class PDFEditingWindowController: NSWindowController, WKNavigationDelegate
             }
             panel.beginSheetModal(for: window!) { [weak self] response in self?.reply(id,response == .OK ? panel.url?.path : nil) }; return
         }
+        if action == "extract" {
+            // Keeps the selected pages by deleting the others into a separate file;
+            // the editing session and its history are unchanged.
+            guard let window, let pages = args["pages"] as? [Int], let count = args["count"] as? Int, !pages.isEmpty else {
+                reply(id, nil, PDFEditingBridge.Failure(message: "추출할 페이지를 선택하세요.")); return
+            }
+            let keep = Set(pages)
+            let operations: [[String: Any]] = (0..<max(0, count)).reversed().filter { !keep.contains($0) }.map { ["op": "delete_page", "page": $0] }
+            let panel = NSSavePanel(); panel.allowedContentTypes = [.pdf]
+            panel.directoryURL = session.source.deletingLastPathComponent()
+            panel.nameFieldStringValue = session.source.deletingPathExtension().lastPathComponent + "-추출.pdf"
+            panel.beginSheetModal(for: window) { [weak self] response in
+                guard let self else { return }
+                guard response == .OK, let destination = panel.url else { self.reply(id, nil); return }
+                self.pendingWork += 1
+                self.queue.async {
+                    do {
+                        if operations.isEmpty {
+                            if FileManager.default.fileExists(atPath: destination.path) { try FileManager.default.removeItem(at: destination) }
+                            try FileManager.default.copyItem(at: session.current, to: destination)
+                        } else {
+                            _ = try PDFEditingBridge.call(["action": "edit", "input": session.current.path, "output": destination.path, "force": true, "operations": operations])
+                        }
+                        DispatchQueue.main.async { self.pendingWork -= 1; self.reply(id, destination.path) }
+                    } catch { DispatchQueue.main.async { self.pendingWork -= 1; self.reply(id, nil, error) } }
+                }
+            }
+            return
+        }
         if action == "save" {
             savePDF(asCopy: args["as"] as? Bool == true) { [weak self] result, error in
                 self?.reply(id, result, error)
