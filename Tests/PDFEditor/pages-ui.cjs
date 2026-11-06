@@ -2,31 +2,13 @@
 // Loads desktop/pdf/index.html in Playwright's Chromium with a host bridge that sends
 // the same requests as the CLI to the real worker. Fixtures are generated locally.
 // Usage: HANX_PDF_PYTHON=<python with Tools/pdf/requirements.txt> node Tests/PDFEditor/pages-ui.cjs
-const {chromium}=require('playwright');const {spawnSync}=require('node:child_process');
-const fs=require('node:fs');const path=require('node:path');const crypto=require('node:crypto');const assert=require('node:assert/strict');
-const repo=path.resolve(__dirname,'../..'),py=process.env.HANX_PDF_PYTHON||'python3';
-const dir=fs.mkdtempSync(path.join(require('node:os').tmpdir(),'hanx-pages-'));
+const assert=require('node:assert/strict');const {openEditor}=require('./browser-harness.cjs');
 const MAKE="import sys, pypdfium2 as pdf, pypdfium2.raw as raw, ctypes as c\ndef doc(path,widths,label):\n    d=pdf.PdfDocument.new()\n    for i,w in enumerate(widths):\n        p=d.new_page(w,400)\n        o=pdf.PdfObject(raw.FPDFPageObj_NewTextObj(d,b'Helvetica',28),pdf=d)\n        raw.FPDFText_SetText(o,c.cast(c.create_string_buffer(f'{label} {i+1}'.encode('utf-16-le')+b'\\0\\0'),c.POINTER(c.c_ushort)))\n        o.transform(pdf.PdfMatrix(1,0,0,1,30,300));p.insert_obj(o);p.gen_content()\n    d.save(path)\ndoc(sys.argv[1],[300,300,300],'Page'); doc(sys.argv[2],[250,250],'Extra')\n";
-{const r=spawnSync(py,['-c',MAKE,path.join(dir,'source.pdf'),path.join(dir,'extra.pdf')],{encoding:'utf8'});if(r.status)throw Error(r.stderr);}
-const worker=path.join(repo,'Tools/pdf/worker.py');
-function call(req){const r=spawnSync(py,[worker],{input:JSON.stringify(req),encoding:'utf8'});const env=JSON.parse(r.stdout);if(!env.ok)throw Error(env.error.message);return env.data;}
-const original=path.join(dir,'source.pdf'),hash=f=>crypto.createHash('sha256').update(fs.readFileSync(f)).digest('hex'),before=hash(original);
-const revs=fs.mkdtempSync(path.join(dir,'revisions-'));let current=original,history=[],future=[],n=0;
-const host={page:a=>({...call({action:'inspect',input:current,page:a.page}),image:call({action:'render',input:current,page:a.page}).image,name:'source.pdf',dirty:current!==original,canUndo:!!history.length,canRedo:!!future.length}),
- thumbnail:a=>call({action:'render',input:current,page:a.page,scale:.2}),
- edit:a=>{const out=path.join(revs,`rev-${++n}.pdf`);call({action:'edit',input:current,output:out,revision:a.revision,operations:a.operations});history.push(current);future=[];current=out;return true;},
- undo:()=>{if(history.length){future.push(current);current=history.pop();}return true;},redo:()=>{if(future.length){history.push(current);current=future.pop();}return true;},
- choosePDF:()=>path.join(dir,'extra.pdf'),ocr:()=>({words:[]}),draft:()=>true};
-const count=()=>call({action:'inspect',input:current,page:0}).pageCount;
-const sizes=()=>{const out=[];for(let i=0;i<count();i++){const d=call({action:'inspect',input:current,page:i});out.push(`${Math.round(d.width)}/${d.rotation}/${d.objects.map(o=>o.text).join('')}`);}return out;};
-(async()=>{const browser=await chromium.launch();const pageUI=await browser.newPage({viewport:{width:1250,height:1600}});
- await pageUI.exposeFunction('hostCall',(action,args)=>{try{return {ok:true,data:host[action](args)};}catch(e){return {ok:false,error:e.message};}});
- await pageUI.addInitScript(()=>{window.hanxPDF={request:async(a,b)=>{const r=await window.hostCall(a,b);if(!r.ok)throw Error(r.error);return r.data;}};});
- const errors=[];pageUI.on('pageerror',e=>errors.push(e.message));
- await pageUI.goto('file://'+path.join(repo,'desktop/pdf/index.html'));
- const ready=()=>pageUI.waitForFunction(()=>!document.body.classList.contains('busy')&&document.querySelector('#status').textContent==='준비됨');
+(async()=>{const h=await openEditor({make:MAKE,files:['source.pdf','extra.pdf'],choose:{choosePDF:'extra.pdf'},viewport:{width:1250,height:1600}});
+ const pageUI=h.ui,ready=h.ready,count=()=>h.inspect().pageCount;
+ const sizes=()=>{const out=[];for(let i=0;i<count();i++){const d=h.inspect(i);out.push(`${Math.round(d.width)}/${d.rotation}/${d.objects.map(o=>o.text).join('')}`);}return out;};
  const menu=async(index,id)=>{await pageUI.click(`#pages button[data-page="${index}"]`,{button:'right'});await pageUI.click(`#contextMenu [data-action="${id}"]`);await ready();};
- await ready();assert.equal(await pageUI.locator('#pages button').count(),3);
+ assert.equal(await pageUI.locator('#pages button').count(),3);
  await menu(1,'rotatePageRight');assert.deepEqual(sizes(),['300/0/Page 1','400/90/Page 2','300/0/Page 3']);
  assert.equal(await pageUI.inputValue('#pageNumber'),'2');
  await menu(0,'duplicatePage');assert.equal(await pageUI.locator('#pages button').count(),4);assert.equal(await pageUI.inputValue('#pageNumber'),'2');
@@ -45,6 +27,5 @@ const sizes=()=>{const out=[];for(let i=0;i<count();i++){const d=call({action:'i
  await pageUI.click('#pages button[data-page="5"]',{button:'right'});assert.equal(await pageUI.locator('#contextMenu [data-action="movePageDown"]').count(),0);await pageUI.keyboard.press('Escape');
  await pageUI.focus('#pages button[data-page="2"]');await pageUI.keyboard.press('Shift+F10');assert.equal(await pageUI.isVisible('#contextMenu'),true);
  assert.equal(await pageUI.getAttribute('#contextMenu','aria-label'),'3페이지 메뉴');await pageUI.keyboard.press('Escape');
- if(process.env.HANX_PDF_TEST_SCREENSHOT)await pageUI.screenshot({path:process.env.HANX_PDF_TEST_SCREENSHOT});
- assert.equal(hash(original),before);assert.deepEqual(errors,[]);await browser.close();fs.rmSync(dir,{recursive:true,force:true});console.log('page UI ok');
+ assert.ok(h.unchanged());assert.deepEqual(h.errors,[]);await h.close();console.log('page UI ok');
 })().catch(e=>{console.error(e);process.exit(1);});

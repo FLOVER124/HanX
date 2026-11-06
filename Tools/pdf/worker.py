@@ -48,6 +48,47 @@ def text_value(value):
     require(isinstance(value,str) and len(value)<=20000 and not any(ord(ch)<32 for ch in value), '텍스트는 줄바꿈 없는 한 줄(최대 20,000자)로 입력하세요.')
     return value
 
+def paragraph_value(value):
+    require(isinstance(value,str) and value.strip() and len(value)<=20000 and value.count('\n')<1000 and not any(ord(ch)<32 and ch!='\n' for ch in value), '문단 텍스트는 비어 있지 않은 최대 20,000자, 1,000줄 이하여야 합니다.')
+    return value.replace('\r','')
+
+def text_width(doc, font, size, text):
+    if not text: return 0.0
+    obj=raw.FPDFPageObj_CreateTextObj(doc,font,size); check(obj,'텍스트 폭을 계산하지 못했습니다.')
+    try:
+        set_text(obj,text); box=[c.c_float() for _ in range(4)]
+        check(raw.FPDFPageObj_GetBounds(obj,*[c.byref(v) for v in box]),'텍스트 폭을 계산하지 못했습니다.')
+        return box[2].value  # origin to right edge, as laid out from the line start
+    finally: raw.FPDFPageObj_Destroy(obj)
+
+def wrap(measure, text, width):
+    # Greedy word wrap; explicit newlines are hard breaks. A word wider than the
+    # column (common for long Korean runs without spaces) breaks by character.
+    lines=[]
+    for hard in text.split('\n'):
+        line=''
+        for token in re.findall(r'\S+\s*',hard):
+            if measure((line+token).rstrip())<=width: line+=token; continue
+            if line: lines.append(line.rstrip()); line=''
+            if measure(token.rstrip())<=width: line=token; continue
+            for ch in token:
+                if line.strip() and measure((line+ch).rstrip())>width: lines.append(line.rstrip()); line=''
+                line+=ch
+        lines.append(line.rstrip())
+    return lines
+
+def place_lines(doc, page, index, lines, font, size, matrix, leading, rgba, mode=0):
+    # Lines share the source scale; each baseline steps down by `leading` points.
+    for i,line in enumerate(lines):
+        if not line: continue
+        obj=pdf.PdfObject(raw.FPDFPageObj_CreateTextObj(doc,font,size),pdf=doc)
+        set_text(obj,line); obj.set_matrix(pdf.PdfMatrix(matrix.a,0,0,matrix.d,matrix.e,matrix.f-i*leading))
+        raw.FPDFPageObj_SetFillColor(obj,*rgba); raw.FPDFTextObj_SetTextRenderMode(obj,mode)
+        if index is None: page.insert_obj(obj)
+        else:
+            check(raw.FPDFPage_InsertObjectAtIndex(page,obj,index),'텍스트 삽입에 실패했습니다.')
+            obj._detach_finalizer(); obj.page=page; index+=1
+
 def set_text(obj, text):
     buffer=c.create_string_buffer(text.encode('utf-16-le')+b'\0\0')
     check(raw.FPDFText_SetText(obj,c.cast(buffer,c.POINTER(c.c_ushort))), '텍스트를 수정하지 못했습니다.')
@@ -73,6 +114,19 @@ def font_info(obj):
     if weight in (350,400) and re.search(r'(bold|black|heavy|demi|semibold|PB$)',base,re.I):weight=700
     return {'name':base,'family':family,'weight':weight,'italic':bool(flags&64),'serif':bool(flags&2)}
 
+def tag_font(font, source, text):
+    # PDFium reuses an already loaded font with the same PostScript name, even if
+    # it is a different subset. Name each subset uniquely (PDF subset tag style),
+    # derived from the source font and the characters it must contain.
+    names=font['name']; base=re.sub(r'^[A-Z]{6}\+','',names.getDebugName(6) or 'HanXFont')
+    base=re.sub(r'[^A-Za-z0-9_-]','',base) or 'HanXFont'
+    digest=hashlib.sha256(source+b'\0'+''.join(sorted(set(text))).encode('utf-8')).digest()
+    value=''.join(chr(65+b%26) for b in digest[:6])+'+'+base[:56]
+    records=[record for record in names.names if record.nameID==6]
+    for record in records: record.string=value
+    if not records: names.setName(value,6,3,1,0x409)
+    if 'CFF ' in font: font['CFF '].cff.fontNames=[value]
+
 def font_for(doc, text, explicit=None, original=None):
     # Newly inserted text uses a complete local font; subset fonts are not assumed
     # to contain characters absent from the source. Never silently drop glyphs.
@@ -94,6 +148,7 @@ def font_for(doc, text, explicit=None, original=None):
                         with TTFont(io.BytesIO(bytes(data))) as embedded:
                             for table in embedded['cmap'].tables:
                                 if table.isUnicode():table.cmap={code:glyph for code,glyph in table.cmap.items() if code in set(map(ord,text))}
+                            tag_font(embedded,bytes(data),text)
                             stream=io.BytesIO();embedded.save(stream);binary=stream.getvalue()
                         data=(c.c_ubyte*len(binary)).from_buffer_copy(binary)
                         font=raw.FPDFText_LoadFont(doc,data,len(binary),embedded_type,1)
@@ -125,11 +180,14 @@ def font_for(doc, text, explicit=None, original=None):
                     top.Weight='Bold' if getattr(parsed.get('OS/2'),'usWeightClass',400)>=600 else 'Regular'
                 for table in parsed['cmap'].tables:
                     if table.isUnicode():table.cmap={code:glyph for code,glyph in table.cmap.items() if code in set(map(ord,text))}
+                identity=f'{candidate}:{face}:{Path(candidate).stat().st_size}'.encode()
                 if getattr(parsed.get('OS/2'),'fsType',0) & 0x100:
+                    tag_font(parsed,identity,text)
                     output=io.BytesIO(); parsed.save(output); data=output.getvalue()
                 else:
                     from fontTools.subset import Subsetter
                     subset=Subsetter();subset.options.name_IDs=[1,2,4,6,16,17];subset.options.name_legacy=True;subset.options.name_languages=['*']; subset.populate(text=text); subset.subset(parsed)
+                    tag_font(parsed,identity,text)
                     output=io.BytesIO(); parsed.save(output); data=output.getvalue()
             buffer=(c.c_ubyte*len(data)).from_buffer_copy(data)
             font=raw.FPDFText_LoadFont(doc,buffer,len(data),font_type,1)
@@ -161,7 +219,7 @@ def inspect_page(doc, index, revision):
                 item={'id':i,'type':{1:'text',2:'path',3:'image',4:'shading',5:'form'}.get(obj.type,'unknown'), 'bounds':bounds,
                       'viewBounds':[min(p[0] for p in points),min(p[1] for p in points),max(p[0] for p in points),max(p[1] for p in points)],'fill':fill(obj)}
                 if obj.type==raw.FPDF_PAGEOBJ_TEXT:
-                    item['font']=font_info(obj); item['text']=obj.extract(); item['searchText']=raw.FPDFTextObj_GetTextRenderMode(obj)==3; size=c.c_float()
+                    item['font']=font_info(obj); item['text']=obj.extract(); item['matrix']=list(obj.get_matrix().get()); item['searchText']=raw.FPDFTextObj_GetTextRenderMode(obj)==3; size=c.c_float()
                     if raw.FPDFTextObj_GetFontSize(obj,c.byref(size)): item['size']=size.value
                 entries.append(item)
         return {'kind':'pdf','page':index,'pageCount':len(doc),'width':width,'height':height,'rotation':page.get_rotation(),'objects':entries,'revision':revision}
@@ -244,6 +302,43 @@ def modify_pages(doc, ops):
                 doc.import_pages(other,selection,at)
         else: raise PDFError('지원하지 않는 PDF 작업: '+str(action))
 
+def set_paragraph(doc, page, pi, op, objects, removed, fonts):
+    # Replace horizontal text lines with the same text reflowed in their column.
+    # Lines are placed from the first baseline with the source line spacing.
+    ids=op.get('objects')
+    require(isinstance(ids,list) and 0<len(ids)<=500 and len(set(map(str,ids)))==len(ids),'objects는 문단을 이루는 텍스트 개체 번호 배열입니다.')
+    members=[]
+    for oi in ids:
+        oi=integer(oi,'objects',len(objects[pi])); require((pi,oi) not in removed,'이미 삭제된 개체입니다.'); obj=objects[pi][oi]
+        require(obj.type==raw.FPDF_PAGEOBJ_TEXT,'문단 편집에는 텍스트 개체만 선택하세요.')
+        clip=raw.FPDFPageObj_GetClipPath(obj)
+        require((not clip or raw.FPDFClipPath_CountPaths(clip)<=0) and raw.FPDFTextObj_GetTextRenderMode(obj) in (0,3),'잘린 영역이나 외곽선이 있는 텍스트는 문단으로 편집할 수 없습니다.')
+        m=obj.get_matrix()
+        require(abs(m.b)<1e-6 and abs(m.c)<1e-6 and m.a>0 and m.d>0,'회전하거나 기울어진 텍스트는 문단으로 편집할 수 없습니다.')
+        members.append((oi,obj,m))
+    text=paragraph_value(op.get('text'))
+    first=max(members,key=lambda item:(round(item[2].f,1),-item[2].e))[1]
+    scale=first.get_matrix(); size=c.c_float(); check(raw.FPDFTextObj_GetFontSize(first,c.byref(size)),'텍스트 크기를 읽지 못했습니다.')
+    size=number(op.get('size',size.value),'size',1,1000)
+    bounds=[obj.get_bounds() for _,obj,_ in members]
+    left=min(m.e for *_,m in members); width=number(op.get('width',max(b[2] for b in bounds)-left),'width',1,30000)
+    baselines=sorted({round(m.f,2) for *_,m in members},reverse=True)
+    gaps=sorted(a-b for a,b in zip(baselines,baselines[1:]) if a-b>size*scale.d*0.5)
+    leading=number(op.get('lineHeight',gaps[len(gaps)//2] if gaps else size*scale.d*1.2),'lineHeight',0.1,3000)
+    font,buffer=font_for(doc,text.replace('\n',''),op.get('font'),original=first); fonts.append((font,buffer))
+    cache={}
+    # Source lines were measured by ink bounds; allow a little slack so an
+    # unchanged paragraph keeps its original line breaks.
+    lines=wrap(lambda t:cache.setdefault(t,text_width(doc,font,size,t)*scale.a),text,width*1.02+0.5)
+    rgba=[c.c_uint() for _ in range(4)]
+    if not raw.FPDFPageObj_GetFillColor(first,*[c.byref(v) for v in rgba]): rgba=[c.c_uint(0),c.c_uint(0),c.c_uint(0),c.c_uint(255)]
+    mode=raw.FPDFTextObj_GetTextRenderMode(first)
+    targets={c.cast(obj.raw,c.c_void_p).value for _,obj,_ in members}
+    order=list(page.get_objects(max_depth=1))
+    index=min(i for i,o in enumerate(order) if c.cast(o.raw,c.c_void_p).value in targets)
+    for oi,obj,_ in members: page.remove_obj(obj); obj.close(); removed.add((pi,oi))
+    place_lines(doc,page,index,lines,font,size,pdf.PdfMatrix(scale.a,0,0,scale.d,left,max(m.f for *_,m in members)),leading,[v.value for v in rgba],mode)
+
 def modify(doc, ops):
     require(isinstance(ops,list) and 0<len(ops)<=1000,'operations는 1~1000개의 작업 배열이어야 합니다.')
     require(all(isinstance(op,dict) for op in ops),'잘못된 PDF 작업입니다.')
@@ -302,6 +397,8 @@ def modify(doc, ops):
                     check(raw.FPDFPage_InsertObjectAtIndex(page,replacement,current_index),'텍스트 삽입에 실패했습니다.')
                     replacement._detach_finalizer(); replacement.page=page
                     objects[pi][oi]=replacement
+            elif action=='set_paragraph':
+                set_paragraph(doc,page,pi,op,objects,removed,fonts)
             elif action=='set_fill':
                 require(obj.type in (raw.FPDF_PAGEOBJ_TEXT,raw.FPDF_PAGEOBJ_PATH),'텍스트 또는 도형을 선택하세요.')
                 check(raw.FPDFPageObj_SetFillColor(obj,*color(op.get('color')),round(number(op.get('opacity',1),'opacity',0,1)*255)),'색상을 변경하지 못했습니다.')
@@ -321,10 +418,13 @@ def modify(doc, ops):
             elif action=='add_ocr_layer':
                 add_search_layer(doc,page,op.get('regions'),fonts,op.get('font'))
             elif action=='add_text':
-                text=text_value(op.get('text')); font,buffer=font_for(doc,text,op.get('font')); fonts.append((font,buffer))
-                obj=pdf.PdfObject(raw.FPDFPageObj_CreateTextObj(doc,font,number(op.get('size',18),'size',1,1000)),pdf=doc)
-                set_text(obj,text); raw.FPDFPageObj_SetFillColor(obj,*color(op.get('color','#202632')),255)
-                obj.transform(pdf.PdfMatrix(1,0,0,1,number(op.get('x',40),'x'),number(op.get('y',40),'y'))); page.insert_obj(obj)
+                text=paragraph_value(op.get('text')); font,buffer=font_for(doc,text.replace('\n',''),op.get('font')); fonts.append((font,buffer))
+                size=number(op.get('size',18),'size',1,1000); lines=text.split('\n')
+                if op.get('width') is not None:
+                    width=number(op.get('width'),'width',1,30000); cache={}
+                    lines=wrap(lambda t:cache.setdefault(t,text_width(doc,font,size,t)),text,width)
+                leading=number(op.get('lineHeight',size*1.2),'lineHeight',0.1,3000)
+                place_lines(doc,page,None,lines,font,size,pdf.PdfMatrix(1,0,0,1,number(op.get('x',40),'x'),number(op.get('y',40),'y')),leading,(*color(op.get('color','#202632')),255))
             elif action=='add_rect':
                 obj=pdf.PdfObject(raw.FPDFPageObj_CreateNewRect(number(op.get('x'),'x'),number(op.get('y'),'y'),number(op.get('width'),'width',1,30000),number(op.get('height'),'height',1,30000)),pdf=doc)
                 raw.FPDFPageObj_SetFillColor(obj,*color(op.get('color','#dbeafe')),255); raw.FPDFPath_SetDrawMode(obj,raw.FPDF_FILLMODE_WINDING,0); page.insert_obj(obj)
