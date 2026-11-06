@@ -44,7 +44,7 @@ jobs:
               echo "CRASH: $kind"; status=1
             fi
             xcrun simctl io "$UDID" screenshot "$kind.png" > /dev/null 2>&1 || true
-            sips -Z 1000 -s format jpeg -s formatOptions 45 "$kind.png" --out "$kind.jpg" > /dev/null
+            sips -Z 640 -s format jpeg -s formatOptions 30 "$kind.png" --out "$kind.jpg" > /dev/null
             echo "BEGIN-SHOT $kind"; base64 -i "$kind.jpg" | tr -d '\n'; echo; echo "END-SHOT $kind"
             xcrun simctl terminate "$UDID" com.hanword.editor.ipad || true
           done
