@@ -2,7 +2,7 @@
 # Install only the standalone CLI and docs. This does not build a pkg or change HanX.app.
 set -eu
 hw_root=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd -P)
-hw_prefix="$HOME/Library/Application Support/HanX/CLI/2.13.3"
+hw_prefix="$HOME/Library/Application Support/HanX/CLI/2.13.4"
 hw_bin_dir="$HOME/.local/bin"
 while [ "$#" -gt 0 ]; do
   case "$1" in
@@ -56,7 +56,7 @@ hw_pdf="$hw_root/pdf"
 }
 mkdir -p "$hw_stage/pdf"
 cp "$hw_pdf/worker.py" "$hw_pdf/fonts.py" "$hw_pdf/layout.py" "$hw_pdf/requirements.txt" "$hw_stage/pdf/"
-printf '%s\n' '2.13.3' > "$hw_stage/HANX-CLI-VERSION"
+printf '%s\n' '2.13.4' > "$hw_stage/HANX-CLI-VERSION"
 "$hw_stage/hanx" --version >/dev/null
 if [ -e "$hw_prefix" ]; then
   hw_backup=$(mktemp -d "$hw_parent/.hanx-cli-backup.XXXXXX")
