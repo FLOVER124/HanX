@@ -23,7 +23,8 @@ jobs:
           set -o pipefail
           xcodebuild -project HanXPad.xcodeproj -scheme HanXPad -configuration Debug \
             -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' \
+            ARCHS=arm64 ONLY_ACTIVE_ARCH=YES SWIFT_COMPILATION_MODE=wholemodule \
             CODE_SIGNING_ALLOWED=NO build > build.log 2>&1 || true
-          grep -E "error:" build.log | sort -u | head -300 || true
+          grep -E "error:" build.log | sort -u | head -400 || true
           tail -5 build.log
           grep -q "BUILD SUCCEEDED" build.log
