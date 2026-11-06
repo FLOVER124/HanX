@@ -1,6 +1,11 @@
 name: Native Windows and Linux packages
 on:
   workflow_dispatch:
+    inputs:
+      linux-only:
+        description: Verify only the Ubuntu installer
+        type: boolean
+        default: false
   pull_request:
     paths:
       - 'Sources/**'
@@ -20,7 +25,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-22.04, windows-2022]
+        os: ${{ fromJSON(inputs.linux-only && '["ubuntu-22.04"]' || '["ubuntu-22.04","windows-2022"]') }}
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -44,10 +49,9 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.10'
-      - uses: swift-actions/setup-swift@v2
+      - name: Check bundled Linux Swift toolchain
         if: runner.os == 'Linux'
-        with:
-          swift-version: '6.2.1'
+        run: swift --version
       - name: Install official Windows Swift toolchain
         uses: compnerd/gha-setup-swift@57fe462cd3c7b05ae8fcff79b00719312e305257
         if: runner.os == 'Windows'
