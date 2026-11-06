@@ -16,3 +16,5 @@ aside.pages{width:150px}.pages button{height:auto;padding:9px;min-height:105px}.
 .details-toggle{display:flex;gap:6px;align-items:center;font-size:12px;color:#64748b;margin:2px 0 12px}
 
 .marquee{position:absolute;border:1px solid #2874ef;background:#2874ef20;pointer-events:none;z-index:900}
+
+#contextMenu button.danger{color:#c53345}.pages button.dragging{opacity:.45}.pages button.drop-before{box-shadow:0 -3px 0 #2874ef}.pages button.drop-after{box-shadow:0 3px 0 #2874ef}

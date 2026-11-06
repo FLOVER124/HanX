@@ -18,7 +18,7 @@ enum AgentPDFEditing {
         if let output = args["output"] as? String { request["output"] = AgentIO.url(output).path }
         if var ops = args["operations"] as? [[String:Any]] {
             let base = AgentIO.url(args["baseDirectory"] as? String ?? FileManager.default.currentDirectoryPath)
-            for i in ops.indices { for key in ["image", "font"] {
+            for i in ops.indices { for key in ["image", "font", "source"] {
                 if let path = ops[i][key] as? String { ops[i][key] = URL(fileURLWithPath:path, relativeTo:base).standardizedFileURL.path }
             } }
             request["operations"] = ops

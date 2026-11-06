@@ -193,9 +193,13 @@ final class PDFEditingWindowController: NSWindowController, WKNavigationDelegate
             guard let text = args["text"] as? String, text.utf8.count <= 8_000_000 else { reply(id,nil,PDFEditingBridge.Failure(message:"복사할 텍스트가 너무 큽니다."));return }
             NSPasteboard.general.clearContents(); reply(id,NSPasteboard.general.setString(text,forType:.string));return
         }
-        if action == "chooseImage" || action == "chooseFont" {
+        if action == "chooseImage" || action == "chooseFont" || action == "choosePDF" {
             let panel = NSOpenPanel(); panel.allowsMultipleSelection = false
-            panel.allowedContentTypes = action == "chooseImage" ? [.png,.jpeg,.tiff] : [UTType(filenameExtension:"ttf") ?? .data]
+            switch action {
+            case "chooseImage": panel.allowedContentTypes = [.png,.jpeg,.tiff]
+            case "choosePDF": panel.allowedContentTypes = [.pdf]
+            default: panel.allowedContentTypes = [UTType(filenameExtension:"ttf") ?? .data]
+            }
             panel.beginSheetModal(for: window!) { [weak self] response in self?.reply(id,response == .OK ? panel.url?.path : nil) }; return
         }
         if action == "save" {

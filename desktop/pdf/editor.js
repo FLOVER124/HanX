@@ -33,7 +33,7 @@ function render(){
  if($('pages').children.length!==state.pageCount){
   thumbnailObserver?.disconnect();$('pages').replaceChildren();
   thumbnailObserver=new IntersectionObserver(entries=>{for(const e of entries)if(e.isIntersecting){thumbnailObserver.unobserve(e.target);queueThumbnail(e.target);}}, {root:document.querySelector('aside.pages'),rootMargin:'150px'});
-  for(let i=0;i<state.pageCount;i++){const b=node('button',{'aria-label':`${i+1}페이지`,'data-page':i});b.append(node('span',{class:'page-placeholder',text:String(i+1)}),node('span',{class:'page-number',text:String(i+1)}));b.onclick=()=>task(()=>refresh(i));$('pages').append(b);thumbnailObserver.observe(b);}
+  for(let i=0;i<state.pageCount;i++){const b=node('button',{'aria-label':`${i+1}페이지`,'data-page':i});b.append(node('span',{class:'page-placeholder',text:String(i+1)}),node('span',{class:'page-number',text:String(i+1)}));b.onclick=()=>task(()=>refresh(i));wirePage(b,i);$('pages').append(b);thumbnailObserver.observe(b);}
  }
  thumbnails.set(page,state.image);
  for(const b of $('pages').children){b.classList.toggle('active',Number(b.dataset.page)===page);b.setAttribute('aria-current',String(Number(b.dataset.page)===page));if(Number(b.dataset.page)===page)setThumbnail(b,state.image);}
@@ -73,6 +73,23 @@ function openContext(event,id){event.preventDefault();if(busy)return;select(id);
 document.addEventListener('pointerdown',event=>{if(!$('contextMenu').contains(event.target))hideContext();});
 document.addEventListener('keydown',event=>{if($('contextMenu').hidden)return;if(event.key==='Escape'){hideContext();$('paper').focus();event.preventDefault();event.stopImmediatePropagation();}else if(['ArrowDown','ArrowUp'].includes(event.key)){const buttons=[...$('contextMenu').children],index=buttons.indexOf(document.activeElement);buttons[(index+(event.key==='ArrowDown'?1:-1)+buttons.length)%buttons.length].focus();event.preventDefault();event.stopImmediatePropagation();}});
 function resolveZoom(){const mode=$('zoom').value;if(!['page','width'].includes(mode)||!state)return Number(mode)||1;const workspace=$('workspace'),style=getComputedStyle(workspace),width=workspace.clientWidth-parseFloat(style.paddingLeft)-parseFloat(style.paddingRight)-2,height=workspace.clientHeight-parseFloat(style.paddingTop)-parseFloat(style.paddingBottom)-2;return Math.max(.1,Math.min(4,mode==='width'?width/state.width:Math.min(width/state.width,height/state.height)));}
+function hasDraft(){return !!(inlineEdit||textCommit);}
+async function pageEdit(operations,next){await request('edit',{revision:state.revision,operations});thumbnails.clear();await refreshNear(next);$('pages').children[page]?.scrollIntoView({block:'nearest'});}
+// Undo/redo or a page edit can change the page count; fall back to the nearest page.
+async function refreshNear(index){try{await refresh(index);}catch(error){if(index===0)throw error;await refresh(0);if(index<state.pageCount)throw error;if(state.pageCount>1)await refresh(state.pageCount-1);}}
+function runPageCommand(command){if(!state)return;task(async()=>{if(command.import!==undefined){const source=await request('choosePDF');if(!source)return;await pageEdit([{op:'import_pages',source,at:command.import}],command.import);return;}await pageEdit(command.operations,command.page);});}
+function openPageContext(event,index){event.preventDefault();if(busy||!state)return;hideContext();const menu=$('contextMenu');menu.setAttribute('aria-label',`${index+1}페이지 메뉴`);menu.replaceChildren();for(const command of PDFPages.commands(index,state.pageCount)){const button=node('button',{type:'button',role:'menuitem','data-action':command.id,text:command.label});if(command.danger)button.className='danger';button.onclick=()=>{hideContext();runPageCommand(command);};menu.append(button);}menu.hidden=false;const bounds=menu.getBoundingClientRect();menu.style.left=Math.max(4,Math.min(event.clientX,innerWidth-bounds.width-4))+'px';menu.style.top=Math.max(4,Math.min(event.clientY,innerHeight-bounds.height-4))+'px';menu.firstElementChild?.focus();}
+let pageDrag=null;
+function clearDropMarks(){for(const b of $('pages').children)b.classList.remove('drop-before','drop-after');}
+function wirePage(button,index){
+ button.draggable=true;
+ button.oncontextmenu=event=>openPageContext(event,index);
+ button.addEventListener('keydown',event=>{if(event.key==='ContextMenu'||event.key==='F10'&&event.shiftKey){const r=button.getBoundingClientRect();openPageContext({preventDefault:()=>event.preventDefault(),clientX:r.right-8,clientY:r.top+8},index);event.stopPropagation();}});
+ button.addEventListener('dragstart',event=>{if(busy||hasDraft()){event.preventDefault();return;}pageDrag=index;event.dataTransfer.effectAllowed='move';event.dataTransfer.setData('text/plain',String(index+1));button.classList.add('dragging');});
+ button.addEventListener('dragend',()=>{pageDrag=null;button.classList.remove('dragging');clearDropMarks();});
+ button.addEventListener('dragover',event=>{if(pageDrag===null)return;event.preventDefault();event.dataTransfer.dropEffect='move';const r=button.getBoundingClientRect(),after=event.clientY>r.top+r.height/2;clearDropMarks();button.classList.add(after?'drop-after':'drop-before');});
+ button.addEventListener('drop',event=>{if(pageDrag===null)return;event.preventDefault();const from=pageDrag,r=button.getBoundingClientRect(),after=event.clientY>r.top+r.height/2;pageDrag=null;clearDropMarks();const command=PDFPages.move(from,PDFPages.moveTarget(from,index,after,state.pageCount),page,state.pageCount);if(command)task(()=>pageEdit(command.operations,command.page));});
+}
 function goPage(index){hideContext();if(!state||!Number.isInteger(index)||index<0||index>=state.pageCount||busy){if(state)$('pageNumber').value=page+1;return;}task(async()=>{await refresh(index);$('pages').children[index]?.scrollIntoView({block:'nearest'});});}
 $('previousPage').onclick=()=>goPage(page-1);$('nextPage').onclick=()=>goPage(page+1);
 $('pageNumber').onchange=()=>goPage(Number($('pageNumber').value)-1);$('pageNumber').onkeydown=event=>{if(event.key==='Enter'){event.preventDefault();goPage(Number($('pageNumber').value)-1);}};
@@ -109,7 +126,7 @@ for(const [id,angle] of [['rotateLeft',90],['rotateRight',-90]])$(id).onclick=()
 $('fill').onchange=()=>{const o=selected();if(o)apply({op:'set_fill',object:o.id,color:$('fill').value});};
 $('addRect').onclick=()=>apply({op:'add_rect',x:40,y:40,width:140,height:80,color:'#dbeafe'});
 for(const [id,op] of [['addImage','add_image'],['replaceImage','replace_image']])$(id).onclick=()=>task(async()=>{const image=await request('chooseImage');if(!image)return;const keep={id:op==='add_image'?rawObjects.length:selection,type:'image'};await request('edit',{revision:state.revision,operations:[{op,page,object:selection,image,x:40,y:40,width:200,height:150}]});await refresh(page,keep);});
-for(const action of ['undo','redo'])$(action).onclick=()=>task(async()=>{await request(action);thumbnails.clear();await refresh();});
+for(const action of ['undo','redo'])$(action).onclick=()=>task(async()=>{await request(action);thumbnails.clear();await refreshNear(page);});
 for(const id of ['save','saveAs'])$(id).onclick=()=>task(async()=>{await request('save',{as:id==='saveAs'});await refresh();});
 $('zoom').onchange=()=>{if(state)render();};
 $('ocr').onclick=async()=>{if(busy)return;const wrapper=node('div');const select=node('select',{'aria-label':'OCR 언어'});for(const [value,text] of [['kor+eng','한국어 + 영어'],['eng','영어'],['kor','한국어'],['jpn','일본어']])select.append(node('option',{value,text}));wrapper.append(select);if(!await modal('문자 인식',wrapper,{confirm:'인식'}))return;

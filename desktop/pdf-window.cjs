@@ -25,7 +25,7 @@ function register(){if(initialized)return;initialized=true;ipcMain.handle('hanx:
    case 'ocr':return session.ocr(args);
    case 'copyText':if(typeof args.text!=='string'||args.text.length>2000000)throw Error('복사할 텍스트가 너무 큽니다.');require('electron').clipboard.writeText(args.text);return true;
    case 'setup':return runEngine(session.executable,['pdf','setup']);
-   case 'chooseImage':case 'chooseFont':{const result=await dialog.showOpenDialog(win,{properties:['openFile'],filters:[{name:action==='chooseImage'?'이미지':'글꼴',extensions:action==='chooseImage'?['png','jpg','jpeg','tif','tiff']:['ttf']}]});return result.canceled?null:result.filePaths[0];}
+   case 'chooseImage':case 'chooseFont':case 'choosePDF':{const filter={chooseImage:{name:'이미지',extensions:['png','jpg','jpeg','tif','tiff']},chooseFont:{name:'글꼴',extensions:['ttf']},choosePDF:{name:'PDF',extensions:['pdf']}}[action];const result=await dialog.showOpenDialog(win,{properties:['openFile'],filters:[filter]});return result.canceled?null:result.filePaths[0];}
    case 'save':{let destination=session.source;if(args.as===true||!session.savedCopy){const result=await dialog.showSaveDialog(win,{defaultPath:path.join(path.dirname(destination),path.parse(destination).name+'-편집.pdf'),filters:[{name:'PDF',extensions:['pdf']}]});if(result.canceled)return null;destination=result.filePath;if(!path.extname(destination))destination+='.pdf';}return session.save(destination);}
    default:throw Error('지원하지 않는 PDF 작업입니다.');
   }

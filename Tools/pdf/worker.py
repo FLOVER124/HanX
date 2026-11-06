@@ -2,6 +2,7 @@
 """One request per process. PDF coordinates are points, bottom-left, before rotation.
 Objects are top-level content objects, addressed in the INPUT revision (not reindexed
 between operations). A form is edited as a whole; shared nested content is untouched.
+Page operations form their own batch and apply in order.
 """
 from contextlib import closing
 import base64
@@ -201,8 +202,54 @@ def add_search_layer(doc, page, regions, fonts, font_path=None):
         obj.set_matrix(pdf.PdfMatrix(a,bv,cv,d,p[0]-a*x0-cv*y0,p[1]-bv*x0-d*y0))
         check(raw.FPDFTextObj_SetTextRenderMode(obj,3),'검색 텍스트를 만들지 못했습니다.')
 
+PAGE_OPS=('rotate_page','delete_page','move_page','duplicate_page','insert_blank_page','import_pages')
+MAX_PAGES=10000
+
+def modify_pages(doc, ops):
+    # Page operations run in order; each index refers to the document produced
+    # by the previous page operation. Page content, annotations and resources
+    # are carried with the page; nothing is rasterized.
+    for op in ops:
+        action=op.get('op')
+        if action=='rotate_page':
+            pi=integer(op.get('page'),'page',len(doc)); angle=op.get('rotation',90)
+            require(angle in (90,180,270,-90,-180,-270),'rotation: 90, 180, 270(또는 음수) 중 하나를 지정하세요.')
+            with closing(doc[pi]) as page: page.set_rotation((page.get_rotation()+angle)%360)
+        elif action=='delete_page':
+            pi=integer(op.get('page'),'page',len(doc)); require(len(doc)>1,'마지막 남은 페이지는 삭제할 수 없습니다.')
+            doc.del_page(pi)
+        elif action=='move_page':
+            pi=integer(op.get('page'),'page',len(doc)); to=integer(op.get('to'),'to',len(doc))
+            if pi!=to: check(raw.FPDF_MovePages(doc,(c.c_int*1)(pi),1,to),'페이지를 이동하지 못했습니다.')
+        elif action=='duplicate_page':
+            pi=integer(op.get('page'),'page',len(doc)); require(len(doc)<MAX_PAGES,'페이지 수가 지원 범위를 벗어납니다.')
+            doc.import_pages(doc,[pi],pi+1)
+        elif action=='insert_blank_page':
+            at=integer(op.get('at',len(doc)),'at',len(doc)+1); require(len(doc)<MAX_PAGES,'페이지 수가 지원 범위를 벗어납니다.')
+            with closing(doc[max(0,at-1)]) as neighbor: width,height=neighbor.get_size()
+            width=number(op.get('width',width),'width',1,30000); height=number(op.get('height',height),'height',1,30000)
+            doc.new_page(width,height,at).close()
+        elif action=='import_pages':
+            require(isinstance(op.get('source'),str),'가져올 PDF 경로를 지정하세요.')
+            source=Path(op['source']); require(source.is_file() and source.suffix.lower()=='.pdf' and source.stat().st_size<=512*1024*1024,'가져올 PDF를 읽을 수 없거나 512 MB를 초과합니다.')
+            at=integer(op.get('at',len(doc)),'at',len(doc)+1)
+            try: other=pdf.PdfDocument(source.read_bytes())
+            except pdf.PdfiumError: raise PDFError('가져올 PDF를 열지 못했습니다. 암호가 걸린 PDF는 먼저 암호를 해제하세요.')
+            with other:
+                require(raw.FPDF_GetDocPermissions(other) & 16,'가져올 PDF는 내용 복사가 허용되지 않습니다.')
+                selection=op.get('pages',list(range(len(other))))
+                require(isinstance(selection,list) and 0<len(selection)<=MAX_PAGES,'pages는 가져올 페이지 번호 배열입니다.')
+                selection=[integer(i,'pages',len(other)) for i in selection]
+                require(len(doc)+len(selection)<=MAX_PAGES,'페이지 수가 지원 범위를 벗어납니다.')
+                doc.import_pages(other,selection,at)
+        else: raise PDFError('지원하지 않는 PDF 작업: '+str(action))
+
 def modify(doc, ops):
     require(isinstance(ops,list) and 0<len(ops)<=1000,'operations는 1~1000개의 작업 배열이어야 합니다.')
+    require(all(isinstance(op,dict) for op in ops),'잘못된 PDF 작업입니다.')
+    if any(op.get('op') in PAGE_OPS for op in ops):
+        require(all(op.get('op') in PAGE_OPS for op in ops),'페이지 작업과 개체 작업은 별도 요청으로 실행하세요.')
+        return modify_pages(doc,ops)
     pages={}; objects={}; removed=set(); fonts=[]
     try:
         for op in ops:
@@ -369,7 +416,7 @@ def run(request):
                     # Exclusive creation also protects against a race after the check.
                     if os.name == 'nt': os.rename(temp,output)
                     else: os.link(temp,output)
-                return {'path':str(output.resolve()),'kind':'pdf','bytes':output.stat().st_size}
+                return {'path':str(output.resolve()),'kind':'pdf','bytes':output.stat().st_size,'pageCount':len(doc)}
             finally:
                 if os.path.exists(temp): os.unlink(temp)
         raise PDFError('지원하지 않는 PDF 명령입니다.')
