@@ -1,6 +1,6 @@
 {
   "name": "hanx",
-  "version": "2.13.4",
+  "version": "2.13.5",
   "description": "HWP, DOCX, HWPX, PPTX, XLSX, CSV, XML, PDF 파일을 로컬 HanX 엔진(hanx mcp)으로 읽고 만들고 수정하고 변환합니다.",
   "author": {
     "name": "FLOVER124",

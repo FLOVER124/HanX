@@ -12,7 +12,7 @@
       "name": "hanx",
       "source": "./plugins/hanx",
       "description": "HWP, DOCX, HWPX, PPTX, XLSX, CSV, XML, PDF 파일을 로컬 HanX 엔진으로 읽고 만들고 수정하고 변환합니다.",
-      "version": "2.13.4",
+      "version": "2.13.5",
       "category": "productivity",
       "keywords": ["hwp", "hwpx", "docx", "pptx", "xlsx", "pdf", "office", "korean", "mcp"]
     }

@@ -1,4 +1,4 @@
-# HanX CLI 2.13.4
+# HanX CLI 2.13.5
 
 새 문서, 스프레드시트, 프레젠테이션의 기본 로컬 확장자는 `.hanx`입니다. 파일에 기록한 종류에 따라 편집기가 열립니다. `hanx read "작업.hanx"`로 종류와 내용을 확인하고, `hanx convert "발표.hanx" --output "발표.pptx"`처럼 같은 종류의 다른 형식으로 내보낼 수 있습니다.
 
@@ -68,9 +68,9 @@ Linux AppImage를 GUI만 설치한 경우 AI 연결을 사용하는 동안 HanX 
 
 PDF 읽기·변환에는 모든 플랫폼에서 로컬 PDF 엔진이 필요합니다. Python 3.10 이상을 설치한 뒤 `hanx pdf setup`으로 준비하세요. Windows/Linux의 PDF 출력에는 별도 로컬 PDF renderer가 필요합니다. 설치 화면에서 PDF 도구를 선택하거나 `--pdf-dependencies`를 명시한 경우에만 출력 도구 설치를 진행합니다. macOS 네이티브 배포판은 PDF 출력 렌더러를 포함합니다. 설치 여부는 `hanx capabilities --pretty`의 pdf 항목으로 확인하세요.
 
-최신 GUI 앱은 npm 또는 Homebrew 설치 후 `hanx setup`으로 설치하거나 [HanX 릴리스](https://github.com/FLOVER124/HanX/releases)의 `HanX-2.13.4-macOS.zip`을 사용하세요. PKG로 설치할 수 있는 기존 버전은 `HanX-2.13.3.pkg`입니다. pkg는 앱을 `/Applications/HanX.app`에 설치하고 `/usr/local/bin`의 비어 있는 `hanx`와 `hanx-cli` 명령을 연결합니다. Homebrew와 npm은 CLI를 설치하며 해당 도구로 업데이트합니다. 다른 방식으로 설치한 기존 명령을 자동으로 덮어쓰지 않습니다.
+최신 GUI 앱은 npm 또는 Homebrew 설치 후 `hanx setup`으로 설치하거나 [HanX 릴리스](https://github.com/FLOVER124/HanX/releases)의 `HanX-2.13.5-macOS.zip`을 사용하세요. PKG로 설치할 수 있는 기존 버전은 `HanX-2.13.3.pkg`입니다. pkg는 앱을 `/Applications/HanX.app`에 설치하고 `/usr/local/bin`의 비어 있는 `hanx`와 `hanx-cli` 명령을 연결합니다. Homebrew와 npm은 CLI를 설치하며 해당 도구로 업데이트합니다. 다른 방식으로 설치한 기존 명령을 자동으로 덮어쓰지 않습니다.
 
-독립 CLI는 릴리스의 `HanX-CLI-2.13.4-macOS.zip`으로도 제공합니다. ZIP을 풀고 해당 폴더에서 `./install-cli.sh`를 실행하세요. 설치 없이 `./hanx --help`로 바로 실행할 수도 있습니다. 기본 설치 위치는 `~/Library/Application Support/HanX/CLI/2.13.4`이며 `~/.local/bin/hanx`와 `hanx-cli` 명령을 연결합니다.
+독립 CLI는 릴리스의 `HanX-CLI-2.13.5-macOS.zip`으로도 제공합니다. ZIP을 풀고 해당 폴더에서 `./install-cli.sh`를 실행하세요. 설치 없이 `./hanx --help`로 바로 실행할 수도 있습니다. 기본 설치 위치는 `~/Library/Application Support/HanX/CLI/2.13.5`이며 `~/.local/bin/hanx`와 `hanx-cli` 명령을 연결합니다.
 
 설치 후 터미널에서 `hanx --help` 또는 `hanx capabilities --pretty`를 실행하세요. CLI 사용에는 PATH의 `hanx`를 쓰고, MCP 설정에는 설치 시 출력한 절대 경로를 쓰세요. PATH에 사용자 bin 폴더가 없으면 현재 셸에서 `export PATH="$HOME/.local/bin:$PATH"`를 실행할 수 있습니다.
 
@@ -85,7 +85,7 @@ hanx create --spec examples/presentation.json --output 발표.pptx
 
 예제 파일: [문서 명세](examples/document.json), [문서 수정](examples/document-edits.json), [스프레드시트 명세](examples/spreadsheet.json), [스프레드시트 수정](examples/spreadsheet-edits.json), [프레젠테이션](examples/presentation.json), [XML 수정](examples/xml-edits.json). 예제를 내려받고 명령의 경로를 해당 파일 위치에 맞추세요.
 
-명세와 작업은 JSON 파일로 주거나 `--spec -`, `--ops -`로 표준 입력에서 받습니다. 보통 응답은 `{"ok":true,"version":"2.13.4","data":...}` 형식입니다. 실패는 `{"ok":false,"error":{"code":...,"message":...}}`와 0이 아닌 종료 코드로 알립니다. `read --text`는 텍스트만 출력합니다. `--no-model`은 큰 native model 및 내장 그림의 base64를 응답에서 제외합니다.
+명세와 작업은 JSON 파일로 주거나 `--spec -`, `--ops -`로 표준 입력에서 받습니다. 보통 응답은 `{"ok":true,"version":"2.13.5","data":...}` 형식입니다. 실패는 `{"ok":false,"error":{"code":...,"message":...}}`와 0이 아닌 종료 코드로 알립니다. `read --text`는 텍스트만 출력합니다. `--no-model`은 큰 native model 및 내장 그림의 base64를 응답에서 제외합니다.
 
 파일은 output에 저장합니다. 기존 출력이 있으면 기본적으로 거부하며 `--force`를 명시했을 때만 교체합니다. `--force`와 원본 경로를 함께 지정하면 원본도 교체할 수 있으니 에이전트에는 새 경로를 주는 것이 좋습니다. 한 번의 edit 작업이 실패하면 결과를 저장하지 않습니다. 숫자 인덱스는 0부터 시작하며 길이는 pt, 시간은 초, 색은 RRGGBB입니다.
 
@@ -284,7 +284,7 @@ MCP 도구는 `hanx_capabilities`, `hanx_read`, `hanx_create`, `hanx_edit`, `han
 
 ### 슬라이드 동영상과 문단, 행과 열 편집
 
-다음 편집 작업은 HanX CLI 2.13.4에서 사용할 수 있습니다.
+다음 편집 작업은 HanX CLI 2.13.5에서 사용할 수 있습니다.
 
 | 작업 | 편집 작업 JSON |
 | --- | --- |
