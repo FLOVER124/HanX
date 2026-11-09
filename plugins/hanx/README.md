@@ -39,7 +39,7 @@ Claude Code에서:
 
 ## ChatGPT·Claude 웹에서 쓰기
 
-이 플러그인은 내 컴퓨터의 HanX CLI를 사용합니다. ChatGPT나 Claude 웹·앱처럼 원격 서버만 연결할 수 있는 곳에서는 설치 없이 클라우드 서버 `https://mcp.hanx.io/mcp`를 커넥터로 추가하세요. 연결 방법과 파일 업로드는 [mcp.hanx.io](https://mcp.hanx.io/)에 있습니다.
+이 플러그인은 Claude Code용입니다. ChatGPT나 Claude 웹·앱에서는 같은 컴퓨터에서 `hanx connect`를 실행하고 표시된 주소를 커넥터로 추가하세요. 문서는 컴퓨터 밖으로 나가지 않습니다. 자세한 방법은 [AI 연결 안내](https://hanx.io/ai/)에 있습니다.
 
 ## 사용 예
 

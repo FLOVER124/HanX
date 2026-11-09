@@ -50,6 +50,15 @@ async function main() {
     try { binary = setup.optionalBinary() || await setup.installCLI(); }
     catch (installError) { fail('native_install_failed', installError.message); return; }
   }
+  if (command === 'connect') {
+    const { connect, BridgeError } = require('../lib/connect.js');
+    try { process.exitCode = await connect(binary, args); }
+    catch (error) {
+      if (error instanceof BridgeError) { process.stderr.write(error.message + '\n'); process.exitCode = 2; }
+      else fail('connect_failed', error.message);
+    }
+    return;
+  }
   const child = spawn(binary, process.argv.slice(2), { stdio: 'inherit', shell: false });
   const handlers = new Map();
   for (const signal of ['SIGINT', 'SIGTERM', 'SIGHUP']) {

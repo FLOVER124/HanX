@@ -240,6 +240,20 @@ claude mcp add --scope user hanx -- /절대/경로/hanx mcp
 /plugin install hanx@hanx
 ```
 
+ChatGPT, AI 클라이언트 웹·모바일처럼 원격 MCP 서버만 연결할 수 있는 앱에서는 `hanx connect`를 사용합니다. 이 컴퓨터에서 MCP 서버를 열고 Cloudflare 무료 터널(`cloudflared`, 계정 불필요)로 `https://….trycloudflare.com/mcp/…` 주소를 만듭니다. 이 주소를 앱의 커넥터 URL에 넣고 인증은 없음을 선택합니다.
+
+```sh
+hanx connect
+hanx connect --folder ~/문서/HanX작업
+hanx connect --no-tunnel
+```
+
+- 문서는 이 컴퓨터에서만 처리하며 다른 서버에 올리거나 저장하지 않습니다.
+- 작업 폴더(기본 `~/HanX`) 안의 파일만 다룹니다. 원격 앱은 `hanx_list_files`로 파일을 찾고 상대 경로를 씁니다. 폴더 밖 경로와 폴더 밖을 가리키는 심볼릭 링크는 거부합니다. 홈 폴더 자체는 작업 폴더로 쓸 수 없습니다.
+- 기존 파일은 교체하지 않습니다. 교체가 필요하면 `--allow-overwrite`로 실행합니다.
+- 주소에는 실행할 때마다 새로 만드는 비밀 토큰이 들어 있습니다. 주소를 공유하지 말고 끝나면 Ctrl-C로 닫으세요. 다시 실행하면 주소가 바뀝니다.
+- `cloudflared`가 없으면 설치 방법을 표시하고 이 컴퓨터 안에서만 쓰는 주소를 엽니다.
+
 AI 클라이언트 Desktop의 `mcpServers` 항목 예제:
 
 ```json

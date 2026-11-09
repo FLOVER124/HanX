@@ -37,6 +37,8 @@ hanx convert 원본.hwp --output 결과.docx
 hanx mcp
 ```
 
+ChatGPT, Claude 웹·앱에서 이 컴퓨터의 HanX를 쓰려면 `hanx connect`를 실행하고 표시된 주소를 커넥터 URL로 추가하세요. Cloudflare 무료 터널(`cloudflared`)을 사용하며, 문서는 `~/HanX` 작업 폴더 안에서만 처리되고 다른 서버에 저장되지 않습니다. 자세한 내용은 https://hanx.io/ai/ 를 확인하세요.
+
 AI 모델과 외부 API 키를 포함하거나 요구하지 않습니다. 사용 중인 로컬 AI 에이전트에서 CLI 또는 MCP를 연결하세요. GUI의 AI 연결 화면에서 내부 엔진 경로와 연결 설정을 확인할 수 있습니다.
 
 [전체 CLI 안내](https://hanx.io/cli/) / [설치 파일](https://github.com/FLOVER124/HanX/releases)

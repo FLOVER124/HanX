@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="ChatGPT, Claude, Codex 등 AI 앱에서 내 컴퓨터의 HanX로 HWP·DOCX·PPTX·XLSX를 다루는 방법입니다. 문서는 컴퓨터 밖으로 나가지 않습니다.">
+  <title>HanX AI 연결</title>
+  <link rel="icon" href="../images/hanx-icon.png" type="image/png">
+  <link rel="canonical" href="https://hanx.io/ai/">
+  <style>
+    @font-face{font-family:HanX Round;src:url('../fonts/NanumSquareRoundR.woff2') format('woff2');font-weight:400;font-display:swap}
+    @font-face{font-family:HanX Round;src:url('../fonts/NanumSquareRoundB.woff2') format('woff2');font-weight:600 800;font-display:swap}
+    :root{--ink:#191f28;--text:#24364b;--muted:#6b7684;--blue:#246bfb;--soft:#f2f6fc;--line:#e1e8f0;--code:#f1f5f9;--card:#fff;--bg:#fff;--warn:#fff7e8;--warn-line:#f3d9a4}
+    @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--ink:#e9eef5;--text:#c9d4e2;--muted:#9aa6b5;--blue:#6d9bff;--soft:#161d28;--line:#273142;--code:#1a2230;--card:#121821;--bg:#0b1017;--warn:#2a2213;--warn-line:#5a4720}}
+    :root[data-theme="dark"]{--ink:#e9eef5;--text:#c9d4e2;--muted:#9aa6b5;--blue:#6d9bff;--soft:#161d28;--line:#273142;--code:#1a2230;--card:#121821;--bg:#0b1017;--warn:#2a2213;--warn-line:#5a4720}
+    *{box-sizing:border-box}
+    body{margin:0;background:var(--bg);color:var(--text);font-family:"HanX Round","Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif;line-height:1.85;word-break:keep-all;overflow-wrap:break-word}
+    main{max-width:880px;margin:0 auto;padding:36px 16px 80px}
+    a{color:var(--blue)}
+    h1,h2,h3{color:var(--ink);letter-spacing:-.04em;line-height:1.35}
+    h1{font-size:clamp(28px,5vw,38px);margin:18px 0 12px}
+    h2{font-size:24px;margin:52px 0 14px}
+    h3{font-size:18px;margin:0 0 6px}
+    p{margin:10px 0}
+    .lead{font-size:17px;color:var(--muted)}
+    .home{display:inline-flex;align-items:center;gap:7px;text-decoration:none;color:var(--ink);font-weight:700}
+    .home img{width:26px;height:26px}
+    code{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:.9em}
+    pre{margin:10px 0;padding:14px 16px;background:var(--code);color:var(--text);border-radius:10px;overflow-x:auto;font-size:13px;line-height:1.7}
+    .choices{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-top:22px}
+    .choice{display:block;padding:20px;border:1px solid var(--line);border-radius:16px;background:var(--card);text-decoration:none;color:var(--text)}
+    .choice:hover{border-color:var(--blue)}
+    .choice p{margin:4px 0 0;font-size:14px;color:var(--muted)}
+    .choice .apps{font-size:13px;color:var(--blue);font-weight:700}
+    ol.steps{padding-left:22px}
+    ol.steps>li{margin:0 0 22px}
+    ol.steps>li>strong{color:var(--ink)}
+    .note{font-size:14px;color:var(--muted)}
+    .warn{background:var(--warn);border:1px solid var(--warn-line);border-radius:12px;padding:14px 18px;font-size:14px}
+    .warn ul{margin:6px 0 0;padding-left:20px}
+    table{width:100%;border-collapse:collapse;font-size:14px}
+    th,td{border:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top}
+    th{background:var(--soft);color:var(--ink)}
+    .table-wrap{overflow-x:auto}
+    @media(max-width:700px){.choices{grid-template-columns:minmax(0,1fr)}h2{font-size:22px}}
+  </style>
+</head>
+<body>
+<main>
+  <a class="home" href="../"><img src="../images/hanx-icon.png" alt="">HanX 홈</a>
+  <h1>AI 앱에서 HanX 쓰기</h1>
+  <p class="lead">ChatGPT, Claude, Codex에게 “이 HWP 표 합계 고쳐 줘”처럼 말로 요청하세요. 문서 처리는 <strong>내 컴퓨터에 설치한 HanX</strong>가 하므로 파일이 다른 서버에 올라가거나 저장되지 않고, 비용도 들지 않습니다.</p>
+
+  <div class="choices">
+    <a class="choice" href="#local"><span class="apps">Claude Code · Codex · Claude 데스크톱</span><h3>내 컴퓨터의 AI 도구</h3><p>설치한 HanX를 바로 연결합니다. 가장 간단하고 안전합니다.</p></a>
+    <a class="choice" href="#remote"><span class="apps">ChatGPT · Claude 웹·모바일</span><h3>웹·앱 AI</h3><p><code>hanx connect</code>로 이 컴퓨터의 HanX에 연결 주소를 만듭니다.</p></a>
+  </div>
+
+  <h2 id="install">1. HanX 설치</h2>
+  <p>어느 방법이든 먼저 HanX CLI를 설치합니다. macOS 13 이상, Windows x64, Ubuntu 22.04 이상 x64를 지원합니다.</p>
+  <pre>npm install -g @flover124/hanx</pre>
+  <p class="note">npm에는 Node.js 18 이상이 필요합니다. macOS·Linux에서는 <code>brew install FLOVER124/tap/hanx</code>도 쓸 수 있습니다. 자세한 내용은 <a href="../cli/">사용 안내</a>를 보세요.</p>
+
+  <h2 id="local">2-A. 내 컴퓨터의 AI 도구에 연결</h2>
+  <h3>Claude Code</h3>
+  <p>HanX 플러그인을 설치하면 연결과 사용 안내가 함께 들어옵니다.</p>
+  <pre>/plugin marketplace add FLOVER124/HanX
+/plugin install hanx@hanx</pre>
+  <h3>Codex</h3>
+  <pre>codex mcp add hanx -- hanx mcp</pre>
+  <h3>Claude 데스크톱 등 MCP 설정 파일을 쓰는 앱</h3>
+  <pre>{"mcpServers":{"hanx":{"command":"hanx","args":["mcp"]}}}</pre>
+  <p class="note"><code>hanx</code>를 찾지 못하면 <code>which hanx</code>(Windows는 <code>where hanx</code>)로 확인한 절대 경로를 넣으세요.</p>
+
+  <h2 id="remote">2-B. ChatGPT·Claude 웹에 연결</h2>
+  <p>웹·모바일 AI는 내 컴퓨터의 프로그램을 직접 실행할 수 없습니다. <code>hanx connect</code>가 이 컴퓨터의 HanX에 Cloudflare 무료 터널로 접속 주소를 만들어 줍니다. 계정 가입이나 비용은 필요 없습니다.</p>
+  <ol class="steps">
+    <li><strong>cloudflared 설치 (처음 한 번)</strong>
+      <div class="table-wrap"><table>
+        <tr><th>macOS</th><td><code>brew install cloudflared</code></td></tr>
+        <tr><th>Windows</th><td><code>winget install --id Cloudflare.cloudflared</code></td></tr>
+        <tr><th>Linux</th><td><a href="https://pkg.cloudflare.com/">pkg.cloudflare.com</a> 안내대로 <code>cloudflared</code> 패키지 설치</td></tr>
+      </table></div>
+    </li>
+    <li><strong>연결 시작</strong>
+      <pre>hanx connect</pre>
+      <p>작업 폴더(기본 <code>~/HanX</code>)와 <code>https://….trycloudflare.com/mcp/…</code> 주소가 표시됩니다. 연결하는 동안 터미널 창을 열어 두세요.</p>
+    </li>
+    <li><strong>AI 앱에 주소 등록</strong>
+      <p><b>ChatGPT</b>: 설정 → 앱(Apps &amp; Connectors) → 고급 설정에서 개발자 모드를 켜고, 앱 만들기에서 MCP 서버 URL에 주소를 넣은 뒤 인증은 “없음”을 고릅니다. 개발자 모드 제공 여부는 요금제에 따라 다릅니다.</p>
+      <p><b>Claude</b>: 설정 → 커넥터 → 사용자 지정 커넥터 추가에서 URL에 주소를 넣습니다.</p>
+    </li>
+    <li><strong>문서를 작업 폴더에 넣고 요청</strong>
+      <p>예: “HanX 폴더의 매출.xlsx에 금액 열과 합계 행을 넣어서 새 파일로 저장해 줘.” 결과 파일도 작업 폴더에 저장됩니다. AI 앱에 직접 첨부한 파일은 HanX로 전달되지 않습니다.</p>
+    </li>
+  </ol>
+  <div class="warn">
+    <strong>안전하게 쓰기</strong>
+    <ul>
+      <li>HanX는 작업 폴더 안의 파일만 읽고 쓰며, 기존 파일은 교체하지 않고 새 파일로 저장합니다.</li>
+      <li>연결 주소를 아는 사람은 작업 폴더의 파일을 읽을 수 있습니다. 주소를 공유하지 말고, 끝나면 터미널에서 Ctrl-C로 연결을 닫으세요.</li>
+      <li>실행할 때마다 주소가 바뀝니다. 다시 연결하면 AI 앱의 커넥터 URL도 새 주소로 바꿔 주세요.</li>
+      <li>민감한 문서만 따로 모은 폴더를 쓰려면 <code>hanx connect --folder 폴더경로</code>를 사용하세요.</li>
+    </ul>
+  </div>
+
+  <h2>할 수 있는 일</h2>
+  <div class="table-wrap"><table>
+    <tr><th>문서</th><td>HWP·HWPX·DOCX·HWPML 읽기, 새로 만들기, 글자 바꾸기, 표 셀 수정, 형식 변환</td></tr>
+    <tr><th>스프레드시트</th><td>XLSX·CSV 셀과 범위 읽기, 수식 계산, 값·수식·서식 입력, 재계산</td></tr>
+    <tr><th>프레젠테이션</th><td>PPTX 슬라이드 추가·복제·이동, 도형과 표, 전환 효과, 발표 노트</td></tr>
+    <tr><th>PDF</th><td>텍스트 읽기, 개체 편집·문자 인식 (<code>hanx pdf setup</code> 필요)</td></tr>
+  </table></div>
+  <p class="note">HanX는 언어 모델을 포함하지 않습니다. 대화는 사용하는 AI 앱이, 문서 처리는 내 컴퓨터의 HanX가 맡습니다.</p>
+</main>
+</body>
+</html>
