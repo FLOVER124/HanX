@@ -42,7 +42,14 @@ hanx capabilities --pretty
 
 터미널에서 `hanx`를 실행하면 시작 화면을 표시합니다. `hanx --convert`를 실행하고 파일을 드롭한 뒤 방향키로 출력 형식을 선택하면 같은 폴더에 변환본을 저장합니다. 문서, 스프레드시트, 슬라이드의 PDF 출력도 지원합니다.
 
-AI 에이전트의 MCP 연결에는 `hanx mcp`를 사용합니다. [CLI 안내](docs/cli/README.md)에서 연결과 스프레드시트 작업 예제를 확인하세요.
+AI 에이전트의 MCP 연결에는 `hanx mcp`를 사용합니다. Claude Code에서는 HanX 플러그인으로 MCP 서버와 사용 안내 스킬을 한 번에 설치할 수 있습니다.
+
+```
+/plugin marketplace add FLOVER124/HanX
+/plugin install hanx@hanx
+```
+
+자세한 내용은 [플러그인 안내](plugins/hanx/README.md)를 확인하세요. [CLI 안내](docs/cli/README.md)에서 연결과 스프레드시트 작업 예제를 확인하세요.
 
 ### 업데이트
 

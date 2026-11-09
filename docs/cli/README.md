@@ -233,6 +233,13 @@ AI 클라이언트 Code:
 claude mcp add --scope user hanx -- /절대/경로/hanx mcp
 ```
 
+또는 HanX 플러그인을 설치하면 MCP 서버, 작업 안내 스킬, `/hanx:convert`·`/hanx:doctor` 명령이 함께 등록됩니다. `hanx`가 PATH에 없으면 `HANX_PATH`에 절대 경로를 지정하세요. [플러그인 안내](../../plugins/hanx/README.md)
+
+```
+/plugin marketplace add FLOVER124/HanX
+/plugin install hanx@hanx
+```
+
 AI 클라이언트 Desktop의 `mcpServers` 항목 예제:
 
 ```json

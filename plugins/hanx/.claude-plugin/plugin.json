@@ -1,0 +1,13 @@
+{
+  "name": "hanx",
+  "version": "2.13.4",
+  "description": "HWP, DOCX, HWPX, PPTX, XLSX, CSV, XML, PDF 파일을 로컬 HanX 엔진(hanx mcp)으로 읽고 만들고 수정하고 변환합니다.",
+  "author": {
+    "name": "FLOVER124",
+    "url": "https://github.com/FLOVER124"
+  },
+  "homepage": "https://hanx.io/",
+  "repository": "https://github.com/FLOVER124/HanX",
+  "license": "MIT",
+  "keywords": ["hwp", "hwpx", "docx", "pptx", "xlsx", "pdf", "office", "korean", "mcp"]
+}

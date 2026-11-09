@@ -1,0 +1,20 @@
+{
+  "name": "hanx",
+  "owner": {
+    "name": "FLOVER124",
+    "url": "https://github.com/FLOVER124"
+  },
+  "metadata": {
+    "description": "HanX 로컬 문서 엔진(HWP·DOCX·HWPX·PPTX·XLSX·PDF)을 AI 에이전트에 연결하는 플러그인"
+  },
+  "plugins": [
+    {
+      "name": "hanx",
+      "source": "./plugins/hanx",
+      "description": "HWP, DOCX, HWPX, PPTX, XLSX, CSV, XML, PDF 파일을 로컬 HanX 엔진으로 읽고 만들고 수정하고 변환합니다.",
+      "version": "2.13.4",
+      "category": "productivity",
+      "keywords": ["hwp", "hwpx", "docx", "pptx", "xlsx", "pdf", "office", "korean", "mcp"]
+    }
+  ]
+}

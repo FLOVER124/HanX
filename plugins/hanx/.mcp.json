@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "hanx": {
+      "command": "${HANX_PATH:-hanx}",
+      "args": ["mcp"]
+    }
+  }
+}
