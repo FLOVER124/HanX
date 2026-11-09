@@ -8,7 +8,9 @@ const path = require('node:path');
 const { createBridge, sanitizeArguments, prepareWorkspace, parseArgs, parseTunnelUrl, startTunnel, BridgeError } = require('../lib/connect.js');
 
 const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'hanx-connect-'));
-const root = fs.realpathSync(fs.mkdirSync(path.join(temp, 'HanX'), { recursive: true }) || path.join(temp, 'HanX'));
+// mkdirSync's return value is unreliable on Windows runners (it can be just the drive), so resolve the known path.
+fs.mkdirSync(path.join(temp, 'HanX'), { recursive: true });
+const root = fs.realpathSync(path.join(temp, 'HanX'));
 const outside = path.join(temp, 'secret.txt');
 fs.writeFileSync(outside, 'secret');
 test.after(() => fs.rmSync(temp, { recursive: true, force: true }));
