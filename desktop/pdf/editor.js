@@ -120,6 +120,16 @@ function inlineText(object,draft){
  input.onkeydown=event=>{event.stopPropagation();const key=event.key.toLowerCase();if((event.metaKey||event.ctrlKey)&&['s','p'].includes(key)){event.preventDefault();window.hanxPDFAction(key==='p'?'print':event.shiftKey?'saveAs':'save');return;}if(event.key==='Enter'&&!event.isComposing){event.preventDefault();finish(true);}if(event.key==='Escape'){event.preventDefault();finish(false);}};input.onblur=()=>finish(true);
  $('paper').append(input);input.focus();input.select();
 }
+// Hosts return a path the PDF engine can decode, or {convert:dataURL} for vector images
+// (SVG), which are drawn here at up to 2048 px and staged as PNG.
+async function chosenImage(){
+ const chosen=await request('chooseImage');if(!chosen||typeof chosen==='string')return chosen;
+ const image=new Image();image.src=chosen.convert;try{await image.decode();}catch{throw Error((chosen.name||'그림')+': SVG를 읽을 수 없습니다.');}
+ const w=image.naturalWidth||300,h=image.naturalHeight||150,scale=Math.min(2048/Math.max(w,h),Math.sqrt(16e6/(w*h)));
+ const canvas=document.createElement('canvas');canvas.width=Math.max(1,Math.round(w*scale));canvas.height=Math.max(1,Math.round(h*scale));
+ canvas.getContext('2d').drawImage(image,0,0,canvas.width,canvas.height);
+ return request('stageImage',{data:canvas.toDataURL('image/png').split(',')[1]});
+}
 async function editText(add=false){if(busy)return;const o=selected();if(!add&&o?.type!=='text')return;const area=node('div'),input=node('textarea',{'aria-label':'텍스트',rows:4});input.value=add?'':o.text;area.append(input);const label=node('label',{text:'글자 크기 '});const size=node('input',{type:'number',min:1,max:1000,value:add?18:o.size||18,'aria-label':'글자 크기'});label.append(size);area.append(label);let font;const fontButton=node('button',{type:'button',text:'원본 글꼴: '+(o?.font?.family||'유사 글꼴')+' · 변경…'});fontButton.onclick=async()=>{try{const file=await request('chooseFont');if(file){font=file;fontButton.textContent=file.split(/[\\/]/).pop();}}catch(e){fontButton.textContent='글꼴 선택 실패';}};area.append(fontButton);
  if(await modal(add?'텍스트 추가':o.searchText?'검색 텍스트 수정':'텍스트 수정',area,{confirm:'적용',input})){const op={op:add?'add_text':'set_text',text:input.value};if(add||Number(size.value)!==o.size)op.size=Number(size.value);if(font)op.font=font;if(add){op.x=40;op.y=40;}else if(op.text.includes('\n')){op.op='set_paragraph';op.objects=[o.id];}else op.object=o.id;await apply(op);}}
 async function editParagraph(){
@@ -144,7 +154,7 @@ $('applyGeometry').onclick=()=>{const o=selected();if(!o)return;const [l,b,r,t]=
 for(const [id,angle] of [['rotateLeft',90],['rotateRight',-90]])$(id).onclick=()=>{const o=selected();if(o)apply({op:'transform',object:o.id,rotation:angle});};
 $('fill').onchange=()=>{const o=selected();if(o)apply({op:'set_fill',object:o.id,color:$('fill').value});};
 $('addRect').onclick=()=>apply({op:'add_rect',x:40,y:40,width:140,height:80,color:'#dbeafe'});
-for(const [id,op] of [['addImage','add_image'],['replaceImage','replace_image']])$(id).onclick=()=>task(async()=>{const image=await request('chooseImage');if(!image)return;const keep={id:op==='add_image'?rawObjects.length:selection,type:'image'};await request('edit',{revision:state.revision,operations:[{op,page,object:selection,image,x:40,y:40,width:200,height:150}]});await refresh(page,keep);});
+for(const [id,op] of [['addImage','add_image'],['replaceImage','replace_image']])$(id).onclick=()=>task(async()=>{const image=await chosenImage();if(!image)return;const keep={id:op==='add_image'?rawObjects.length:selection,type:'image'};await request('edit',{revision:state.revision,operations:[{op,page,object:selection,image,x:40,y:40,width:200,height:150}]});await refresh(page,keep);});
 for(const action of ['undo','redo'])$(action).onclick=()=>task(async()=>{await request(action);thumbnails.clear();await refreshNear(page);});
 for(const id of ['save','saveAs'])$(id).onclick=()=>task(async()=>{await request('save',{as:id==='saveAs'});await refresh();});
 $('zoom').onchange=()=>{if(state)render();};

@@ -6,7 +6,11 @@ import UniformTypeIdentifiers
 
 enum SlideMedia {
     static let videoLimit = 16 * 1024 * 1024
-    private static let movieExtensions = ["mp4", "m4v"]
+    /// Largest image file accepted for decoding; the stored PNG stays within `videoLimit`.
+    static let imageFileLimit = 128 * 1024 * 1024
+    static let pixelLimit = 16_000_000.0
+    static let unreadableImage = "그림을 읽을 수 없습니다. PNG, JPEG, WebP, HEIC, GIF, BMP, TIFF, SVG 형식을 사용하세요."
+    static let movieExtensions = ["mp4", "m4v"]
 
     struct Imported {
         let name: String
@@ -43,13 +47,15 @@ enum SlideMedia {
             throw error("로컬 그림 또는 MP4/M4V 파일을 선택하세요.")
         }
         let name = url.lastPathComponent
+        let isMovie = movieExtensions.contains(url.pathExtension.lowercased())
+        let limit = isMovie ? videoLimit : imageFileLimit
         let file = try FileHandle(forReadingFrom: url)
         defer { try? file.close() }
-        guard try file.seekToEnd() <= UInt64(videoLimit) else { throw error("파일 한 개의 최대 크기는 16 MiB입니다.") }
+        guard try file.seekToEnd() <= UInt64(limit) else { throw error(isMovie ? "동영상 한 개의 최대 크기는 16 MiB입니다." : "그림 파일은 128 MiB 이하만 넣을 수 있습니다.") }
         try file.seek(toOffset: 0)
-        let data = try file.read(upToCount: videoLimit + 1) ?? Data()
-        guard !data.isEmpty, data.count <= videoLimit else { throw error("16 MiB 이하의 파일을 선택하세요.") }
-        if movieExtensions.contains(url.pathExtension.lowercased()) {
+        let data = try file.read(upToCount: limit + 1) ?? Data()
+        guard !data.isEmpty, data.count <= limit else { throw error("파일을 읽을 수 없습니다.") }
+        if isMovie {
             let movie = try movieURL(data)
             defer { try? FileManager.default.removeItem(at: movie.deletingLastPathComponent()) }
             let generator = AVAssetImageGenerator(asset: asset(movie))
@@ -61,19 +67,66 @@ enum SlideMedia {
             }
             return Imported(name: name, size: CGSize(width:480,height:270), poster: SlideMovie.poster, video: ImageData(name:name,data:data))
         }
-        guard let source = CGImageSourceCreateWithData(data as CFData,nil),
-              let properties = CGImageSourceCopyPropertiesAtIndex(source,0,nil) as? [CFString:Any],
-              let width = (properties[kCGImagePropertyPixelWidth] as? NSNumber)?.doubleValue,
-              let height = (properties[kCGImagePropertyPixelHeight] as? NSNumber)?.doubleValue,
-              width > 0, height > 0, width * height <= 16_000_000,
-              let image = CGImageSourceCreateThumbnailAtIndex(source,0,[
-                kCGImageSourceCreateThumbnailFromImageAlways:true,
-                kCGImageSourceCreateThumbnailWithTransform:true,
-                kCGImageSourceThumbnailMaxPixelSize:max(width,height)
-              ] as CFDictionary),
-              let png = NSBitmapImageRep(cgImage:image).representation(using:.png,properties:[:]),
-              png.count <= videoLimit else { throw error("16 MiB, 1,600만 화소 이하의 PNG 또는 JPEG 그림을 선택하세요.") }
-        return Imported(name:name,size:CGSize(width:image.width,height:image.height),poster:ImageData(name:"image.png",data:png),video:nil)
+        let image = try normalizedImage(data, name: name)
+        return Imported(name:name,size:image.size,poster:ImageData(name:"image.png",data:image.data),video:nil)
+    }
+
+    /// Reads an image file and converts it with `normalizedImage`.
+    static func imageFile(_ url: URL) throws -> (data: Data, size: CGSize) {
+        let size = try url.resourceValues(forKeys: [.fileSizeKey]).fileSize ?? 0
+        guard size > 0, size <= imageFileLimit else { throw error("그림 파일은 128 MiB 이하만 넣을 수 있습니다.") }
+        return try normalizedImage(Data(contentsOf: url), name: url.lastPathComponent)
+    }
+
+    /// Decodes any image macOS can read (PNG, JPEG, HEIC, WebP, GIF, BMP, TIFF, AVIF, ICO, and
+    /// SVG/PDF/EPS through NSImage) to PNG. Images above 16 million pixels or a 16 MiB PNG
+    /// are scaled down instead of being rejected.
+    static func normalizedImage(_ data: Data, name: String) throws -> (data: Data, size: CGSize) {
+        var image: CGImage?
+        if let source = CGImageSourceCreateWithData(data as CFData, nil), CGImageSourceGetCount(source) > 0,
+           let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any],
+           let width = (properties[kCGImagePropertyPixelWidth] as? NSNumber)?.doubleValue,
+           let height = (properties[kCGImagePropertyPixelHeight] as? NSNumber)?.doubleValue, width > 0, height > 0 {
+            let side = max(width, height) * min(1, (pixelLimit / (width * height)).squareRoot())
+            image = CGImageSourceCreateThumbnailAtIndex(source, 0, [
+                kCGImageSourceCreateThumbnailFromImageAlways: true,
+                kCGImageSourceCreateThumbnailWithTransform: true,
+                kCGImageSourceThumbnailMaxPixelSize: max(1, Int(side.rounded()))
+            ] as CFDictionary)
+        }
+        if image == nil, let vector = NSImage(data: data), vector.size.width > 0, vector.size.height > 0 {
+            // Vector formats have no pixel size: draw the long side at 2048 px.
+            let w = Double(vector.size.width), h = Double(vector.size.height)
+            let scale = min(2048 / max(w, h), (pixelLimit / (w * h)).squareRoot())
+            let width = max(1, Int((w * scale).rounded())), height = max(1, Int((h * scale).rounded()))
+            image = draw(width, height) { context in
+                NSGraphicsContext.saveGraphicsState()
+                NSGraphicsContext.current = NSGraphicsContext(cgContext: context, flipped: false)
+                vector.draw(in: NSRect(x: 0, y: 0, width: width, height: height))
+                NSGraphicsContext.restoreGraphicsState()
+            }
+        }
+        guard var current = image else { throw error("\(name): \(unreadableImage)") }
+        for _ in 0..<10 {
+            if let png = NSBitmapImageRep(cgImage: current).representation(using: .png, properties: [:]), png.count <= videoLimit {
+                return (png, CGSize(width: current.width, height: current.height))
+            }
+            let width = Int(Double(current.width) * 0.8), height = Int(Double(current.height) * 0.8), source = current
+            guard let smaller = draw(width, height, { context in
+                context.interpolationQuality = .high
+                context.draw(source, in: CGRect(x: 0, y: 0, width: width, height: height))
+            }) else { break }
+            current = smaller
+        }
+        throw error("\(name): 그림을 16 MiB 이하로 줄이지 못했습니다.")
+    }
+
+    private static func draw(_ width: Int, _ height: Int, _ body: (CGContext) -> Void) -> CGImage? {
+        guard width > 0, height > 0, let space = CGColorSpace(name: CGColorSpace.sRGB),
+              let context = CGContext(data: nil, width: width, height: height, bitsPerComponent: 8, bytesPerRow: 0, space: space,
+                                      bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return nil }
+        body(context)
+        return context.makeImage()
     }
 
     static func play(_ media: ImageData?, in window: NSWindow, completion: @escaping () -> Void = {}) {

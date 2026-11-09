@@ -146,6 +146,20 @@ final class PDFEditingWindowController: NSWindowController, WKNavigationDelegate
         guard let encoded = try? JSONSerialization.data(withJSONObject: envelope), let json = String(data:encoded,encoding:.utf8) else { return }
         web.evaluateJavaScript("window.hanxPDFReply(\(id),\(json))")
     }
+    /// The PDF engine decodes common raster formats itself. Others (SVG, HEIC, PDF, ...) are
+    /// drawn by AppKit at up to 2048 px on the long side and passed as a temporary PNG.
+    private static func engineImage(_ url: URL) -> String? {
+        if ["png","jpg","jpeg","webp","avif","gif","bmp","tif","tiff","ico"].contains(url.pathExtension.lowercased()) { return url.path }
+        guard let image = NSImage(contentsOf: url), image.size.width > 0, image.size.height > 0 else { return nil }
+        let w = Double(image.size.width), h = Double(image.size.height)
+        let scale = min(2048 / max(w, h), (16_000_000 / (w * h)).squareRoot())
+        var rect = NSRect(x: 0, y: 0, width: (w * scale).rounded(), height: (h * scale).rounded())
+        guard let cgImage = image.cgImage(forProposedRect: &rect, context: nil, hints: nil),
+              let png = NSBitmapImageRep(cgImage: cgImage).representation(using: .png, properties: [:]) else { return nil }
+        let output = FileManager.default.temporaryDirectory.appendingPathComponent("hanx-pdf-image-" + UUID().uuidString + ".png")
+        do { try png.write(to: output, options: .atomic); return output.path } catch { return nil }
+    }
+
     private func savePDF(asCopy: Bool, completion: @escaping (Bool?, Error?) -> Void) {
         guard let doc = pdfDocument, let session = doc.session, let window else { return }
         func save(to destination: URL) {
@@ -196,11 +210,16 @@ final class PDFEditingWindowController: NSWindowController, WKNavigationDelegate
         if action == "chooseImage" || action == "chooseFont" || action == "choosePDF" {
             let panel = NSOpenPanel(); panel.allowsMultipleSelection = false
             switch action {
-            case "chooseImage": panel.allowedContentTypes = [.png,.jpeg,.tiff]
+            case "chooseImage": panel.allowedContentTypes = [.image]
             case "choosePDF": panel.allowedContentTypes = [.pdf]
             default: panel.allowedContentTypes = [UTType(filenameExtension:"ttf") ?? .data]
             }
-            panel.beginSheetModal(for: window!) { [weak self] response in self?.reply(id,response == .OK ? panel.url?.path : nil) }; return
+            panel.beginSheetModal(for: window!) { [weak self] response in
+                guard response == .OK, let url = panel.url else { self?.reply(id, nil); return }
+                guard action == "chooseImage" else { self?.reply(id, url.path); return }
+                if let path = PDFEditingWindowController.engineImage(url) { self?.reply(id, path) }
+                else { self?.reply(id, nil, PDFEditingBridge.Failure(message: url.lastPathComponent + ": 그림을 읽을 수 없습니다.")) }
+            }; return
         }
         if action == "extract" {
             // Keeps the selected pages by deleting the others into a separate file;

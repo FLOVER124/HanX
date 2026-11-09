@@ -16,7 +16,10 @@ async function openEditor({make,files,choose={},viewport={width:1250,height:1000
   edit:a=>{requests.push(a.operations);const out=path.join(revisions,`rev-${++serial}.pdf`);call({action:'edit',input:current,output:out,revision:a.revision,operations:a.operations});history.push(current);future=[];current=out;return true;},
   undo:()=>{if(history.length){future.push(current);current=history.pop();}return true;},redo:()=>{if(future.length){history.push(current);current=future.pop();}return true;},
   extract:a=>{const operations=require('../../desktop/pdf/pages.js').extractOperations(a.pages,a.count);const out=path.join(dir,'extracted.pdf');if(operations.length)call({action:'edit',input:current,output:out,force:true,operations});else fs.copyFileSync(current,out);return out;},
-  ocr:()=>({words:[]}),draft:()=>true,...Object.fromEntries(Object.entries(choose).map(([k,v])=>[k,()=>path.join(dir,v)]))};
+  stageImage:a=>{const target=path.join(dir,`staged-${++serial}.png`);fs.writeFileSync(target,Buffer.from(a.data,'base64'));return target;},
+  ocr:()=>({words:[]}),draft:()=>true,
+  // Like Electron, an SVG choice is returned as data for the editor page to rasterize.
+  ...Object.fromEntries(Object.entries(choose).map(([k,v])=>[k,()=>v.endsWith('.svg')?{convert:'data:image/svg+xml;base64,'+fs.readFileSync(path.join(dir,v)).toString('base64'),name:v}:path.join(dir,v)]))};
  const browser=await chromium.launch();const ui=await browser.newPage({viewport});const errors=[];ui.on('pageerror',e=>errors.push(e.message));
  await ui.exposeFunction('hostCall',(action,args)=>{try{if(!host[action])throw Error('unsupported '+action);return {ok:true,data:host[action](args)};}catch(e){return {ok:false,error:e.message};}});
  await ui.addInitScript(()=>{window.hanxPDF={request:async(a,b)=>{const r=await window.hostCall(a,b);if(!r.ok)throw Error(r.error);return r.data;}};});

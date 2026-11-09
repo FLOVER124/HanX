@@ -346,7 +346,7 @@ Mac 기본 앱과 기본 CLI의 문자 인식은 운영체제의 인식 엔진�
 | `set_text` | `text`, 선택적으로 `size`, `font`(TTF 파일 경로) |
 | `transform` | `dx`, `dy`, `scaleX`, `scaleY`, `rotation`(도, 반시계 방향). 크기·회전의 중심은 개체 중앙 |
 | `set_fill` | `color`(`#RRGGBB`), 선택적으로 `opacity`(0~1). 텍스트와 도형 |
-| `replace_image` | `image`(로컬 이미지 경로). 기존 위치와 크기 유지 |
+| `replace_image` | `image`(로컬 그림 경로: PNG, JPEG, WebP, AVIF, GIF, BMP, TIFF, ICO). 기존 위치와 크기 유지. 4,000만 화소를 넘으면 줄여서 넣고 사진의 회전 정보를 적용 |
 | `delete` | `page`, `object` |
 | `set_paragraph` | `page`, `objects`(문단을 이루는 텍스트 개체 번호 배열), `text`(줄바꿈 가능), 선택적으로 `width`, `lineHeight`, `size`, `font`. 원래 첫 줄 위치·폭·줄 간격으로 다시 배치 |
 | `add_text` | `page`, `text`(줄바꿈 가능), `x`, `y`(첫 줄 기준선), `size`, 선택적으로 `color`, `font`, `width`(자동 줄바꿈 폭), `lineHeight` |

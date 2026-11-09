@@ -5,6 +5,7 @@ const {pathToFileURL}=require('node:url');
 const {PDFSession}=require('./pdf-session.cjs');
 const {runEngine}=require('./engine.cjs');
 const windows=new Map();
+const PDF_IMAGES=['png','jpg','jpeg','webp','avif','gif','bmp','tif','tiff','ico'];
 const page=pathToFileURL(path.join(__dirname,'pdf/index.html')).href;
 let initialized=false;
 function register(){if(initialized)return;initialized=true;ipcMain.handle('hanx:pdf',(event,action,args)=>{
@@ -25,7 +26,11 @@ function register(){if(initialized)return;initialized=true;ipcMain.handle('hanx:
    case 'ocr':return session.ocr(args);
    case 'copyText':if(typeof args.text!=='string'||args.text.length>2000000)throw Error('복사할 텍스트가 너무 큽니다.');require('electron').clipboard.writeText(args.text);return true;
    case 'setup':return runEngine(session.executable,['pdf','setup']);
-   case 'chooseImage':case 'chooseFont':case 'choosePDF':{const filter={chooseImage:{name:'이미지',extensions:['png','jpg','jpeg','tif','tiff']},chooseFont:{name:'글꼴',extensions:['ttf']},choosePDF:{name:'PDF',extensions:['pdf']}}[action];const result=await dialog.showOpenDialog(win,{properties:['openFile'],filters:[filter]});return result.canceled?null:result.filePaths[0];}
+   case 'chooseImage':case 'chooseFont':case 'choosePDF':{const filter={chooseImage:{name:'이미지',extensions:[...PDF_IMAGES,'svg']},chooseFont:{name:'글꼴',extensions:['ttf']},choosePDF:{name:'PDF',extensions:['pdf']}}[action];const result=await dialog.showOpenDialog(win,{properties:['openFile'],filters:[filter]});if(result.canceled)return null;const file=result.filePaths[0];
+    // The PDF engine decodes raster formats itself; SVG is drawn by the editor page and staged as PNG.
+    if(action==='chooseImage'&&path.extname(file).toLowerCase()==='.svg'){const fs=require('node:fs');if(fs.statSync(file).size>16*1024*1024)throw Error('SVG 파일은 16 MiB 이하만 넣을 수 있습니다.');return {convert:'data:image/svg+xml;base64,'+fs.readFileSync(file).toString('base64'),name:path.basename(file)};}
+    return file;}
+   case 'stageImage':{if(typeof args.data!=='string'||args.data.length>64*1024*1024)throw Error('그림이 너무 큽니다.');const target=path.join(session.directory,require('node:crypto').randomUUID()+'.png');await require('node:fs/promises').writeFile(target,Buffer.from(args.data,'base64'));return target;}
    case 'extract':{const {extractOperations}=require('./pdf/pages.js');if(!Array.isArray(args.pages)||!Number.isInteger(args.count))throw Error('추출할 페이지를 선택하세요.');const operations=extractOperations(args.pages,args.count);const result=await dialog.showSaveDialog(win,{defaultPath:path.join(path.dirname(session.source),path.parse(session.source).name+'-추출.pdf'),filters:[{name:'PDF',extensions:['pdf']}]});if(result.canceled)return null;let destination=result.filePath;if(!path.extname(destination))destination+='.pdf';if(!operations.length){await require('node:fs/promises').copyFile(session.current,destination);return destination;}const command=['pdf','edit',session.current,'--ops','-','--output',destination];if(require('node:fs').existsSync(destination))command.push('--force');await runEngine(session.executable,command,operations);return destination;}
    case 'save':{let destination=session.source;if(args.as===true||!session.savedCopy){const result=await dialog.showSaveDialog(win,{defaultPath:path.join(path.dirname(destination),path.parse(destination).name+'-편집.pdf'),filters:[{name:'PDF',extensions:['pdf']}]});if(result.canceled)return null;destination=result.filePath;if(!path.extname(destination))destination+='.pdf';}return session.save(destination);}
    default:throw Error('지원하지 않는 PDF 작업입니다.');

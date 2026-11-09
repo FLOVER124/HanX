@@ -46,3 +46,5 @@ No test installs or replaces the user's HanX app.
 `test_annotations.py` builds a minimal AcroForm fixture (text, checkbox, combo box, read-only field and a note) and checks annotation/field inspection, filling with appearance regeneration, adding highlights/notes/squares with saved appearance streams, restyling, deleting (with popups), and rejection cases. `annotations-ui.cjs` exercises the 주석·양식 panel, on-page field selection, field inputs, note editing, highlight from selected text, note creation, Delete and undo.
 
 `pages-ui.cjs` also covers multi-page selection (Shift range, Ctrl toggle), rotating the selection, extracting it to a separate PDF through the host `extract` action, and deleting it with the Delete key.
+
+`test_images.py` checks WebP/AVIF/GIF/BMP insertion, downscaling and EXIF rotation of a large photo, and the error for formats the engine cannot read. `images-ui.cjs` inserts a WebP file directly and an SVG that the editor page rasterizes and stages as PNG.

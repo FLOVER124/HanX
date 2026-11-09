@@ -229,15 +229,22 @@ final class EditorWindowController: NSWindowController, NSTextViewDelegate, NSTo
         panel.allowsMultipleSelection = false
         guard let window else { return }
         panel.beginSheetModal(for: window) { [weak self] resp in
-            guard resp == .OK, let url = panel.url, let data = try? Data(contentsOf: url), let self else { return }
+            guard resp == .OK, let url = panel.url, var data = try? Data(contentsOf: url), let self else { return }
+            var name = url.lastPathComponent
+            // PNG and JPEG are kept as they are. Other formats (WebP, HEIC, SVG, ...) are converted
+            // to PNG so DOCX/HWP readers can display them; oversized pictures are scaled down.
+            if !["png", "jpg", "jpeg"].contains(url.pathExtension.lowercased()) || data.count > SlideMedia.videoLimit {
+                do { data = try SlideMedia.normalizedImage(data, name: name).data; name = url.deletingPathExtension().lastPathComponent + ".png" }
+                catch { NSAlert(error: error).beginSheetModal(for: window); return }
+            }
             let tv = self.activeTextView
-            let id = "insert/" + url.lastPathComponent
+            let id = "insert/" + name
             var mark = AttributedBridge.charProps(tv.typingAttributes)
             mark.underline = .none
             var size = ImageProbe.size(data) ?? (width: 0, height: 0)
             if size.width <= 0, let img = NSImage(data: data) { size = (Double(img.size.width), Double(img.size.height)) }
             let s = AttributedBridge.image(id: id, width: size.width, height: size.height, maxWidth: self.hwDocument.page.contentWidth, mark: mark,
-                                           ctx: .init(images: [id: ImageData(name: url.lastPathComponent, data: data)], source: self.hwDocument.sourceFormat))
+                                           ctx: .init(images: [id: ImageData(name: name, data: data)], source: self.hwDocument.sourceFormat))
             self.replace(tv.selectedRange(), with: s, in: tv)
         }
     }

@@ -570,9 +570,19 @@ def modify(doc, ops):
                 if action=='replace_image': require(obj.type==raw.FPDF_PAGEOBJ_IMAGE,'이미지 개체를 선택하세요.')
                 require(isinstance(op.get('image'),str),'이미지 경로를 지정하세요.')
                 image_path=Path(op['image']); require(image_path.is_file() and image_path.stat().st_size<=100*1024*1024,'이미지를 읽을 수 없거나 너무 큽니다.')
-                with Image.open(image_path) as image:
-                    require(image.width*image.height<=40000000,'이미지 해상도가 너무 큽니다.')
-                    bitmap=pdf.PdfBitmap.from_pil(image.convert('RGBA'))
+                try: opened=Image.open(image_path)
+                except Exception: raise PDFError('그림을 읽을 수 없습니다. PNG, JPEG, WebP, AVIF, GIF, BMP, TIFF 형식을 사용하세요.')
+                with opened as image:
+                    # Large photos are scaled to 40 million pixels instead of being rejected;
+                    # camera rotation is applied and animated images use their first frame.
+                    from PIL import ImageOps
+                    limit=40000000
+                    if image.width*image.height>limit:
+                        factor=math.sqrt(limit/(image.width*image.height)); image.draft('RGB',(int(image.width*factor),int(image.height*factor)))
+                    image=ImageOps.exif_transpose(image.convert('RGBA'))
+                    if image.width*image.height>limit:
+                        factor=math.sqrt(limit/(image.width*image.height)); image=image.resize((max(1,int(image.width*factor)),max(1,int(image.height*factor))),Image.LANCZOS)
+                    bitmap=pdf.PdfBitmap.from_pil(image)
                     try:
                         if action=='add_image': obj=pdf.PdfImage.new(doc)
                         obj.set_bitmap(bitmap,pages=[page])

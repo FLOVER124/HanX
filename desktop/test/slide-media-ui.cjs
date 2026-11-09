@@ -29,6 +29,17 @@ app.on('window-all-closed',()=>{});
   await js("(async()=>dropFiles([await testImage(),new File(['bad'],'잘못된 파일.txt')]))()");
   assert.equal(await js('mediaTest.operations().length'),count,'An invalid batch must not partially insert');
   assert.equal(await js('mediaTest.errors().length'),1);
+  // WebP and SVG are converted to PNG; an image above 16 million pixels is scaled down, not rejected.
+  await js(`window.canvasFile=async(w,h,type,name)=>{const c=document.createElement('canvas');c.width=w;c.height=h;const g=c.getContext('2d');g.fillStyle='#2874ef';g.fillRect(0,0,w,h);return new File([await new Promise(r=>c.toBlob(r,type))],name,{type});};
+   window.svgFile=()=>new File(['<svg xmlns="http://www.w3.org/2000/svg" width="64" height="32"><rect width="64" height="32" fill="red"/></svg>'],'아이콘.svg',{type:'image/svg+xml'});void 0;`);
+  for(const [code,name,size] of [["canvasFile(120,60,'image/webp','사진.webp')",'사진.webp',[2048,1024]],['svgFile()','아이콘.svg',[2048,1024]],["canvasFile(5000,4000,'image/png','큰 사진.png')",'큰 사진.png',[4472,3578]]]){
+   const before=await js('mediaTest.operations().length');assert.equal(await js(`(async()=>dropFiles([await ${code}]))()`),true);
+   op=(await js('mediaTest.operations()')).at(-1);assert.equal(await js('mediaTest.operations().length'),before+1,name);assert.equal(op.value.name,name);
+   assert.equal(Buffer.from(op.value.imageData.data,'base64').subarray(1,4).toString(),'PNG');
+   const png=Buffer.from(op.value.imageData.data,'base64'),pixels=[png.readUInt32BE(16),png.readUInt32BE(20)];
+   if(name.endsWith('.webp'))assert.deepEqual(pixels,[120,60]);else assert.deepEqual(pixels,size,name);
+  }
+  assert.equal(await js('mediaTest.errors().length'),1,'Supported image formats must not report errors');
   await js('dropFiles([testMovie()])');op=(await js('mediaTest.operations()')).at(-1);
   assert.equal(op.value.videoData.data,movie.toString('base64'));assert.equal(op.value.name,'소개 영상.mp4');
   await js(`state.model.images={poster:{name:'poster.png',data:mediaTest.operations()[0].value.imageData.data},movie:{name:'소개 영상.mp4',data:mediaTest.movie()}};

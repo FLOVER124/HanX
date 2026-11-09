@@ -783,10 +783,12 @@ final class SlideWindowController: NSWindowController, SlideCanvasDelegate, Slid
         let panel = NSOpenPanel()
         panel.allowedContentTypes = [.image]
         panel.beginSheetModal(for: window!) { [weak self] r in
-            guard r == .OK, let url = panel.url, let data = try? Data(contentsOf: url), let self else { return }
-            let key = "background/\(UUID().uuidString)/\(url.lastPathComponent)"
+            guard r == .OK, let url = panel.url, let self else { return }
+            let image: (data: Data, size: CGSize)
+            do { image = try SlideMedia.imageFile(url) } catch { self.imageAlert("배경 그림을 넣을 수 없습니다", detail: error.localizedDescription); return }
+            let key = "background/\(UUID().uuidString)/background.png"
             let idx = self.current
-            self.doc.edit("배경 그림") { p in p.images[key] = ImageData(name: url.lastPathComponent, data: data); p.slides[idx].backgroundEnd = nil; p.slides[idx].backgroundImage = key }
+            self.doc.edit("배경 그림") { p in p.images[key] = ImageData(name: "background.png", data: image.data); p.slides[idx].backgroundEnd = nil; p.slides[idx].backgroundImage = key }
         }
     }
 
@@ -965,10 +967,11 @@ final class SlideWindowController: NSWindowController, SlideCanvasDelegate, Slid
         guard !urls.isEmpty else { return false }
         do {
             guard urls.count <= 16 else { throw NSError(domain:"HanX.SlideMedia",code:1,userInfo:[NSLocalizedDescriptionKey:"한 번에 16개 이하의 파일을 넣을 수 있습니다."]) }
-            let total = try urls.reduce(0) { sum, url in
+            // Videos are embedded as-is; images are converted and scaled individually.
+            let total = try urls.filter { SlideMedia.movieExtensions.contains($0.pathExtension.lowercased()) }.reduce(0) { sum, url in
                 sum + (try url.resourceValues(forKeys:[.fileSizeKey]).fileSize ?? SlideMedia.videoLimit + 1)
             }
-            guard total <= SlideMedia.videoLimit else { throw NSError(domain:"HanX.SlideMedia",code:1,userInfo:[NSLocalizedDescriptionKey:"한 번에 합계 16 MiB 이하의 파일을 넣을 수 있습니다."]) }
+            guard total <= SlideMedia.videoLimit else { throw NSError(domain:"HanX.SlideMedia",code:1,userInfo:[NSLocalizedDescriptionKey:"한 번에 넣는 동영상은 합계 16 MiB 이하여야 합니다."]) }
             let items = try urls.map(SlideMedia.read)
             canvas.endEditing()
             let idx = doc.pres.slides.isEmpty ? 0 : current
