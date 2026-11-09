@@ -1,0 +1,65 @@
+name: Cloud MCP
+on:
+  push:
+    paths: ["cloud/**", "plugins/hanx/skills/**", ".github/workflows/cloud.yml"]
+  pull_request:
+    paths: ["cloud/**", "plugins/hanx/skills/**", ".github/workflows/cloud.yml"]
+  workflow_dispatch:
+    inputs:
+      deploy:
+        description: "Deploy to Cloudflare after tests pass"
+        type: boolean
+        default: false
+permissions:
+  contents: read
+concurrency:
+  group: cloud-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name != 'workflow_dispatch' }}
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: cloud/worker
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: cloud/worker/package-lock.json
+      - run: npm ci
+      - name: Type check
+        run: npm run typecheck
+      - name: Build and start engine container
+        run: |
+          docker build -t hanx-engine ../engine
+          docker run -d --name hanx-engine -p 8080:8080 hanx-engine
+      - name: Start Worker locally
+        run: |
+          npx wrangler dev --env local --port 8787 --ip 127.0.0.1 > wrangler.log 2>&1 &
+          for i in $(seq 1 60); do curl -sf http://127.0.0.1:8787/health && exit 0; sleep 1; done
+          cat wrangler.log; exit 1
+      - name: End-to-end MCP tests
+        run: HANX_CLOUD_URL=http://127.0.0.1:8787 npm test
+  deploy:
+    needs: test
+    if: github.event_name == 'workflow_dispatch' && inputs.deploy
+    runs-on: ubuntu-24.04
+    environment: cloudflare
+    defaults:
+      run:
+        working-directory: cloud/worker
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: cloud/worker/package-lock.json
+      - run: npm ci
+      - name: Deploy Worker and engine container
+        run: npx wrangler deploy
