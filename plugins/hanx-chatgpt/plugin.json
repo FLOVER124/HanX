@@ -1,0 +1,40 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "hanx",
+  "version": "2.13.5",
+  "description": "내 컴퓨터에 설치된 HanX로 HWP, HWPX, DOCX, XLSX, PPTX, PDF 파일을 읽고 만들고 편집하고 변환합니다.",
+  "author": {
+    "name": "FLOVER124"
+  },
+  "homepage": "https://hanx.io/",
+  "repository": "https://github.com/FLOVER124/HanX",
+  "license": "MIT",
+  "keywords": [
+    "HanX",
+    "한워드",
+    "한글 문서",
+    "HWP",
+    "HWPX",
+    "DOCX"
+  ],
+  "extensions": {
+    "com.openai": {
+      "requires_local_executor": true,
+      "interface": {
+        "displayName": "HanX",
+        "shortDescription": "한글 문서 읽기·편집·변환",
+        "longDescription": "ChatGPT 데스크톱과 Codex에서 내 컴퓨터에 설치된 HanX로 HWP·HWPX·DOCX 문서의 본문과 표를 읽고, 새 문서를 만들거나 편집본을 저장하고, 다른 형식으로 변환할 수 있습니다. 스프레드시트, 프레젠테이션, PDF도 설치된 HanX가 지원하는 범위에서 처리합니다. 문서는 컴퓨터 밖으로 나가지 않습니다.",
+        "developerName": "FLOVER124",
+        "category": "Productivity",
+        "websiteURL": "https://hanx.io/",
+        "logo": "./assets/hanx.png",
+        "composerIcon": "./assets/hanx.png",
+        "defaultPrompt": [
+          "이 HWP 문서의 본문과 표를 읽고 요약해 줘.",
+          "이 HWPX 문서를 DOCX 복사본으로 저장해 줘.",
+          "제목과 표가 있는 회의록을 새 HWPX 문서로 만들어 줘."
+        ]
+      }
+    }
+  }
+}

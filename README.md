@@ -51,6 +51,15 @@ AI 에이전트의 MCP 연결에는 `hanx mcp`를 사용합니다. Claude Code�
 
 자세한 내용은 [플러그인 안내](plugins/hanx/README.md)를 확인하세요.
 
+Codex와 ChatGPT 데스크톱의 로컬 대화에서는 같은 저장소의 HanX 플러그인을 설치합니다.
+
+```sh
+codex plugin marketplace add FLOVER124/HanX
+codex plugin add hanx@hanx
+```
+
+자세한 내용은 [ChatGPT·Codex 플러그인 안내](plugins/hanx-chatgpt/README.md)를 확인하세요.
+
 ChatGPT, Claude 웹·앱에서는 `hanx connect`를 실행하고 표시된 주소를 커넥터로 추가합니다. 문서는 이 컴퓨터의 HanX가 처리하며 다른 서버에 올리거나 저장하지 않습니다. 자세한 방법은 [AI 연결 안내](https://hanx.io/ai/)를 확인하세요.
 
 [CLI 안내](docs/cli/README.md)에서 연결과 스프레드시트 작업 예제를 확인하세요.

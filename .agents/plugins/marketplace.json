@@ -1,0 +1,12 @@
+{
+  "name": "hanx",
+  "interface": {"displayName": "HanX"},
+  "plugins": [
+    {
+      "name": "hanx",
+      "source": {"source": "local", "path": "./plugins/hanx-chatgpt"},
+      "policy": {"installation": "AVAILABLE", "authentication": "ON_INSTALL"},
+      "category": "Productivity"
+    }
+  ]
+}
