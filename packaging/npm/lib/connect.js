@@ -312,7 +312,8 @@ function parseTunnelUrl(text) {
 }
 
 function findExecutable(name) {
-  const exts = process.platform === 'win32' ? ['.exe', '.cmd', ''] : [''];
+  // Node cannot spawn .cmd/.bat files without a shell, so Windows only accepts the real executable.
+  const exts = process.platform === 'win32' ? ['.exe'] : [''];
   for (const dir of (process.env.PATH || '').split(path.delimiter)) {
     for (const ext of exts) {
       const candidate = path.join(dir, name + ext);
@@ -329,9 +330,13 @@ function cloudflaredHelp() {
   return `공개 주소를 만들려면 무료 도구 cloudflared가 필요합니다. 계정은 필요 없습니다.\n  설치: ${how}\n설치 후 hanx connect를 다시 실행하세요.`;
 }
 
-function startTunnel(executable, port) {
+function startTunnel(executable, port, launcherArgs = [], platform = process.platform) {
   return new Promise((resolve, reject) => {
-    const child = spawn(executable, ['tunnel', '--no-autoupdate', '--url', `http://127.0.0.1:${port}`], { stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true });
+    if (platform === 'win32' && /\.(cmd|bat)$/i.test(executable)) {
+      reject(new BridgeError(`cloudflared.exe 경로가 필요합니다. 배치 파일(${path.basename(executable)})은 실행할 수 없습니다.`));
+      return;
+    }
+    const child = spawn(executable, [...launcherArgs, 'tunnel', '--no-autoupdate', '--url', `http://127.0.0.1:${port}`], { stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true });
     let seen = '';
     const timer = setTimeout(() => reject(Object.assign(new BridgeError('Cloudflare 터널 주소를 받지 못했습니다. 인터넷 연결을 확인하세요.'), { child })), 60000);
     const onData = (chunk) => {

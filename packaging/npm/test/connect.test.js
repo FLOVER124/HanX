@@ -61,11 +61,16 @@ test('parses options and tunnel addresses', () => {
 test('starts cloudflared and reads its public address', async () => {
   const fake = path.join(temp, 'fake-cloudflared.js');
   fs.writeFileSync(fake, "process.stderr.write('INF Your quick Tunnel has been created! Visit it at:\\nINF |  https://calm-sea-42.trycloudflare.com  |\\n'); setInterval(()=>{}, 1000);");
-  const launcher = path.join(temp, process.platform === 'win32' ? 'cf.cmd' : 'cf');
-  fs.writeFileSync(launcher, process.platform === 'win32' ? `@"${process.execPath}" "${fake}" %*` : `#!/bin/sh\nexec "${process.execPath}" "${fake}" "$@"\n`, { mode: 0o755 });
-  const { child, url } = await startTunnel(launcher, 1234);
+  // Run the fake through Node itself so the same check works on every platform without a shell wrapper.
+  const { child, url } = await startTunnel(process.execPath, 1234, [fake]);
   child.kill();
   assert.equal(url, 'https://calm-sea-42.trycloudflare.com');
+});
+
+test('rejects Windows batch launchers for cloudflared with a clear message', async () => {
+  for (const name of ['cloudflared.cmd', 'C:\\tools\\cloudflared.BAT']) {
+    await assert.rejects(startTunnel(name, 1234, [], 'win32'), (error) => error instanceof BridgeError && /cloudflared\.exe/.test(error.message));
+  }
 });
 
 // Full round trip through the real engine: HANX_BIN=/path/to/hanx npm test
